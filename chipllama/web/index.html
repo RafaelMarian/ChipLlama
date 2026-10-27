@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ChipLlama - PIC24 verified peripheral copilot</title>
+<style>
+:root{--bg:#0f1419;--card:#18202a;--line:#2a3646;--tx:#e6edf3;--mut:#8b9bb0;--ok:#3fb950;--bad:#f85149;--warn:#d29922;--acc:#58a6ff}
+*{box-sizing:border-box}body{margin:0;font:15px/1.5 system-ui,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--tx)}
+header{padding:16px 24px;border-bottom:1px solid var(--line);display:flex;gap:16px;align-items:baseline;flex-wrap:wrap}
+h1{margin:0;font-size:20px}h1 span{color:var(--acc)}.sub{color:var(--mut);font-size:13px}
+main{max-width:1100px;margin:0 auto;padding:20px}
+nav{display:flex;gap:8px;margin-bottom:16px}nav button{background:var(--card);color:var(--tx);border:1px solid var(--line);padding:8px 16px;border-radius:8px;cursor:pointer}
+nav button.on{border-color:var(--acc);color:var(--acc)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:16px}
+textarea,input,select{width:100%;background:#0b0f14;color:var(--tx);border:1px solid var(--line);border-radius:8px;padding:10px;font:inherit}
+textarea{min-height:90px;font-family:Consolas,monospace;font-size:13px}
+.row{display:flex;gap:12px;flex-wrap:wrap;align-items:end}.row>*{flex:1;min-width:140px}label{font-size:12px;color:var(--mut);display:block;margin-bottom:4px}
+button.go{background:var(--acc);color:#04111f;border:0;padding:10px 20px;border-radius:8px;font-weight:600;cursor:pointer;flex:0 0 auto}
+button.go:disabled{opacity:.5}button.sec{background:transparent;color:var(--acc);border:1px solid var(--acc);padding:8px 14px;border-radius:8px;cursor:pointer}
+pre{background:#0b0f14;border:1px solid var(--line);border-radius:8px;padding:12px;overflow:auto;font-size:13px;margin:8px 0}
+.pill{display:inline-block;padding:2px 10px;border-radius:99px;font-size:12px;font-weight:600}
+.ok{background:rgba(63,185,80,.15);color:var(--ok)}.bad{background:rgba(248,81,73,.15);color:var(--bad)}.warn{background:rgba(210,153,34,.15);color:var(--warn)}.info{background:rgba(88,166,255,.12);color:var(--acc)}
+.f{margin:4px 0;font-size:13px}table{border-collapse:collapse;width:100%;font-size:13px}td,th{border-bottom:1px solid var(--line);padding:4px 8px;text-align:left;font-family:Consolas,monospace}
+.hide{display:none}small{color:var(--mut)}
+</style></head><body>
+<header><h1>Chip<span>Llama</span></h1><span class="sub">Verifiable PIC24FJ256GB110 copilot &middot; Muse Spark + XC16 + register checker</span><span class="sub" id="status"></span></header>
+<main>
+<nav><button id="t1" class="on" onclick="tab(1)">Generate &amp; verify</button><button id="t2" onclick="tab(2)">Reverse-debug</button><button id="t3" onclick="tab(3)">How it works</button></nav>
+
+<section id="p1">
+ <div class="card"><label>Describe the peripheral setup</label>
+  <textarea id="req">Configure Timer1 to generate an interrupt every 10 ms with priority 5, Fosc = 32 MHz.</textarea>
+  <div class="row" style="margin-top:10px">
+   <div><label>Backend</label><select id="backend"><option value="">default (.env)</option><option value="meta">Meta Model API - Muse Spark</option><option value="baseten">Baseten - Muse Spark Open</option></select></div>
+   <div><label>Max iterations</label><input id="iters" type="number" value="4" min="1" max="8"></div>
+   <div><label>Datasheet page images</label><select id="imgs"><option value="1">attach (if PDF present)</option><option value="0">text only</option></select></div>
+   <button class="go" id="gen" onclick="generate()">Generate &amp; verify</button>
+  </div></div>
+ <div id="out"></div>
+</section>
+
+<section id="p2" class="hide">
+ <div class="card"><label>Paste register dump (e.g. <code>T1CON = 0x8030</code>, one per line)</label>
+  <textarea id="dump">T1CON = 0x0030
+PR1   = 0xFFFF
+IEC0  = 0x0000
+IFS0  = 0x0008
+IPC0  = 0x4444</textarea>
+  <div class="row" style="margin-top:10px"><div><label>Symptom</label><input id="sym" value="My 10 ms timer interrupt never runs"></div>
+   <div><label>Assumed Fosc (MHz)</label><input id="fosc" type="number" value="32"></div>
+   <div><label>Expected period (ms, optional)</label><input id="exp" type="number" value="10"></div></div>
+  <div class="row" style="margin-top:10px"><div><label>Debugger screenshot(s) (optional, multimodal)</label><input id="shots" type="file" accept="image/*" multiple></div>
+   <div><label>Backend</label><select id="dbackend"><option value="">default</option><option value="meta">Muse Spark</option><option value="baseten">Muse Spark Open</option></select></div>
+   <div><label>AI explanation</label><select id="usem"><option value="true">on</option><option value="false">off (deterministic only)</option></select></div>
+   <button class="go" onclick="dbg()">Analyse</button></div></div>
+ <div id="dout"></div>
+</section>
+
+<section id="p3" class="hide"><div class="card">
+<p><b>ChipLlama is not a RAG chatbot.</b> It is a closed loop:</p>
+<ol><li>Parse the request deterministically (timer, period, Fosc, interrupt) and compute a <i>reference</i> solution with a calculator checked against DS39897C.</li>
+<li>Give Muse Spark the register facts <i>and datasheet page images</i> (T1CON/T2CON/T3CON/IFS0/IEC0/IPC pages).</li>
+<li>Muse writes C with explicit bit math. A mini register emulator executes the init code and a rule checker compares the final T1CON/PR1/IEC0/IPC0/ISR with the requested period.</li>
+<li>xc16-gcc compiles it (skipped gracefully if XC16 is missing). Compiler errors and checker findings are fed back until it verifies.</li>
+<li>Export to an MPLAB X-ready folder; optional PICkit 5 flashing via ipecmd is OFF by default.</li></ol></div></section>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+function tab(n){for(let i=1;i<=3;i++){$('p'+i).classList.toggle('hide',i!=n);$('t'+i).classList.toggle('on',i==n)}}
+function el(tag,cls,text){const e=document.createElement(tag);if(cls)e.className=cls;if(text!=null)e.textContent=text;return e}
+function pill(sev){return el('span','pill '+({error:'bad',warning:'warn',info:'info',ok:'ok'}[sev]||'info'),sev)}
+fetch('/api/status').then(r=>r.json()).then(s=>{$('status').textContent=`backend ${s.backend} · xc16 ${s.xc16_gcc?'found':'missing (compile skipped)'} · flash ${s.flash_enabled?'ENABLED':'off'}`})
+async function generate(){
+  const b=$('gen');b.disabled=true;b.textContent='Working…';const out=$('out');out.replaceChildren(el('div','card','Muse is generating and the checker is verifying… (can take a minute)'));
+  try{
+    const r=await fetch('/api/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({request:$('req').value,backend:$('backend').value||null,max_iters:+$('iters').value,use_images:$('imgs').value==='1'})});
+    const j=await r.json();if(!r.ok)throw new Error(j.detail||r.statusText);render(j)
+  }catch(e){out.replaceChildren(el('div','card','Error: '+e.message))}
+  b.disabled=false;b.textContent='Generate & verify'}
+function render(j){
+  const out=$('out');out.replaceChildren();
+  const h=el('div','card');const st=el('span','pill '+(j.status==='verified'?'ok':'bad'),j.status.toUpperCase());h.append(st,el('span','',' verification: '+j.verification_level+' · backend '+j.backend));
+  if(j.error)h.append(el('div','f','Error: '+j.error));(j.notes||[]).forEach(n=>h.append(el('div','f','note: '+n)));
+  if(j.reference){const r=j.reference;h.append(el('div','f',`Reference: Timer${r.spec.timer} TCKPS=${r.tckps} (1:${r.prescale}), PR=${r.period_reg}, achieved ${(r.achieved_s*1e3).toPrecision(6)} ms, ${r.error_ppm.toFixed(0)} ppm`))}
+  out.append(h);
+  (j.attempts||[]).forEach(a=>{const c=el('div','card');c.append(el('b','','Attempt '+a.n+' '),el('span','pill '+(a.check.ok?'ok':'bad'),'checker '+(a.check.ok?'pass':'fail')),document.createTextNode(' '),el('span','pill '+(a.compile.status==='ok'?'ok':a.compile.status==='skipped'?'warn':'bad'),'compile '+a.compile.status));
+    a.check.findings.filter(f=>f.severity!=='info').forEach(f=>{const d=el('div','f');d.append(pill(f.severity),el('span','',' '+f.code+': '+f.message));c.append(d)});
+    if(a.compile.status==='error')c.append(el('pre','',a.compile.output));
+    const rt=el('table');rt.append(Object.assign(el('tr'),{innerHTML:'<th>register</th><th>code gives</th><th>reference</th>'}));
+    Object.keys(a.check.registers).forEach(k=>{const tr=el('tr');tr.append(el('td','',k),el('td','',a.check.registers[k]),el('td','',a.check.expected[k]||''));rt.append(tr)});c.append(rt);
+    out.append(c)});
+  if(j.code){const c=el('div','card');c.append(el('b','','Final C (main.c)'),el('pre','',j.code));
+    const b=el('button','sec','Download MPLAB X folder (zip)');b.onclick=async()=>{const r=await fetch('/api/export',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code:j.code,request:j.request})});const bl=await r.blob();const a=document.createElement('a');a.href=URL.createObjectURL(bl);a.download='ChipLlamaProject.zip';a.click()};c.append(b);out.append(c)}}
+async function dbg(){
+  const fd=new FormData();fd.append('dump',$('dump').value);fd.append('symptom',$('sym').value);fd.append('fosc_mhz',$('fosc').value);
+  if($('exp').value)fd.append('expected_period_ms',$('exp').value);if($('dbackend').value)fd.append('backend',$('dbackend').value);fd.append('use_model',$('usem').value);
+  for(const f of $('shots').files)fd.append('images',f);
+  const o=$('dout');o.replaceChildren(el('div','card','Analysing…'));
+  try{const r=await fetch('/api/debug',{method:'POST',body:fd});const j=await r.json();if(!r.ok)throw new Error(j.detail||r.statusText);
+   o.replaceChildren();const c=el('div','card');c.append(el('b','','Decoded registers'));
+   j.decoded.forEach(d=>{if(Object.keys(d.fields).length)c.append(el('div','f',`${d.register} ${d.value}  `+Object.entries(d.fields).map(([k,v])=>k+'='+v).join(' ')))});o.append(c);
+   const f=el('div','card');f.append(el('b','','Findings'));j.findings.forEach(x=>{const d=el('div','f');d.append(pill(x.severity),el('span','',' '+x.message));f.append(d)});o.append(f);
+   if(j.explanation){const e=el('div','card');e.append(el('b','','Muse explanation'),el('pre','',j.explanation));o.append(e)}
+   (j.notes||[]).forEach(n=>o.append(el('div','f','note: '+n)))
+  }catch(e){o.replaceChildren(el('div','card','Error: '+e.message))}}
+</script></body></html>

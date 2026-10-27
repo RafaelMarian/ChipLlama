@@ -1,0 +1,6 @@
+# Register dump from a PIC24FJ256GB110: "my 10 ms timer interrupt never fires"
+T1CON = 0x0030
+PR1   = 0xFFFF
+IEC0  = 0x0000
+IFS0  = 0x0000
+IPC0  = 0x4444
