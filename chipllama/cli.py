@@ -27,13 +27,9 @@ def _utf8():
 
 
 def cmd_doctor(a, s: Settings) -> int:
-    print(f"device            : {s.device} (part for ipecmd: -P{part_name(s.device)})")
-    print(f"backend           : {s.backend}")
-    print(f"MODEL_API_KEY     : {'set' if s.meta_api_key else 'NOT set'}   model={s.meta_model}")
-    print(f"BASETEN_API_KEY   : {'set' if s.baseten_api_key else 'NOT set'}   model={s.baseten_model}")
-    print(f"xc16-gcc          : {find_tool('xc16-gcc', s.xc16_gcc) or 'NOT FOUND (compile step will be skipped)'}")
-    print(f"datasheet PDF     : {s.datasheet_pdf} -> {'found' if Path(s.datasheet_pdf).is_file() else 'missing (text-only prompts)'}")
-    print(f"flash enabled     : {s.enable_flash}   tool={s.ipecmd_tool}   ipecmd={find_ipecmd(s.ipecmd_path) or 'not found'}")
+    from .doctor import doctor
+    for r in doctor(s):
+        print(f"{r['label']:<18}: {r['value']}")
     return 0
 
 
@@ -144,7 +140,12 @@ def cmd_flash(a, s: Settings) -> int:
 
 def cmd_serve(a, s: Settings) -> int:
     import uvicorn
-    print(f"ChipLlama UI on http://{a.host}:{a.port}")
+    url = f"http://{a.host}:{a.port}"
+    print(f"ChipLlama dashboard on {url}  (Ctrl+C to stop)")
+    if not getattr(a, "no_browser", False):
+        import threading
+        import webbrowser
+        threading.Timer(1.2, lambda: webbrowser.open(url)).start()
     uvicorn.run("chipllama.server:get_app", host=a.host, port=a.port, factory=True)
     return 0
 
@@ -178,7 +179,8 @@ def build_parser() -> argparse.ArgumentParser:
     f = sub.add_parser("flash", help="OPTIONAL: program a .hex with ipecmd (PICkit 5 default)")
     f.add_argument("hex"); f.add_argument("--yes", action="store_true"); f.set_defaults(fn=cmd_flash)
     sv = sub.add_parser("serve", help="start the web UI")
-    sv.add_argument("--host", default="127.0.0.1"); sv.add_argument("--port", type=int, default=8000); sv.set_defaults(fn=cmd_serve)
+    sv.add_argument("--host", default="127.0.0.1"); sv.add_argument("--port", type=int, default=8000)
+    sv.add_argument("--no-browser", action="store_true"); sv.set_defaults(fn=cmd_serve)
     return p
 
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from . import chipdb
+from . import board as boardmod
 from .timers import TimerSpec, TimerSolution, TIMERS, interrupt_names
 
 SYSTEM = """You are ChipLlama, an expert embedded firmware engineer for the Microchip PIC24FJ256GB110 family (16-bit, DS39897C), compiled with MPLAB XC16 (xc16-gcc).
@@ -13,7 +14,9 @@ Rules:
 - Show the bit math explicitly: compute prescaler and PR with macros/constant expressions and comment each step, e.g. `PR1 = (FCY / PRESCALE / FREQ) - 1`. Period = (PR+1) * prescale / Fcy.
 - Load PRx and clear TMRx BEFORE setting TON. Clear the interrupt flag, set priority (1-7), then enable the interrupt, then start the timer.
 - Interrupt handlers must use the XC16 vector name (_T1Interrupt, _T2Interrupt, _T3Interrupt) with `__attribute__((interrupt, auto_psv))` and clear the flag first.
-- Do not emit configuration-bit pragmas (the user's MPLAB X project owns them) and do not invent registers. Include a `main()` that calls the init function and loops forever.
+- ALWAYS start the file (right after `#include <xc.h>`) with the complete `#pragma config` block given in the request, every line, unchanged unless the requested Fosc needs a different clock mode. The board is bare (no crystal, nothing else sets the configuration words), so code without them does not run as intended.
+- The clock configuration must produce exactly the FOSC used in the timing math: FRCPLL -> PLL input must be 4 MHz (FRC 8 MHz / RCDIV / PLLDIV), PLL 96 MHz / 3 = 32 MHz, then CLKDIV.CPDIV (0=32,1=16,2=8,3=4 MHz). FRC = 8 MHz. Never use POSCMOD other than NONE or FNOSC=PRI/PRIPLL unless the request says a crystal is fitted.
+- Run the given clock statements (CLKDIVbits...) first in main(), before any peripheral init. Do not use _CONFIGx() macros and do not invent registers. Include a `main()` that calls the init function and loops forever.
 - If the datasheet page images contradict your memory, trust the images and the register table given below."""
 
 
@@ -47,9 +50,21 @@ def spec_text(spec: TimerSpec) -> str:
             + (f", priority {spec.priority}" if spec.priority else "") + f", tolerance {spec.tolerance*100:g}%")
 
 
-def first_user_prompt(request: str, spec: TimerSpec, solution_hint: TimerSolution | None, image_note: str) -> str:
+def board_text(profile: "boardmod.BoardProfile", ics: str) -> str:
+    s = [f"Board/clock profile: {profile.title}. Programmer/debugger wired to PGEC{ics[-1]}/PGED{ics[-1]}.",
+         "Emit exactly this configuration block:", "```c", boardmod.render_pragmas(profile, ics), "```"]
+    if profile.clock_code:
+        s += ["First statements in main():", *("    " + c for c in profile.clock_code)]
+    if profile.note:
+        s.append("Note: " + profile.note)
+    return "\n".join(s)
+
+
+def first_user_prompt(request: str, spec: TimerSpec, solution_hint: TimerSolution | None, image_note: str,
+                      profile: "boardmod.BoardProfile | None" = None, ics: str = "PGx2") -> str:
+    profile = profile or boardmod.get_profile("frcpll")
     s = [f"Request: {request}", "", "Parameters extracted by the tool (verified later): " + spec_text(spec), "",
-         register_table_text(spec)]
+         board_text(profile, ics), "", register_table_text(spec)]
     if image_note:
         s += ["", image_note]
     if solution_hint:

@@ -1,104 +1,173 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>ChipLlama - PIC24 verified peripheral copilot</title>
+<title>ChipLlama · PIC24 copilot</title>
 <style>
-:root{--bg:#0f1419;--card:#18202a;--line:#2a3646;--tx:#e6edf3;--mut:#8b9bb0;--ok:#3fb950;--bad:#f85149;--warn:#d29922;--acc:#58a6ff}
-*{box-sizing:border-box}body{margin:0;font:15px/1.5 system-ui,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--tx)}
-header{padding:16px 24px;border-bottom:1px solid var(--line);display:flex;gap:16px;align-items:baseline;flex-wrap:wrap}
-h1{margin:0;font-size:20px}h1 span{color:var(--acc)}.sub{color:var(--mut);font-size:13px}
-main{max-width:1100px;margin:0 auto;padding:20px}
-nav{display:flex;gap:8px;margin-bottom:16px}nav button{background:var(--card);color:var(--tx);border:1px solid var(--line);padding:8px 16px;border-radius:8px;cursor:pointer}
-nav button.on{border-color:var(--acc);color:var(--acc)}
-.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:16px}
-textarea,input,select{width:100%;background:#0b0f14;color:var(--tx);border:1px solid var(--line);border-radius:8px;padding:10px;font:inherit}
-textarea{min-height:90px;font-family:Consolas,monospace;font-size:13px}
-.row{display:flex;gap:12px;flex-wrap:wrap;align-items:end}.row>*{flex:1;min-width:140px}label{font-size:12px;color:var(--mut);display:block;margin-bottom:4px}
-button.go{background:var(--acc);color:#04111f;border:0;padding:10px 20px;border-radius:8px;font-weight:600;cursor:pointer;flex:0 0 auto}
-button.go:disabled{opacity:.5}button.sec{background:transparent;color:var(--acc);border:1px solid var(--acc);padding:8px 14px;border-radius:8px;cursor:pointer}
-pre{background:#0b0f14;border:1px solid var(--line);border-radius:8px;padding:12px;overflow:auto;font-size:13px;margin:8px 0}
-.pill{display:inline-block;padding:2px 10px;border-radius:99px;font-size:12px;font-weight:600}
-.ok{background:rgba(63,185,80,.15);color:var(--ok)}.bad{background:rgba(248,81,73,.15);color:var(--bad)}.warn{background:rgba(210,153,34,.15);color:var(--warn)}.info{background:rgba(88,166,255,.12);color:var(--acc)}
-.f{margin:4px 0;font-size:13px}table{border-collapse:collapse;width:100%;font-size:13px}td,th{border-bottom:1px solid var(--line);padding:4px 8px;text-align:left;font-family:Consolas,monospace}
-.hide{display:none}small{color:var(--mut)}
+:root{--bg:#0b1020;--panel:#121a2e;--panel2:#18223b;--line:#26314f;--tx:#e6ebf5;--mut:#8c97b2;--acc:#5b8cff;--acc2:#8b5cf6;--ok:#22c55e;--warn:#f59e0b;--bad:#ef4444;--mono:ui-monospace,SFMono-Regular,Consolas,Menlo,monospace}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(1200px 600px at 10% -10%,#1d2b55 0,transparent 60%),var(--bg);color:var(--tx);font:14px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+header{display:flex;align-items:center;gap:16px;padding:14px 24px;border-bottom:1px solid var(--line);background:rgba(11,16,32,.8);backdrop-filter:blur(8px);position:sticky;top:0;z-index:5}
+.logo{font-weight:800;font-size:18px;letter-spacing:.2px}.logo span{background:linear-gradient(90deg,var(--acc),var(--acc2));-webkit-background-clip:text;color:transparent}
+.sub{color:var(--mut);font-size:12px}nav{display:flex;gap:4px;margin-left:24px}
+nav button{background:none;border:0;color:var(--mut);padding:8px 14px;border-radius:8px;cursor:pointer;font-weight:600}
+nav button.on{background:var(--panel2);color:var(--tx)}#chips{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap}
+main{max-width:1280px;margin:0 auto;padding:22px}.grid{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:18px}
+@media(max-width:980px){.grid{grid-template-columns:1fr}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:14px}
+.card h3{margin:0 0 10px;font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--mut)}
+textarea,input,select{width:100%;background:var(--panel2);color:var(--tx);border:1px solid var(--line);border-radius:10px;padding:10px;font:inherit}
+textarea{font-family:var(--mono);font-size:13px}textarea#req{font-family:inherit;font-size:15px;min-height:86px}
+label{display:block;color:var(--mut);font-size:12px;margin:10px 0 4px}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.row>*{flex:1}
+button.p{background:linear-gradient(90deg,var(--acc),var(--acc2));color:#fff;border:0;border-radius:10px;padding:10px 18px;font-weight:700;cursor:pointer}
+button.s{background:var(--panel2);color:var(--tx);border:1px solid var(--line);border-radius:10px;padding:8px 14px;cursor:pointer;font-weight:600}
+button.d{background:#3b1420;color:#fecaca;border:1px solid #7f1d1d;border-radius:10px;padding:8px 14px;cursor:pointer;font-weight:600}
+button:disabled{opacity:.5;cursor:wait}
+.pill{display:inline-block;border-radius:999px;padding:2px 9px;font-size:11px;font-weight:700;letter-spacing:.03em}
+.ok{background:#0f2e1c;color:#86efac}.warn{background:#3a2a0b;color:#fcd34d}.bad{background:#3b1218;color:#fca5a5}.info{background:#16254a;color:#a5b4fc}
+pre{background:#0a0f1e;border:1px solid var(--line);border-radius:10px;padding:12px;overflow:auto;font:12.5px/1.45 var(--mono);max-height:520px;margin:8px 0}
+.diff .a{color:#86efac}.diff .r{color:#fca5a5}.diff .h{color:#93c5fd}
+.steps{position:relative;margin-left:8px;border-left:2px solid var(--line);padding-left:18px}
+.step{position:relative;margin-bottom:14px;animation:fade .3s}.step:before{content:"";position:absolute;left:-25px;top:6px;width:12px;height:12px;border-radius:50%;background:var(--mut)}
+.step.ok:before{background:var(--ok)}.step.bad:before{background:var(--bad)}.step.run:before{background:var(--acc);box-shadow:0 0 0 0 var(--acc);animation:pulse 1.2s infinite}
+.step{background:transparent;color:var(--tx)}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(91,140,255,.6)}100%{box-shadow:0 0 0 10px rgba(91,140,255,0)}}@keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1}}
+.f{margin:4px 0;font-size:13px}.mut{color:var(--mut)}table{border-collapse:collapse;width:100%;font:12.5px var(--mono);margin-top:8px}td,th{border-bottom:1px solid var(--line);padding:5px 8px;text-align:left}th{color:var(--mut);font-weight:600}
+.hide{display:none!important}details summary{cursor:pointer;color:var(--mut);margin-top:6px}
+.doc .r{display:flex;gap:8px;padding:6px 0;border-bottom:1px solid var(--line);font-size:12.5px}.doc .r:last-child{border:0}.doc .k{color:var(--mut);min-width:112px}
+.drop{border:2px dashed var(--line);border-radius:12px;padding:18px;text-align:center;color:var(--mut);cursor:pointer}.drop.over{border-color:var(--acc);color:var(--tx)}
+.thumbs img{max-height:90px;border-radius:8px;margin:6px 6px 0 0;border:1px solid var(--line)}
+.toast{position:fixed;bottom:20px;right:20px;background:var(--panel2);border:1px solid var(--line);padding:10px 16px;border-radius:10px;opacity:0;transition:.3s;z-index:20}.toast.on{opacity:1}
+dialog{background:var(--panel);color:var(--tx);border:1px solid var(--line);border-radius:14px;max-width:460px}dialog::backdrop{background:rgba(0,0,0,.6)}
+.ex{font-size:12px;color:var(--acc);cursor:pointer;margin-right:12px}
 </style></head><body>
-<header><h1>Chip<span>Llama</span></h1><span class="sub">Verifiable PIC24FJ256GB110 copilot &middot; Muse Spark + XC16 + register checker</span><span class="sub" id="status"></span></header>
+<header><div><div class="logo">🦙 <span>ChipLlama</span></div><div class="sub">PIC24FJ256GB110 copilot · Muse Spark · verified register code</div></div>
+<nav><button id="t-gen" class="on" onclick="tab('gen')">Generate</button><button id="t-dbg" onclick="tab('dbg')">Reverse debug</button><button id="t-set" onclick="tab('set')">Settings</button></nav>
+<div id="chips"></div></header>
 <main>
-<nav><button id="t1" class="on" onclick="tab(1)">Generate &amp; verify</button><button id="t2" onclick="tab(2)">Reverse-debug</button><button id="t3" onclick="tab(3)">How it works</button></nav>
-
-<section id="p1">
- <div class="card"><label>Describe the peripheral setup</label>
-  <textarea id="req">Configure Timer1 to generate an interrupt every 10 ms with priority 5, Fosc = 32 MHz.</textarea>
-  <div class="row" style="margin-top:10px">
-   <div><label>Backend</label><select id="backend"><option value="">default (.env)</option><option value="meta">Meta Model API - Muse Spark</option><option value="baseten">Baseten - Muse Spark Open</option></select></div>
-   <div><label>Max iterations</label><input id="iters" type="number" value="4" min="1" max="8"></div>
-   <div><label>Datasheet page images</label><select id="imgs"><option value="1">attach (if PDF present)</option><option value="0">text only</option></select></div>
-   <button class="go" id="gen" onclick="generate()">Generate &amp; verify</button>
-  </div></div>
- <div id="out"></div>
-</section>
-
-<section id="p2" class="hide">
- <div class="card"><label>Paste register dump (e.g. <code>T1CON = 0x8030</code>, one per line)</label>
-  <textarea id="dump">T1CON = 0x0030
-PR1   = 0xFFFF
-IEC0  = 0x0000
-IFS0  = 0x0008
-IPC0  = 0x4444</textarea>
-  <div class="row" style="margin-top:10px"><div><label>Symptom</label><input id="sym" value="My 10 ms timer interrupt never runs"></div>
-   <div><label>Assumed Fosc (MHz)</label><input id="fosc" type="number" value="32"></div>
-   <div><label>Expected period (ms, optional)</label><input id="exp" type="number" value="10"></div></div>
-  <div class="row" style="margin-top:10px"><div><label>Debugger screenshot(s) (optional, multimodal)</label><input id="shots" type="file" accept="image/*" multiple></div>
-   <div><label>Backend</label><select id="dbackend"><option value="">default</option><option value="meta">Muse Spark</option><option value="baseten">Muse Spark Open</option></select></div>
-   <div><label>AI explanation</label><select id="usem"><option value="true">on</option><option value="false">off (deterministic only)</option></select></div>
-   <button class="go" onclick="dbg()">Analyse</button></div></div>
- <div id="dout"></div>
-</section>
-
-<section id="p3" class="hide"><div class="card">
-<p><b>ChipLlama is not a RAG chatbot.</b> It is a closed loop:</p>
-<ol><li>Parse the request deterministically (timer, period, Fosc, interrupt) and compute a <i>reference</i> solution with a calculator checked against DS39897C.</li>
-<li>Give Muse Spark the register facts <i>and datasheet page images</i> (T1CON/T2CON/T3CON/IFS0/IEC0/IPC pages).</li>
-<li>Muse writes C with explicit bit math. A mini register emulator executes the init code and a rule checker compares the final T1CON/PR1/IEC0/IPC0/ISR with the requested period.</li>
-<li>xc16-gcc compiles it (skipped gracefully if XC16 is missing). Compiler errors and checker findings are fed back until it verifies.</li>
-<li>Export to an MPLAB X-ready folder; optional PICkit 5 flashing via ipecmd is OFF by default.</li></ol></div></section>
+<!-- ================= GENERATE ================= -->
+<section id="p-gen"><div class="grid"><div>
+ <div class="card"><h3>What should the chip do?</h3>
+  <textarea id="req">Timer1 interrupt every 10 ms, priority 5</textarea>
+  <div style="margin:8px 0"><span class="ex" onclick="ex(this)">Timer1 interrupt every 10 ms, priority 5</span><span class="ex" onclick="ex(this)">Timer2 polling, 250 us period</span><span class="ex" onclick="ex(this)">32-bit Timer2/3 interrupt every 2 seconds</span></div>
+  <div class="row"><button class="p" id="gen" onclick="generate()" style="flex:0 0 auto">Generate &amp; verify</button>
+   <label style="flex:0 0 auto;margin:0"><input type="checkbox" id="imgs" checked style="width:auto"> datasheet page images</label><span class="mut" id="genmeta" style="flex:2"></span></div>
+ </div>
+ <div id="prog" class="card hide"><h3>Agent progress</h3><div class="steps" id="steps"></div></div>
+ <div id="final" class="card hide"></div>
+</div><aside>
+ <div class="card doc"><h3>Doctor <button class="s" style="float:right;padding:2px 10px;font-size:11px" onclick="loadDoctor()">refresh</button></h3><div id="doctor" class="mut">loading…</div></div>
+ <div class="card"><h3>Board configuration bits</h3><div id="pmeta" class="mut f"></div><details><summary>show #pragma config block</summary><pre id="pragmas"></pre></details></div>
+</aside></div></section>
+<!-- ================= DEBUG ================= -->
+<section id="p-dbg" class="hide"><div class="grid"><div>
+ <div class="card"><h3>Register dump</h3>
+  <textarea id="dump" rows="7" placeholder="T1CON = 0x8000&#10;PR1 = 0x4E1F&#10;IEC0 = 0x0000&#10;IPC0 = 0x0444  (paste from MPLAB X SFR / Watch window)"></textarea>
+  <label>…or screenshots of the SFR view (drop, click or paste Ctrl+V)</label>
+  <div id="drop" class="drop">Drop images here · click to choose · paste from clipboard</div><input type="file" id="shots" accept="image/*" multiple class="hide"><div class="thumbs" id="thumbs"></div>
+  <label>Symptom</label><input id="sym" placeholder="the ISR never runs / LED blinks at the wrong rate">
+  <div class="row"><div><label>Expected period (ms, optional)</label><input id="exp" type="number" step="any"></div>
+   <div><label>Fosc MHz (blank = board profile)</label><input id="fosc" type="number" step="any"></div>
+   <div><label>Explain with Muse</label><select id="usem"><option value="true">yes</option><option value="false">rules only</option></select></div></div>
+  <label>Your C code (optional)</label><textarea id="dcode" rows="4"></textarea>
+  <div style="margin-top:12px"><button class="p" id="dbgb" onclick="dbg()">Analyse</button></div></div>
+</div><aside><div id="dout"></div></aside></div></section>
+<!-- ================= SETTINGS ================= -->
+<section id="p-set" class="hide"><div class="grid"><div>
+ <div class="card"><h3>Target &amp; board</h3>
+  <div class="row"><div><label>Device</label><input id="s-device"></div><div><label>Debug/program pin pair (ICS) - match your wiring</label><select id="s-ics"></select></div></div>
+  <div class="row"><div><label>Clock profile</label><select id="s-clock_profile"></select></div><div><label>Crystal frequency, Hz (external crystal profile only)</label><input id="s-crystal_hz" type="number"></div></div>
+ </div>
+ <div class="card"><h3>Model</h3>
+  <div class="row"><div><label>Backend</label><select id="s-backend"></select></div><div><label>Max iterations</label><input id="s-max_iters" type="number" min="1" max="10"></div><div><label>Max tokens</label><input id="s-max_tokens" type="number"></div></div>
+  <div class="row"><div><label>Meta model</label><input id="s-meta_model"></div><div><label>Meta reasoning effort</label><select id="s-meta_reasoning_effort"></select></div></div>
+  <div class="row"><div><label>Meta API key <span id="k-meta" class="pill"></span> <a href="#" class="ex" onclick="clearKey('meta_api_key');return false">clear</a></label><input id="s-meta_api_key" type="password" autocomplete="off" placeholder="leave empty to keep"></div>
+   <div><label>Baseten API key <span id="k-baseten" class="pill"></span> <a href="#" class="ex" onclick="clearKey('baseten_api_key');return false">clear</a></label><input id="s-baseten_api_key" type="password" autocomplete="off" placeholder="leave empty to keep"></div></div>
+  <div class="row"><div><label>Baseten model</label><input id="s-baseten_model"></div><div><label>Baseten reasoning effort (blank = default)</label><input id="s-baseten_reasoning_effort"></div></div>
+ </div>
+ <div class="card"><h3>Toolchain</h3>
+  <label>xc16-gcc path (blank = auto)</label><div class="row"><input id="s-xc16_gcc" style="flex:4"><button class="s" style="flex:0 0 auto" onclick="detect()">Auto-detect</button></div>
+  <label>ipecmd path (blank = auto)</label><input id="s-ipecmd_path">
+  <div class="row"><div><label>Programmer</label><select id="s-ipecmd_tool"></select></div><div><label>Serial (blank = first)</label><input id="s-ipecmd_serial"></div>
+   <div><label>PICkit powers the target</label><select id="s-ipecmd_power_target"><option value="false">no (board self-powered)</option><option value="true">yes (-W)</option></select></div>
+   <div><label>Flashing</label><select id="s-enable_flash"><option value="false">off</option><option value="true">enabled</option></select></div></div>
+  <label>Datasheet PDF</label><input id="s-datasheet_pdf">
+ </div>
+ <div class="row"><button class="p" style="flex:0 0 auto" onclick="saveSettings()">Save settings</button><span class="mut" id="sfile" style="flex:3"></span></div>
+</div><aside><div class="card"><h3>Notes</h3><div class="f mut">Saved to a local <b>settings.json</b> (not .env). API keys are never sent back to the browser - only "set / not set". Keys are stored in plain text in that file on this PC, so keep it private. The dashboard only listens on 127.0.0.1.</div><div class="f mut">ICS must match the PGECx/PGEDx pins your PICkit 5 is wired to on your board.</div></div></aside></div></section>
 </main>
+<dialog id="dlg"><h3 style="margin-top:0">Flash to board?</h3><p id="dlgtxt"></p><div class="row"><button class="s" onclick="dlg.close('no')">Cancel</button><button class="d" onclick="dlg.close('yes')">Yes, program the PIC</button></div></dialog>
+<div class="toast" id="toast"></div>
 <script>
-const $=id=>document.getElementById(id);
-function tab(n){for(let i=1;i<=3;i++){$('p'+i).classList.toggle('hide',i!=n);$('t'+i).classList.toggle('on',i==n)}}
-function el(tag,cls,text){const e=document.createElement(tag);if(cls)e.className=cls;if(text!=null)e.textContent=text;return e}
-function pill(sev){return el('span','pill '+({error:'bad',warning:'warn',info:'info',ok:'ok'}[sev]||'info'),sev)}
-fetch('/api/status').then(r=>r.json()).then(s=>{$('status').textContent=`backend ${s.backend} · xc16 ${s.xc16_gcc?'found':'missing (compile skipped)'} · flash ${s.flash_enabled?'ENABLED':'off'}`})
-async function generate(){
-  const b=$('gen');b.disabled=true;b.textContent='Working…';const out=$('out');out.replaceChildren(el('div','card','Muse is generating and the checker is verifying… (can take a minute)'));
-  try{
-    const r=await fetch('/api/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({request:$('req').value,backend:$('backend').value||null,max_iters:+$('iters').value,use_images:$('imgs').value==='1'})});
-    const j=await r.json();if(!r.ok)throw new Error(j.detail||r.statusText);render(j)
-  }catch(e){out.replaceChildren(el('div','card','Error: '+e.message))}
-  b.disabled=false;b.textContent='Generate & verify'}
-function render(j){
-  const out=$('out');out.replaceChildren();
-  const h=el('div','card');const st=el('span','pill '+(j.status==='verified'?'ok':'bad'),j.status.toUpperCase());h.append(st,el('span','',' verification: '+j.verification_level+' · backend '+j.backend));
-  if(j.error)h.append(el('div','f','Error: '+j.error));(j.notes||[]).forEach(n=>h.append(el('div','f','note: '+n)));
-  if(j.reference){const r=j.reference;h.append(el('div','f',`Reference: Timer${r.spec.timer} TCKPS=${r.tckps} (1:${r.prescale}), PR=${r.period_reg}, achieved ${(r.achieved_s*1e3).toPrecision(6)} ms, ${r.error_ppm.toFixed(0)} ppm`))}
-  out.append(h);
-  (j.attempts||[]).forEach(a=>{const c=el('div','card');c.append(el('b','','Attempt '+a.n+' '),el('span','pill '+(a.check.ok?'ok':'bad'),'checker '+(a.check.ok?'pass':'fail')),document.createTextNode(' '),el('span','pill '+(a.compile.status==='ok'?'ok':a.compile.status==='skipped'?'warn':'bad'),'compile '+a.compile.status));
-    a.check.findings.filter(f=>f.severity!=='info').forEach(f=>{const d=el('div','f');d.append(pill(f.severity),el('span','',' '+f.code+': '+f.message));c.append(d)});
-    if(a.compile.status==='error')c.append(el('pre','',a.compile.output));
-    const rt=el('table');rt.append(Object.assign(el('tr'),{innerHTML:'<th>register</th><th>code gives</th><th>reference</th>'}));
-    Object.keys(a.check.registers).forEach(k=>{const tr=el('tr');tr.append(el('td','',k),el('td','',a.check.registers[k]),el('td','',a.check.expected[k]||''));rt.append(tr)});c.append(rt);
-    out.append(c)});
-  if(j.code){const c=el('div','card');c.append(el('b','','Final C (main.c)'),el('pre','',j.code));
-    const b=el('button','sec','Download MPLAB X folder (zip)');b.onclick=async()=>{const r=await fetch('/api/export',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code:j.code,request:j.request})});const bl=await r.blob();const a=document.createElement('a');a.href=URL.createObjectURL(bl);a.download='ChipLlamaProject.zip';a.click()};c.append(b);out.append(c)}}
-async function dbg(){
-  const fd=new FormData();fd.append('dump',$('dump').value);fd.append('symptom',$('sym').value);fd.append('fosc_mhz',$('fosc').value);
-  if($('exp').value)fd.append('expected_period_ms',$('exp').value);if($('dbackend').value)fd.append('backend',$('dbackend').value);fd.append('use_model',$('usem').value);
-  for(const f of $('shots').files)fd.append('images',f);
-  const o=$('dout');o.replaceChildren(el('div','card','Analysing…'));
-  try{const r=await fetch('/api/debug',{method:'POST',body:fd});const j=await r.json();if(!r.ok)throw new Error(j.detail||r.statusText);
-   o.replaceChildren();const c=el('div','card');c.append(el('b','','Decoded registers'));
-   j.decoded.forEach(d=>{if(Object.keys(d.fields).length)c.append(el('div','f',`${d.register} ${d.value}  `+Object.entries(d.fields).map(([k,v])=>k+'='+v).join(' ')))});o.append(c);
-   const f=el('div','card');f.append(el('b','','Findings'));j.findings.forEach(x=>{const d=el('div','f');d.append(pill(x.severity),el('span','',' '+x.message));f.append(d)});o.append(f);
-   if(j.explanation){const e=el('div','card');e.append(el('b','','Muse explanation'),el('pre','',j.explanation));o.append(e)}
-   (j.notes||[]).forEach(n=>o.append(el('div','f','note: '+n)))
-  }catch(e){o.replaceChildren(el('div','card','Error: '+e.message))}}
+const $=id=>document.getElementById(id);let SET=null,LAST=null,FILES=[];
+function el(t,c,x){const e=document.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e}
+function pill(t,c){return el('span','pill '+c,t)}const sevc={error:'bad',warning:'warn',info:'info'};
+function toast(m){const t=$('toast');t.textContent=m;t.classList.add('on');setTimeout(()=>t.classList.remove('on'),2600)}
+function tab(n){for(const k of['gen','dbg','set']){$('p-'+k).classList.toggle('hide',k!=n);$('t-'+k).classList.toggle('on',k==n)}}
+function ex(e){$('req').value=e.textContent}
+async function api(u,o){const r=await fetch(u,o);const ct=r.headers.get('content-type')||'';const j=ct.includes('json')?await r.json():null;if(!r.ok)throw new Error((j&&j.detail)||r.statusText);return j}
+const post=(u,b)=>api(u,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)});
+async function chips(){const s=await api('/api/status');const c=$('chips');c.replaceChildren(pill(s.device,'info'),pill(s.backend+(((s.backend=='meta'?s.meta_key_set:s.baseten_key_set))?'':' · no key'),(s.backend=='meta'?s.meta_key_set:s.baseten_key_set)?'ok':'warn'),pill('xc16 '+(s.xc16_gcc?'ok':'missing'),s.xc16_gcc?'ok':'warn'),pill('ICS '+s.ics,'info'),pill('flash '+(s.flash_enabled?'ON':'off'),s.flash_enabled?'warn':'info'))}
+async function loadDoctor(){const d=$('doctor');try{const j=await api('/api/doctor');d.replaceChildren(...j.rows.map(r=>{const x=el('div','r');x.append(el('span','k',r.label),pill(r.ok?'✓':'!',r.ok?'ok':'warn'),el('span','',r.value));return x}))}catch(e){d.textContent=e.message}
+ try{const p=await api('/api/pragmas');$('pmeta').textContent=p.title;$('pragmas').textContent=p.text+(p.clock_code.length?'\n\n/* first in main() */\n'+p.clock_code.join('\n'):'')}catch(e){$('pmeta').textContent=e.message}}
+// ---------- generate (streamed)
+function step(cls,title){const s=el('div','step '+cls);s.append(el('b','',title));$('steps').append(s);s.scrollIntoView({block:'nearest',behavior:'smooth'});return s}
+function diffPre(t){const p=el('pre','diff');t.split('\n').forEach(l=>{p.append(el('span',l.startsWith('+')&&!l.startsWith('+++')?'a':l.startsWith('-')&&!l.startsWith('---')?'r':l.startsWith('@@')?'h':'',l+'\n'))});return p}
+async function generate(){const b=$('gen');b.disabled=true;b.textContent='Working…';$('prog').classList.remove('hide');$('final').classList.add('hide');$('steps').replaceChildren();let running=null;const t0=Date.now();
+ try{const r=await fetch('/api/generate/stream',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({request:$('req').value,use_images:$('imgs').checked})});
+  if(!r.ok){const j=await r.json().catch(()=>({}));throw new Error(j.detail||r.statusText)}
+  const rd=r.body.getReader(),dec=new TextDecoder();let buf='';
+  for(;;){const{value,done}=await rd.read();if(done)break;buf+=dec.decode(value,{stream:true});let i;while((i=buf.indexOf('\n'))>=0){const line=buf.slice(0,i);buf=buf.slice(i+1);if(line.trim())running=onEvent(JSON.parse(line),running)}}
+ }catch(e){step('bad','Error').append(el('div','f',e.message))}
+ b.disabled=false;b.textContent='Generate & verify';$('genmeta').textContent=((Date.now()-t0)/1000).toFixed(1)+' s'}
+function onEvent(ev,running){const d=ev.data;
+ if(ev.event=='spec'){const s=d.spec,r=d.reference;const x=step('ok','Parsed request');x.append(el('div','f',`Timer${s.bits32?'2/3 (32-bit)':s.timer} · ${s.period_s?(s.period_s*1e3).toPrecision(6)+' ms':'period ?'} · Fosc ${s.fosc_hz/1e6} MHz → Fcy ${s.fosc_hz/2e6} MHz · ${s.interrupt?'interrupt':'polling'}`),el('div','f mut',`Reference: TCKPS=${r.tckps} (1:${r.prescale}), PR=${r.period_reg}, ${r.error_ppm.toFixed(0)} ppm`));(s.notes||[]).forEach(n=>x.append(el('div','f mut','· '+n)));return null}
+ if(ev.event=='model_call'){return step('run',`Attempt ${d.n}: asking ${d.backend}…`)}
+ if(ev.event=='attempt'){if(running)running.remove();if(d.error){step('bad','Attempt '+d.n+': '+d.error);return null}
+  const ok=d.check.ok&&d.compile.status!=='error';const x=step(ok?'ok':'bad',`Attempt ${d.n} · ${d.seconds}s `);
+  x.append(pill('checker '+(d.check.ok?'pass':'fail'),d.check.ok?'ok':'bad'),document.createTextNode(' '),pill('compile '+d.compile.status,d.compile.status=='ok'?'ok':d.compile.status=='skipped'?'warn':'bad'));
+  d.check.findings.filter(f=>f.severity!='info').forEach(f=>{const q=el('div','f');q.append(pill(f.code,sevc[f.severity]),el('span','',' '+f.message));x.append(q)});
+  const inf=d.check.findings.filter(f=>f.severity=='info');if(inf.length){const de=el('details');de.append(el('summary','',inf.length+' info notes'));inf.forEach(f=>de.append(el('div','f mut',f.code+': '+f.message)));x.append(de)}
+  if(d.compile.output){const de=el('details');de.append(el('summary','','compiler output'),el('pre','',d.compile.output));if(d.compile.status=='error')de.open=true;x.append(de)}
+  const de=el('details');de.append(el('summary','','registers: code vs reference'));const t=el('table');const h=el('tr');['register','code gives','reference'].forEach(k=>h.append(el('th','',k)));t.append(h);
+  Object.keys(d.check.registers).forEach(k=>{const tr=el('tr');tr.append(el('td','',k),el('td','',d.check.registers[k]),el('td','',d.check.expected[k]||''));t.append(tr)});de.append(t);x.append(de);
+  if(d.diff){const dd=el('details');dd.append(el('summary','','diff vs previous attempt'),diffPre(d.diff));dd.open=true;x.append(dd)}
+  return null}
+ if(ev.event=='done'){if(running)running.remove();showFinal(d);return null}return running}
+function showFinal(j){LAST=j;const f=$('final');f.classList.remove('hide');f.replaceChildren();
+ const h=el('div','row');h.append(el('h3','',''),);f.append(pill(j.status.toUpperCase(),j.status=='verified'?'ok':'bad'),el('span','mut',' '+(j.verification_level||'')+(j.error?' · '+j.error:'')));
+ if(!j.code)return;f.append(el('pre','',j.code));
+ const r=el('div','row');const bt=(t,c,fn)=>{const b=el('button',c,t);b.style.flex='0 0 auto';b.onclick=fn;r.append(b)};
+ bt('Copy','s',()=>{navigator.clipboard.writeText(j.code);toast('Copied')});
+ bt('Download main.c','s',()=>dl(new Blob([j.code],{type:'text/plain'}),'main.c'));
+ bt('Export MPLAB X project','p',async()=>{const x=await fetch('/api/export',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code:j.code,request:j.request})});dl(await x.blob(),'ChipLlamaProject.zip')});
+ bt('Flash to board','d',flashIt);f.append(r);r.append(el('span','mut',''));}
+function dl(b,n){const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=n;a.click()}
+async function flashIt(){const s=SET&&SET.settings;if(!s||!s.enable_flash){toast('Flashing is off - enable it in Settings first');return}
+ $('dlgtxt').textContent=`This builds main.c and programs ${s.device} with ${s.ipecmd_tool}${s.ipecmd_power_target?' (PICkit powers the board)':''}. ICS is ${s.ics}. The chip's current firmware will be erased.`;
+ $('dlg').returnValue='';$('dlg').showModal();$('dlg').onclose=async()=>{if($('dlg').returnValue!=='yes')return;toast('Flashing…');
+  try{const j=await post('/api/flash',{code:LAST.code,confirm:true});const x=step(j.status=='ok'?'ok':'bad','Flash: '+j.status);if(j.reason)x.append(el('div','f',j.reason));if(j.output)x.append(el('pre','',j.output));if(j.compile&&j.compile.output)x.append(el('pre','',j.compile.output))}catch(e){toast(e.message)}}}
+// ---------- debug
+const drop=$('drop');drop.onclick=()=>$('shots').click();$('shots').onchange=e=>addFiles(e.target.files);
+drop.ondragover=e=>{e.preventDefault();drop.classList.add('over')};drop.ondragleave=()=>drop.classList.remove('over');drop.ondrop=e=>{e.preventDefault();drop.classList.remove('over');addFiles(e.dataTransfer.files)};
+document.addEventListener('paste',e=>{if($('p-dbg').classList.contains('hide'))return;const fs=[...e.clipboardData.items].filter(i=>i.type.startsWith('image/')).map(i=>i.getAsFile());if(fs.length){addFiles(fs);e.preventDefault()}});
+function addFiles(fs){for(const f of fs){if(!f.type.startsWith('image/'))continue;FILES.push(f);const i=el('img');i.src=URL.createObjectURL(f);$('thumbs').append(i)}}
+async function dbg(){const fd=new FormData();fd.append('dump',$('dump').value);fd.append('symptom',$('sym').value);fd.append('code',$('dcode').value);
+ if($('fosc').value)fd.append('fosc_mhz',$('fosc').value);if($('exp').value)fd.append('expected_period_ms',$('exp').value);fd.append('use_model',$('usem').value);FILES.forEach(f=>fd.append('images',f,f.name||'paste.png'));
+ const o=$('dout'),b=$('dbgb');b.disabled=true;o.replaceChildren(el('div','card','Analysing…'));
+ try{const j=await api('/api/debug',{method:'POST',body:fd});o.replaceChildren();
+  const f=el('div','card');f.append(el('h3','','Findings'));j.findings.forEach(x=>{const d=el('div','f');d.append(pill(x.severity,sevc[x.severity]||'info'),el('span','',' '+x.message));f.append(d)});if(!j.findings.length)f.append(el('div','f mut','no rule findings'));o.append(f);
+  if(j.explanation){const e=el('div','card');e.append(el('h3','','Muse explanation'),el('pre','',j.explanation));o.append(e)}
+  const c=el('div','card');c.append(el('h3','','Decoded registers'+(j.transcribed_from_image?' (read from image)':'')));j.decoded.forEach(d=>c.append(el('div','f',`${d.register} = ${d.value}  `+Object.entries(d.fields).map(([k,v])=>k+'='+v).join(' '))));o.append(c);
+  (j.notes||[]).forEach(n=>o.append(el('div','f mut','note: '+n)))}catch(e){o.replaceChildren(el('div','card','Error: '+e.message))}b.disabled=false}
+// ---------- settings
+const FIELDS=['device','ics','clock_profile','crystal_hz','backend','max_iters','max_tokens','meta_model','meta_reasoning_effort','baseten_model','baseten_reasoning_effort','xc16_gcc','ipecmd_path','ipecmd_tool','ipecmd_serial','ipecmd_power_target','enable_flash','datasheet_pdf'];
+function opts(id,list){const s=$('s-'+id);s.replaceChildren(...list.map(o=>{const x=el('option','',o.title||o);x.value=o.key||o;return x}))}
+function keyPill(id,on){const p=$(id);p.className='pill '+(on?'ok':'warn');p.textContent=on?'set':'not set'}
+async function loadSettings(){SET=await api('/api/settings');const o=SET.options;opts('ics',o.ics);opts('clock_profile',o.clock_profile);opts('backend',o.backend);opts('ipecmd_tool',o.ipecmd_tool);opts('meta_reasoning_effort',o.reasoning_effort);
+ const s=SET.settings;FIELDS.forEach(k=>{$('s-'+k).value=String(s[k])});keyPill('k-meta',s.meta_api_key_set);keyPill('k-baseten',s.baseten_api_key_set);$('s-meta_api_key').value='';$('s-baseten_api_key').value='';$('sfile').textContent='File: '+SET.file}
+async function saveSettings(){const u={};FIELDS.forEach(k=>{let v=$('s-'+k).value;if(v==='true')v=true;else if(v==='false')v=false;u[k]=v});
+ for(const k of['meta_api_key','baseten_api_key']){if($('s-'+k).value)u[k]=$('s-'+k).value}
+ try{await post('/api/settings',u);toast('Settings saved');await loadSettings();chips();loadDoctor()}catch(e){toast('Not saved: '+e.message)}}
+async function clearKey(k){if(!confirm('Remove the saved '+k+' from settings.json?'))return;await post('/api/settings',{[k]:'__clear__'});toast('Key cleared');loadSettings();chips()}
+async function detect(){const j=await post('/api/detect',{});if(j.xc16_gcc){$('s-xc16_gcc').value=j.xc16_gcc;toast('Found xc16-gcc')}else toast('xc16-gcc not found - enter the path');if(j.ipecmd&&!$('s-ipecmd_path').value)$('s-ipecmd_path').value=j.ipecmd}
+chips();loadDoctor();loadSettings();
 </script></body></html>

@@ -5,7 +5,7 @@ import pytest
 from chipllama.checker import check_timer
 from chipllama.cemu import emulate, eval_expr, EvalError
 from chipllama.timers import TimerSpec, parse_request
-from conftest import GOOD_T1
+from conftest import GOOD_T1, CFG
 
 SPEC = TimerSpec(timer=1, period_s=0.010, fosc_hz=32e6, interrupt=True, priority=5)
 
@@ -28,7 +28,7 @@ def test_emulated_register_values():
 
 def test_equivalent_alternative_config_also_passes():
     code = GOOD_T1.replace("PRESCALE 8UL", "PRESCALE 64UL").replace("TCKPS = 1", "TCKPS = 2")
-    rep = check_timer(code, SPEC)
+    rep = check_timer(CFG + code, SPEC)
     assert rep.ok, rep.feedback_text()      # 2500 ticks * 64 = 10 ms: different but valid
 
 
@@ -79,7 +79,7 @@ def test_direct_register_writes_and_bit_math():
 void init(void){ PR1 = 19999; T1CON = 0x8010; _T1IP = 5; _T1IE = 1; }
 void __attribute__((interrupt, auto_psv)) _T1Interrupt(void){ _T1IF = 0; }
 int main(void){ init(); for(;;); }"""
-    rep = check_timer(code, SPEC)
+    rep = check_timer(CFG + code, SPEC)
     assert rep.ok, rep.feedback_text()
     # PR loaded before TON via the single T1CON write; but writing PR *after* TON warns
     late = code.replace("PR1 = 19999; T1CON = 0x8010;", "T1CON = 0x8010; PR1 = 19999;")
@@ -88,14 +88,14 @@ int main(void){ init(); for(;;); }"""
 
 def test_tckps_single_bit_aliases_and_or_assign():
     code = GOOD_T1.replace("T1CONbits.TCKPS = 1;", "T1CONbits.TCKPS0 = 1; T1CONbits.TCKPS1 = 0;")
-    assert check_timer(code, SPEC).ok
+    assert check_timer(CFG + code, SPEC).ok
     code = GOOD_T1.replace("T1CONbits.TCKPS = 1;", "T1CON |= (1 << 4);")
-    assert check_timer(code, SPEC).ok
+    assert check_timer(CFG + code, SPEC).ok
 
 
 def test_pr1_unset_and_unimplemented_bits():
     code = GOOD_T1.replace("    PR1 = (FCY / 1000UL * PERIOD_MS / PRESCALE) - 1UL;\n", "")
-    rep = check_timer(code, SPEC)
+    rep = check_timer(CFG + code, SPEC)
     assert {"PERIOD", "PR_UNSET"} <= codes(rep)
     assert "UNIMPL" in codes(check_timer(GOOD_T1.replace("T1CON = 0;", "T1CON = 0xFFFF;"), SPEC), "warning")
 
@@ -105,7 +105,7 @@ def test_polling_mode_without_interrupt():
     code = """#include <xc.h>
 void init(void){ PR1 = 19999; T1CON = 0x8010; }
 int main(void){ init(); for(;;){ if (IFS0bits.T1IF) { IFS0bits.T1IF = 0; } } }"""
-    assert check_timer(code, spec).ok
+    assert check_timer(CFG + code, spec).ok
 
 
 def test_timer2_32bit():
@@ -116,16 +116,16 @@ void init(void){ T2CON = 0; T3CON = 0; TMR3 = 0; TMR2 = 0;
  T2CONbits.T32 = 1; _T3IP = 4; _T3IF = 0; _T3IE = 1; T2CONbits.TON = 1; }
 void __attribute__((interrupt, auto_psv)) _T3Interrupt(void){ _T3IF = 0; }
 int main(void){ init(); for(;;); }"""
-    rep = check_timer(code, spec)
+    rep = check_timer(CFG + code, spec)
     assert rep.ok, rep.feedback_text()
-    assert "T32" in codes(check_timer(code.replace("T2CONbits.T32 = 1;", ""), spec))
+    assert "T32" in codes(check_timer(CFG + code.replace("T2CONbits.T32 = 1;", ""), spec))
 
 
 def test_timer3_alone_and_t32_conflict():
     spec = TimerSpec(timer=3, period_s=0.001, fosc_hz=32e6, interrupt=False)
     code = "#include <xc.h>\nvoid i(void){ PR3 = 15999; T3CON = 0x8000; }\nint main(void){i();for(;;);}"
-    assert check_timer(code, spec).ok
-    assert "T32" in codes(check_timer(code.replace("PR3 = 15999;", "T2CONbits.T32 = 1; PR3 = 15999;"), spec))
+    assert check_timer(CFG + code, spec).ok
+    assert "T32" in codes(check_timer(CFG + code.replace("PR3 = 15999;", "T2CONbits.T32 = 1; PR3 = 15999;"), spec))
 
 
 def test_impossible_spec_reports_spec_error():

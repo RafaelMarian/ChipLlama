@@ -112,6 +112,10 @@ def run_agent(request: str, model: ChatModel, settings: Settings, *, max_iters: 
     res = AgentResult("error", request, backend=getattr(model, "name", "?"))
     try:
         spec = spec or resolve_spec(request, model, res.notes)
+        if any(n.startswith("no clock stated") for n in spec.notes):
+            spec.fosc_hz = settings.profile().fosc_hz
+            spec.notes = [n for n in spec.notes if not n.startswith("no clock stated")] + [
+                f"no clock stated: using board profile '{settings.clock_profile}' -> Fosc = {spec.fosc_hz/1e6:g} MHz"]
         res.spec = spec
         res.solution = solve(spec)
     except ValueError as e:
@@ -126,10 +130,12 @@ def run_agent(request: str, model: ChatModel, settings: Settings, *, max_iters: 
         res.notes.append(note)
     image_note = (f"Attached are datasheet page images, in order: {', '.join('p%d' % p for p, _ in imgs)}." if imgs else "")
     msgs = [Message("system", prompts.SYSTEM),
-            Message("user", prompts.first_user_prompt(request, spec, res.solution if hint else None, image_note),
+            Message("user", prompts.first_user_prompt(request, spec, res.solution if hint else None, image_note,
+                                                      settings.profile(), settings.ics),
                     [b for _, b in imgs])]
     for i in range(1, max_iters + 1):
         t0 = time.time()
+        emit("model_call", {"n": i, "backend": getattr(model, "name", "?")})
         try:
             text = model.complete(msgs)
         except ModelError as e:
@@ -142,7 +148,7 @@ def run_agent(request: str, model: ChatModel, settings: Settings, *, max_iters: 
             msgs += [Message("assistant", text), Message("user", "No ```c code block found. Return the complete C file in one ```c block.")]
             emit("attempt", {"n": i, "error": "no code"})
             continue
-        chk = check_timer(code, spec)
+        chk = check_timer(code, spec, profile=settings.profile(), ics=settings.ics)
         cmp_ = compile_fn(code, settings)
         att = Attempt(i, code, chk, cmp_, time.time() - t0, text)
         res.attempts.append(att)

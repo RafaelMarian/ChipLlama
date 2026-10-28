@@ -1,24 +1,32 @@
-"""FastAPI app + static single-page UI."""
+"""FastAPI app + local single-page dashboard (no build step)."""
 from __future__ import annotations
 
+import dataclasses
+import difflib
 import io
+import json
+import queue
+import tempfile
+import threading
 import zipfile
 from pathlib import Path
-from typing import Callable
+from typing import Any, Callable
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
-from fastapi.responses import FileResponse, JSONResponse, Response
+from fastapi.responses import FileResponse, JSONResponse, Response, StreamingResponse
 from pydantic import BaseModel
 
 from . import __version__
 from .agent import run_agent
+from .board import ICS_PAIRS, PROFILE_KEYS, get_profile, render_pragmas
 from .compiler import compile_c, find_tool
-from .config import Settings
+from .config import Settings, apply_settings_file, public_view, save_settings, settings_path
 from .datasheet import load_page_images
 from .debug import debug_session
+from .doctor import doctor
 from .export import export_project
 from .flash import find_ipecmd, flash, part_name
-from .models import make_model, ModelError
+from .models import make_model
 from .timers import parse_request, solve
 
 WEB = Path(__file__).parent / "web"
@@ -27,7 +35,7 @@ WEB = Path(__file__).parent / "web"
 class GenerateReq(BaseModel):
     request: str
     backend: str | None = None
-    max_iters: int = 4
+    max_iters: int | None = None
     use_images: bool = True
     hint: bool = False
 
@@ -46,25 +54,79 @@ class FlashReq(BaseModel):
     confirm: bool = False
 
 
+def _diff(a: str, b: str) -> str:
+    return "".join(difflib.unified_diff(a.splitlines(True), b.splitlines(True), "previous", "this attempt", n=2))
+
+
 def create_app(settings: Settings | None = None, model_factory: Callable | None = None,
-               compile_fn: Callable = compile_c) -> FastAPI:
-    s = settings or Settings.from_env()
-    mk = model_factory or (lambda backend: make_model(s, backend))
+               compile_fn: Callable = compile_c, settings_file: str | Path | None = None) -> FastAPI:
+    base = settings or Settings.from_env(settings_file)
+    sfile = Path(settings_file) if settings_file else settings_path()
+    state: dict[str, Any] = {"s": base}
+    if settings is not None:            # explicit Settings: still honour the UI's settings.json if present
+        st = dataclasses.replace(base)
+        apply_settings_file(st, sfile)
+        state["s"] = st
+
+    def cur() -> Settings:
+        return state["s"]
+
+    mk = model_factory or (lambda backend: make_model(cur(), backend))
     app = FastAPI(title="ChipLlama", version=__version__)
 
     @app.get("/")
     def index():
         return FileResponse(WEB / "index.html")
 
+    # ------------------------------------------------------------ status / settings
     @app.get("/api/status")
     def status():
+        s = cur()
         return {"version": __version__, "device": s.device, "backend": s.backend,
                 "meta_key_set": bool(s.meta_api_key), "baseten_key_set": bool(s.baseten_api_key),
                 "meta_model": s.meta_model, "baseten_model": s.baseten_model,
                 "xc16_gcc": find_tool("xc16-gcc", s.xc16_gcc), "ipecmd": find_ipecmd(s.ipecmd_path),
                 "flash_enabled": s.enable_flash, "flash_tool": s.ipecmd_tool, "ipe_part": part_name(s.device),
-                "datasheet_found": Path(s.datasheet_pdf).is_file()}
+                "datasheet_found": Path(s.datasheet_pdf).is_file(), "clock_profile": s.clock_profile, "ics": s.ics}
 
+    @app.get("/api/doctor")
+    def doctor_ep():
+        return {"rows": doctor(cur())}
+
+    @app.get("/api/settings")
+    def get_settings():
+        s = cur()
+        profiles = [{"key": k, "title": get_profile(k, s.crystal_hz).title} for k in PROFILE_KEYS]
+        return {"settings": public_view(s), "file": str(sfile),
+                "options": {"clock_profile": profiles, "ics": list(ICS_PAIRS), "backend": ["meta", "baseten"],
+                            "ipecmd_tool": ["PK5", "PK4", "PK3", "ICD4", "ICD5", "SNAP", "PKOB4"],
+                            "reasoning_effort": ["minimal", "low", "medium", "high", "xhigh", "max"]}}
+
+    @app.post("/api/settings")
+    def post_settings(update: dict):
+        try:
+            save_settings(update, sfile)
+        except ValueError as e:
+            raise HTTPException(422, str(e))
+        st = dataclasses.replace(base)
+        apply_settings_file(st, sfile)
+        state["s"] = st
+        return get_settings()
+
+    @app.post("/api/detect")
+    def detect():
+        s = cur()
+        return {"xc16_gcc": find_tool("xc16-gcc", ""), "xc16_bin2hex": find_tool("xc16-bin2hex", ""),
+                "ipecmd": find_ipecmd(""), "configured": {"xc16_gcc": s.xc16_gcc, "ipecmd_path": s.ipecmd_path}}
+
+    @app.get("/api/pragmas")
+    def pragmas():
+        s = cur()
+        p = s.profile()
+        return {"profile": p.key, "title": p.title, "fosc_hz": p.fosc_hz, "text": render_pragmas(p, s.ics),
+                "clock_code": p.clock_code}
+
+    # ------------------------------------------------------------ generation
     @app.post("/api/calc")
     def calc(req: CalcReq):
         spec = parse_request(req.request)
@@ -75,19 +137,56 @@ def create_app(settings: Settings | None = None, model_factory: Callable | None 
         except ValueError as e:
             raise HTTPException(422, str(e))
 
+    def _iters(req):
+        return max(1, min(req.max_iters or cur().max_iters, 10))
+
     @app.post("/api/generate")
     def generate(req: GenerateReq):
         try:
             model = mk(req.backend)
         except ValueError as e:
             raise HTTPException(400, str(e))
-        res = run_agent(req.request, model, s, max_iters=max(1, min(req.max_iters, 8)), use_images=req.use_images,
+        res = run_agent(req.request, model, cur(), max_iters=_iters(req), use_images=req.use_images,
                         hint=req.hint, compile_fn=compile_fn)
         return res.to_dict()
 
+    @app.post("/api/generate/stream")
+    def generate_stream(req: GenerateReq):
+        """NDJSON stream: one event per line (spec, model_call, attempt (+diff), done)."""
+        try:
+            model = mk(req.backend)
+        except ValueError as e:
+            raise HTTPException(400, str(e))
+        q: queue.Queue = queue.Queue()
+        prev = {"code": None}
+
+        def on_event(kind, data):
+            if kind == "attempt" and data.get("code"):
+                data = dict(data, diff=_diff(prev["code"], data["code"]) if prev["code"] else "")
+                prev["code"] = data["code"]
+            q.put({"event": kind, "data": data})
+
+        def work():
+            try:
+                res = run_agent(req.request, model, cur(), max_iters=_iters(req), use_images=req.use_images,
+                                hint=req.hint, compile_fn=compile_fn, on_event=on_event)
+                q.put({"event": "done", "data": res.to_dict()})
+            except Exception as e:  # surface unexpected failures to the UI
+                q.put({"event": "done", "data": {"status": "error", "error": f"{type(e).__name__}: {e}", "attempts": []}})
+            q.put(None)
+
+        threading.Thread(target=work, daemon=True).start()
+
+        def gen():
+            while (item := q.get()) is not None:
+                yield json.dumps(item, default=str) + "\n"
+
+        return StreamingResponse(gen(), media_type="application/x-ndjson")
+
+    # ------------------------------------------------------------ reverse debug
     @app.post("/api/debug")
     async def debug(dump: str = Form(""), symptom: str = Form(""), code: str = Form(""),
-                    backend: str | None = Form(None), fosc_mhz: float = Form(32.0),
+                    backend: str | None = Form(None), fosc_mhz: float | None = Form(None),
                     expected_period_ms: float | None = Form(None), use_model: bool = Form(True),
                     images: list[UploadFile] = File(default=[])):
         imgs = [await f.read() for f in images if f.filename]
@@ -97,29 +196,34 @@ def create_app(settings: Settings | None = None, model_factory: Callable | None 
                 model = mk(backend)
             except ValueError as e:
                 raise HTTPException(400, str(e))
-        res = debug_session(dump, imgs, symptom, code, model, fosc_mhz * 1e6,
+        fosc = fosc_mhz * 1e6 if fosc_mhz else cur().profile().fosc_hz
+        res = debug_session(dump, imgs, symptom, code, model, fosc,
                             expected_period_ms / 1e3 if expected_period_ms else None)
         return res.to_dict()
 
     @app.get("/api/page/{page}.png")
     def page(page: int):
-        imgs, note = load_page_images([page], s)
+        imgs, note = load_page_images([page], cur())
         if not imgs:
             raise HTTPException(404, note)
         return Response(imgs[0][1], media_type="image/png")
 
+    # ------------------------------------------------------------ export / flash
     @app.post("/api/export")
     def export(req: ExportReq):
+        s = cur()
         spec = parse_request(req.request) if req.request else None
         sol = None
         if spec and spec.period_s:
+            if any(n.startswith("no clock stated") for n in spec.notes):
+                spec.fosc_hz = s.profile().fosc_hz
             try:
                 sol = solve(spec)
             except ValueError:
                 pass
-        import tempfile
         with tempfile.TemporaryDirectory() as td:
-            paths = export_project(req.code, td, s.device, spec if sol else None, sol)
+            paths = export_project(req.code, td, s.device, spec if sol else None, sol,
+                                   profile_title=f"{s.profile().title}; ICS = {s.ics}")
             buf = io.BytesIO()
             with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
                 for p in paths:
@@ -129,11 +233,11 @@ def create_app(settings: Settings | None = None, model_factory: Callable | None 
 
     @app.post("/api/flash")
     def flash_ep(req: FlashReq):
+        s = cur()
         if not s.enable_flash:
-            return JSONResponse({"status": "disabled", "reason": "Flashing is OFF (CHIPLLAMA_ENABLE_FLASH=0)."})
+            return JSONResponse({"status": "disabled", "reason": "Flashing is OFF - enable it in Settings (or CHIPLLAMA_ENABLE_FLASH=1)."})
         if not req.confirm:
             return JSONResponse({"status": "disabled", "reason": "confirm=true required"})
-        import tempfile
         with tempfile.TemporaryDirectory() as td:
             cr = compile_c(req.code, s, link=True, workdir=td)
             if cr.status != "ok" or not cr.hex_path:

@@ -10,3 +10,4 @@ out/
 *.egg-info/
 datasheets/*.pdf
 datasheets/pages/
+settings.json

@@ -93,6 +93,14 @@ _add(Register("IPC2", 0x00A8, 99, (Field("U1RXIP", 12, 3), Field("SPI1IP", 8, 3)
                                     Field("T3IP", 0, 3, "Timer3 interrupt priority (0 = disabled)")),
               reset=0x4444))
 
+# CLKDIV (Register 8-2, p.125): POR value 0x0100 -> RCDIV=001 (FRC/2 = 4 MHz), CPDIV=00 (32 MHz)
+_add(Register("CLKDIV", 0x0744, 125, (Field("ROI", 15, 1, "Recover on interrupt"),
+                                       Field("DOZE", 12, 3, "CPU:peripheral clock ratio"),
+                                       Field("DOZEN", 11, 1, "DOZE enable"),
+                                       Field("RCDIV", 8, 3, "FRC postscaler: 0=8MHz 1=4MHz 2=2MHz ... 7=31.25kHz"),
+                                       Field("CPDIV", 6, 2, "32 MHz branch postscaler: 0=32 1=16 2=8 3=4 MHz")),
+              reset=0x0100))
+
 # 16-bit data registers (no bit fields)
 DATA_REGS: dict[str, int] = {"TMR1": 0x0100, "PR1": 0x0102, "TMR2": 0x0106, "TMR3": 0x010A,
                              "PR2": 0x010C, "PR3": 0x010E}
@@ -104,6 +112,6 @@ PAGES = {
     "timer2": [163, 164, 165, 166],  # 32-bit text/diagrams + T2CON
     "timer3": [165, 167],        # diagrams + T3CON
     "interrupts": [84, 90, 97, 98, 99],
-    "clock": [123, 124],         # OSCCON
+    "clock": [123, 124, 125, 290],  # OSCCON, CLKDIV, CW2
 }
 PAGE_OF_REGISTER = {r.name: r.page for r in REGISTERS.values()}

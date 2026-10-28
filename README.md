@@ -74,6 +74,53 @@ python -m chipllama serve                        # web UI on http://127.0.0.1:80
 
 `calc`, `debug --no-model` and the whole checker run offline without any key.
 
+## Your board: clock profile, config bits and ICS pins
+
+ChipLlama assumes a **bare self-made board** (just the PIC, no crystal). The default profile is
+**`frcpll`: internal FRC 8 MHz -> RCDIV=1 (4 MHz, the reset value) -> 96 MHz PLL -> CPDIV=0 -> Fosc 32 MHz, Fcy 16 MHz**
+(DS39897C sect. 8.5.1, CLKDIV register 8-2 p.125, CW2 p.290). Every generated file starts with the full
+`#pragma config` block, and the checker fails code that is missing a setting, uses the wrong value, or whose clock
+does not match the Fosc used in the timer math.
+
+| profile | clock | Fosc |
+|---|---|---|
+| `frcpll` (default) | FRC + PLL, PLLDIV=NODIV, RCDIV=1 | 32 MHz |
+| `frcpll_div2` | FRC + PLL, PLLDIV=DIV2, needs `CLKDIVbits.RCDIV = 0;` first | 32 MHz |
+| `frc` | FRC, PLL off | 8 MHz |
+| `xtal` | external crystal + PLL (XT up to 10 MHz, else HS), PLLDIV taken from `crystal_hz` | 32 MHz |
+
+Why NODIV and not DIV2: after reset RCDIV=1, so the PLL already gets 4 MHz. With DIV2 the PLL would get 2 MHz
+(out of spec) until the code clears RCDIV.
+
+Default block (ICS = PGx2):
+```c
+#pragma config WPFP = WPFP511, WPDIS = WPDIS, WPCFG = WPCFGDIS, WPEND = WPENDMEM            // CONFIG3
+#pragma config POSCMOD = NONE, DISUVREG = OFF, IOL1WAY = OFF, OSCIOFNC = ON, FCKSM = CSDCMD // CONFIG2
+#pragma config FNOSC = FRCPLL, PLL_96MHZ = ON, PLLDIV = NODIV, IESO = OFF
+#pragma config WDTPS = PS32768, FWPSA = PR128, WINDIS = OFF, FWDTEN = OFF, ICS = PGx2       // CONFIG1
+#pragma config GWRP = OFF, GCP = OFF, JTAGEN = OFF
+```
+**ICS depends on your wiring**: set it to the PGECx/PGEDx pair your PICkit 5 is connected to
+(PGx1/PGx2/PGx3, CW1 p.288). If it's wrong, debugging won't work, though programming usually still does.
+
+Sources for the pragma names: the datasheet gives bit meanings but no XC16 names. The names come from
+MPLAB X-generated blocks for the PIC24FJ256GB110 in public forum posts (edaboard, Microchip forum) and from a
+p24fj256gb110.h listing. Run `xc16-gcc --help` or check `docs/config_index.html` in your XC16 install to confirm.
+
+## Local dashboard
+
+`chipllama serve` starts the server on 127.0.0.1:8000 and opens your browser (`--no-browser` stops it opening).
+- **Generate**: request box, then live progress (parsed spec, each attempt with its checker findings, compiler output,
+  registers and the diff from the previous attempt), then the final code with Copy / Download / Export MPLAB X
+  project / Flash to board. Flashing needs flashing turned on in Settings and a confirm dialog.
+- **Reverse debug**: paste a register dump, or drop/paste screenshots of the SFR view.
+- **Settings**: device, clock profile, crystal, ICS, backend/model/reasoning effort, max iterations,
+  xc16/ipecmd paths (with Auto-detect), programmer, power-target, and a flash on/off switch. A Doctor card shows the same checks as `chipllama doctor`.
+
+Settings are saved to **`settings.json`** in the project folder (or wherever `CHIPLLAMA_SETTINGS` points). That file
+overrides `.env` and is gitignored. `.env` is never written. The page only shows whether an API key is set, never
+the key itself. Keys you type there are stored in plain text in settings.json on your PC, so keep that file private.
+
 ## MPLAB X IDE + PICkit 5 + XC16 workflow
 
 ChipLlama does not replace MPLAB X — it feeds it.
@@ -147,6 +194,11 @@ All model, compiler and programmer calls are mocked (scripted model replies, `ht
 * Timer4/5 share the layout of Timer2/3 but are not wired into the checker.
 
 ## Unverified assumptions (honest list)
+- XC16 `#pragma config` names come from secondary sources (see above), not the datasheet. `PLL_96MHZ` (with
+  underscore) is the GB110 spelling; GB0xx/GB210 parts use `PLL96MHZ`. `PLL_96MHZ = OFF` (the `frc` profile) has been seen only as `PLL_96MHz_OFF`.
+- `OSCIOFNC = ON` means RC15 is a normal I/O pin. That is the opposite of the raw datasheet bit, so check it.
+- COE/BKBUG/DEBUG are not emitted. FRC accuracy is not crystal-grade (see the datasheet electrical specs), so measured periods drift accordingly.
+- None of this has been tested on real hardware.
 
 Verified from primary sources: Meta Model API base URL/models/Chat Completions image format/`reasoning_effort` values (dev.meta.ai docs); Baseten `meta-models/muse-spark-open` slug and endpoint; all register addresses/bits/pages (from DS39897C text, extracted with `pdftotext`); `Fcy = Fosc/2`; period formula.
 

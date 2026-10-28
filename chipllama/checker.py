@@ -5,6 +5,7 @@ import re
 from dataclasses import dataclass, field, asdict
 
 from . import chipdb
+from . import board as boardmod
 from .cemu import Emulation, emulate, isr_clears_flag, collect_defines, strip_comments, eval_expr, EvalError
 from .timers import PRESCALERS, TIMERS, TimerSpec, TimerSolution, solve, timer_period_s, interrupt_names
 
@@ -61,7 +62,9 @@ class CheckReport:
         return "\n".join(lines)
 
 
-def check_timer(code: str, spec: TimerSpec, emu: Emulation | None = None) -> CheckReport:
+def check_timer(code: str, spec: TimerSpec, emu: Emulation | None = None, *,
+                profile: "boardmod.BoardProfile | None" = None, ics: str = "PGx2",
+                require_config: bool = True) -> CheckReport:
     rep = CheckReport()
     emu = emu or emulate(code)
     try:
@@ -179,6 +182,12 @@ def check_timer(code: str, spec: TimerSpec, emu: Emulation | None = None) -> Che
                     rep.add("warning", "CLOCK_MACRO", f"#define {name} = {val:g} Hz but the request implies {expect:g} Hz.", f"{expect:g}", f"{val:g}")
             except EvalError:
                 pass
+    # --- configuration bits + clock tree vs. the Fosc used in the timing math
+    if require_config:
+        prof = profile or boardmod.get_profile("frcpll")
+        rep.registers["CLKDIV"] = regs.get("CLKDIV", 0x0100)
+        boardmod.check_config(code, spec.fosc_hz, emu.get("CLKDIV", "RCDIV"), emu.get("CLKDIV", "CPDIV"),
+                              prof, ics, rep.add)
     if emu.unknown_targets - {"LATB", "LATA", "LATD", "LATE", "LATC", "LATF", "LATG", "TRISB", "TRISA", "TRISD", "TRISE", "TRISC", "TRISF", "TRISG"}:
         extra = sorted(emu.unknown_targets)[:6]
         rep.add("info", "UNMODELLED", "writes to registers the checker does not model (not verified): " + ", ".join(extra))
