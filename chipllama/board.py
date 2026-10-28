@@ -145,8 +145,16 @@ def parse_pragmas(code: str) -> tuple[dict[str, str], list[str]]:
     """Return ({SETTING: VALUE}, problems). Handles `#pragma config A = B, C = D`."""
     vals: dict[str, str] = {}
     probs: list[str] = []
-    code = re.sub(r"/\*.*?\*/", "", code, flags=re.S)
-    for m in _PRAGMA.finditer(code):
+    code = re.sub(r"/\*.*?\*/", lambda m: "\n" * m.group(0).count("\n"), code, flags=re.S)
+    code = re.sub(r"\\\r?\n", " ", code).replace("\r", "")   # line continuations, CRLF
+    for line, cond in _live_lines(code):
+        m = _PRAGMA.match(line)
+        if not m:
+            continue
+        if cond:
+            probs.append(f"'#pragma config {m.group(1).split('//')[0].strip()}' is inside #if/#ifdef: "
+                         "config bits must be unconditional (not counted)")
+            continue
         body = m.group(1).split("//")[0]
         for part in body.split(","):
             if not part.strip():
@@ -159,6 +167,26 @@ def parse_pragmas(code: str) -> tuple[dict[str, str], list[str]]:
                 probs.append(f"{k} set twice ({vals[k]} and {v})")
             vals[k] = v
     return vals, probs
+
+
+def _live_lines(code: str):
+    """Yield (line, inside_conditional). Lines in `#if 0` regions (and their #else of `#if 1`) are dropped."""
+    stack: list[tuple[bool, bool]] = []   # (active, conditional)
+    for line in code.split("\n"):
+        d = re.match(r"^[ \t]*#[ \t]*(if|ifdef|ifndef|elif|else|endif)\b(.*)", line)
+        active = all(a for a, _ in stack)
+        if d:
+            kw, arg = d.group(1), d.group(2).split("//")[0].strip()
+            if kw in ("if", "ifdef", "ifndef"):
+                stack.append((not (kw == "if" and arg == "0"), not (kw == "if" and arg in ("0", "1"))))
+            elif kw in ("elif", "else") and stack:
+                a, c = stack.pop()
+                stack.append((not a if kw == "else" and not c else True, True if kw == "elif" or c else False))
+            elif kw == "endif" and stack:
+                stack.pop()
+            continue
+        if active:
+            yield line, any(c for _, c in stack)
 
 
 def legacy_config_macros(code: str) -> bool:
@@ -228,7 +256,12 @@ def check_config(code: str, spec_fosc_hz: float, rcdiv: int, cpdiv: int, profile
     if legacy_config_macros(code):
         add("warning", "CONFIG_LEGACY", "_CONFIGx() macros found; use `#pragma config NAME = VALUE` lines instead.")
     expected = pragma_values(profile, ics)
-    missing = [k for k in REQUIRED if k not in vals]
+    req = list(dict.fromkeys(list(expected) + list(REQUIRED)))   # every setting the profile emits, FNOSC first-class
+    missing = [k for k in req if k not in vals]
+    if "FNOSC" not in vals:
+        add("error", "FNOSC_MISSING", "`#pragma config FNOSC = ...` is missing: without it the chip keeps the reset "
+            f"oscillator and the timing is wrong. This board needs FNOSC = {expected.get('FNOSC')}.",
+            expected.get("FNOSC"), "absent")
     if missing:
         add("error", "CONFIG_MISSING", "configuration bits missing - emit `#pragma config` for: " + ", ".join(missing)
             + ". The board has nothing else to set them.", ", ".join(missing), "absent")
@@ -253,7 +286,7 @@ def check_config(code: str, spec_fosc_hz: float, rcdiv: int, cpdiv: int, profile
     if vals.get("IESO") == "ON":
         add("info", "IESO", "IESO=ON (two-speed start-up) is only useful with a primary oscillator.")
     if "FNOSC" not in vals:
-        return None
+        return None   # FNOSC_MISSING already reported
     clk = derive_fosc(vals, rcdiv, cpdiv, profile.crystal_hz)
     for c, m in clk.errors:
         add("error", c, m)

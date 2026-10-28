@@ -137,3 +137,50 @@ def test_agent_sends_profile_and_rejects_missing_pragmas(tmp_path, monkeypatch):
     assert r.status == "verified" and len(r.attempts) == 2
     assert "CONFIG_MISSING" in m.calls[1][-1].text
     assert "Fosc = 32 MHz" in " ".join(r.notes + r.spec.notes)
+
+
+# --- regression: real run on Rafael's PC passed code with no FNOSC pragma ---------------------------
+import pytest as _pt
+from chipllama import checker as _ck, timers as _tm
+from tests.conftest import GOOD_T1 as _G
+
+
+def _spec():
+    return _tm.parse_request("Timer1 interrupt every 10 ms, priority 5")
+
+
+def _errs(code):
+    r = _ck.check_timer(code, _spec())
+    return r.ok, {f.code for f in r.findings if f.severity == "error"}
+
+
+def test_good_still_passes():
+    assert _errs(_G)[0]
+
+
+@_pt.mark.parametrize("variant", [
+    lambda c: "\n".join(l for l in c.splitlines() if "FNOSC" not in l),                 # line dropped
+    lambda c: c.replace("#pragma config FNOSC", "// #pragma config FNOSC"),            # commented out
+    lambda c: c.replace("#pragma config FNOSC", "/* #pragma config FNOSC").replace("// FRC + PLL", "*/", 1),
+    lambda c: c.replace("#pragma config FNOSC = FRCPLL", "#if 0\n#pragma config FNOSC = FRCPLL\n#endif"),
+    lambda c: c.replace("#pragma config FNOSC = FRCPLL", "#ifdef USE_PLL\n#pragma config FNOSC = FRCPLL\n#endif"),
+    lambda c: c.replace("\n", "\r\n").replace("#pragma config FNOSC", "//#pragma config FNOSC"),
+])
+def test_missing_fnosc_fails(variant):
+    code = variant(_G)
+    ok, errs = _errs(code)
+    assert not ok and "FNOSC_MISSING" in errs and "CONFIG_MISSING" in errs
+
+
+@_pt.mark.parametrize("key", ["POSCMOD", "PLL_96MHZ", "PLLDIV", "FCKSM", "ICS", "FWDTEN", "IESO", "WPFP"])
+def test_each_required_setting_missing_fails(key):
+    code = "\n".join(l for l in _G.splitlines() if not l.lstrip().startswith(f"#pragma config {key} "))
+    ok, errs = _errs(code)
+    assert not ok and "CONFIG_MISSING" in errs
+
+
+def test_every_profile_setting_is_required():
+    from chipllama.board import REQUIRED, get_profile, pragma_values
+    for k in ("frcpll", "frcpll_div2", "frc", "xtal"):
+        assert set(pragma_values(get_profile(k, 8e6), "PGx2")) <= set(REQUIRED) | set(pragma_values(get_profile(k, 8e6), "PGx2"))
+        assert "FNOSC" in pragma_values(get_profile(k, 8e6), "PGx2")
