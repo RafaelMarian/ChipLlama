@@ -280,4 +280,4 @@ ChipLlama was designed and written from scratch during the Meta Global AI Develo
 
 ## License
 
-[MIT](LICENSE) © 2026 Rafael Marian. Microchip datasheets, headers and packs are © Microchip Technology and are not redistributed.
+[MIT](LICENSE) © 2026 Rafael Marian Vanca. Microchip datasheets, headers and packs are © Microchip Technology and are not redistributed.
