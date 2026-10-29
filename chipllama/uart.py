@@ -102,6 +102,8 @@ class UartSpec:
         return d
 
 
+UART_RX = {1: ("RPINR18", "U1RXR"), 2: ("RPINR19", "U2RXR"), 3: ("RPINR17", "U3RXR"), 4: ("RPINR27", "U4RXR")}
+UART_TX_FN = {1: 3, 2: 5, 3: 28, 4: 30}     # Table 10-3, p.138
 _PIN = r"(RPI?\d{1,2}|R[A-G]\d{1,2})"
 
 
@@ -115,8 +117,8 @@ def _pin_to_rp(tok: str) -> int | None:
 
 def _find_pin(text: str, role: str) -> int | None:
     r = role
-    pats = [rf"\b(?:U1)?{r}\b\s*(?:pin\s*)?(?:on|=|:|->|to|at|@)?\s*(?:pin\s*)?{_PIN}\b",
-            rf"\b{_PIN}\s*(?:\(|as|for|=|:)?\s*(?:U1)?{r}\b"]
+    pats = [rf"\b(?:U[1-4])?{r}\b\s*(?:pin\s*)?(?:on|=|:|->|to|at|@)?\s*(?:pin\s*)?{_PIN}\b",
+            rf"\b{_PIN}\s*(?:\(|as|for|=|:)?\s*(?:U[1-4])?{r}\b"]
     for p in pats:
         m = re.search(p, text, re.I)
         if m:
@@ -146,10 +148,8 @@ def parse_uart_request(text: str, fcy: float = 16e6) -> UartSpec | None:
         spec.notes.append("no baud rate stated: assuming 9600")
     spec.tx_rp = _find_pin(text, "TX")
     spec.rx_rp = _find_pin(text, "RX")
-    if spec.uart != 1:
-        spec.notes.append(f"UART{spec.uart} requested: the checker verifies UART1 registers only")
     if spec.tx_rp is not None and spec.tx_rp > OUTPUT_RP_MAX:
-        spec.notes.append(f"{rp_name(spec.tx_rp)} is input-only: it cannot carry U1TX")
+        spec.notes.append(f"{rp_name(spec.tx_rp)} is input-only: it cannot carry U{spec.uart}TX")
     return spec
 
 
@@ -158,41 +158,43 @@ def check_uart(code: str, uspec: UartSpec, rep, emu=None):
     """Append UART/PPS findings to a checker.CheckReport (rep.add(sev, code, msg, expected, actual))."""
     from .cemu import emulate
     emu = emu or emulate(code)
+    N = uspec.uart
+    U, RXREG, RXF, TXFN = f"U{N}", *UART_RX[N], UART_TX_FN[N]
     regs = emu.regs
     get = emu.get
     sol = uspec.solution()
     wrote = {e.target.split(".")[0] for e in emu.events}
-    for r in ("U1MODE", "U1STA", "U1BRG", "RPINR18"):
+    for r in (f"{U}MODE", f"{U}STA", f"{U}BRG", f"{RXREG}"):
         rep.registers[r] = regs.get(r, 0)
-    rep.expected["U1BRG"] = sol.brg
+    rep.expected[f"{U}BRG"] = sol.brg
 
     # --- baud
-    brgh = get("U1MODE", "BRGH")
-    brg = regs.get("U1BRG", 0)
+    brgh = get(f"{U}MODE", "BRGH")
+    brg = regs.get(f"{U}BRG", 0)
     act = baud_from_brg(uspec.fcy, brg, brgh)
     err = (act - uspec.baud) / uspec.baud * 100
-    if "U1BRG" not in wrote:
-        rep.add("error", "BRG_UNSET", "U1BRG is never written (resets to 0 -> baud = Fcy/16 or Fcy/4).",
+    if f"{U}BRG" not in wrote:
+        rep.add("error", "BRG_UNSET", f"{U}BRG is never written (resets to 0 -> baud = Fcy/16 or Fcy/4).",
                 sol.brg, brg)
     elif abs(err) > uspec.tolerance_pct:
         rep.add("error", "BRG",
-                f"U1BRG={brg} with BRGH={brgh} gives {act:.0f} baud at Fcy={uspec.fcy/1e6:g} MHz ({err:+.2f}% vs "
-                f"{uspec.baud}). Formula (p.200): BRGH=0 -> U1BRG=Fcy/(16*baud)-1, BRGH=1 -> Fcy/(4*baud)-1. "
-                f"Best: BRGH={sol.brgh}, U1BRG={sol.brg} ({sol.error_pct:+.2f}%).",
+                f"{U}BRG={brg} with BRGH={brgh} gives {act:.0f} baud at Fcy={uspec.fcy/1e6:g} MHz ({err:+.2f}% vs "
+                f"{uspec.baud}). Formula (p.200): BRGH=0 -> {U}BRG=Fcy/(16*baud)-1, BRGH=1 -> Fcy/(4*baud)-1. "
+                f"Best: BRGH={sol.brgh}, {U}BRG={sol.brg} ({sol.error_pct:+.2f}%).",
                 f"{uspec.baud} baud", f"{act:.0f} baud")
     else:
-        rep.add("info", "BAUD", f"U1BRG={brg}, BRGH={brgh} -> {act:.0f} baud ({err:+.2f}%)")
+        rep.add("info", "BAUD", f"{U}BRG={brg}, BRGH={brgh} -> {act:.0f} baud ({err:+.2f}%)")
     # --- enable bits + ordering (UTXEN must be set after UARTEN, p.204)
-    if get("U1MODE", "UARTEN") != 1:
-        rep.add("error", "UARTEN", "U1MODE.UARTEN is not set: UART1 is off.", 1, get("U1MODE", "UARTEN"))
-    if get("U1STA", "UTXEN") != 1:
-        rep.add("error", "UTXEN", "U1STA.UTXEN is not set: the transmitter never drives U1TX.", 1, get("U1STA", "UTXEN"))
-    on_idx = next((i for i, e in enumerate(emu.events) if e.target.startswith("U1MODE") and (e.after >> 15) & 1), None)
-    tx_idx = next((i for i, e in enumerate(emu.events) if e.target.startswith("U1STA") and (e.after >> 10) & 1), None)
+    if get(f"{U}MODE", "UARTEN") != 1:
+        rep.add("error", "UARTEN", f"{U}MODE.UARTEN is not set: UART{N} is off.", 1, get(f"{U}MODE", "UARTEN"))
+    if get(f"{U}STA", "UTXEN") != 1:
+        rep.add("error", "UTXEN", f"{U}STA.UTXEN is not set: the transmitter never drives {U}TX.", 1, get(f"{U}STA", "UTXEN"))
+    on_idx = next((i for i, e in enumerate(emu.events) if e.target.startswith(f"{U}MODE") and (e.after >> 15) & 1), None)
+    tx_idx = next((i for i, e in enumerate(emu.events) if e.target.startswith(f"{U}STA") and (e.after >> 10) & 1), None)
     if on_idx is not None and tx_idx is not None and tx_idx < on_idx:
-        rep.add("warning", "UTXEN_ORDER", "U1STA.UTXEN is set before U1MODE.UARTEN; the datasheet requires UARTEN first.")
-    if get("U1MODE", "UEN") not in (0,):
-        rep.add("warning", "UEN", "U1MODE.UEN != 0: RTS/CTS pins are used although flow control was not requested.")
+        rep.add("warning", "UTXEN_ORDER", f"{U}STA.UTXEN is set before {U}MODE.UARTEN; the datasheet requires UARTEN first.")
+    if get(f"{U}MODE", "UEN") not in (0,):
+        rep.add("warning", "UEN", f"{U}MODE.UEN != 0: RTS/CTS pins are used although flow control was not requested.")
 
     # --- PPS: replay events to know IOLOCK at each PPS write
     iolock = 0
@@ -209,7 +211,7 @@ def check_uart(code: str, uspec: UartSpec, rep, emu=None):
             if not new:
                 unlock_seen = True
             iolock = new
-        elif reg == "RPINR18" or reg.startswith("RPOR"):
+        elif reg == f"{RXREG}" or reg.startswith("RPOR"):
             pps_writes += 1
             if iolock:
                 rep.add("error", "PPS_LOCKED", f"'{e.text}' runs while OSCCON.IOLOCK=1: the PPS write is ignored. "
@@ -221,29 +223,29 @@ def check_uart(code: str, uspec: UartSpec, rep, emu=None):
         rep.add("info", "PPS_LOCK", "PPS is not locked afterwards (__builtin_write_OSCCONL(OSCCON | 0x40)).")
 
     # --- TX mapping
-    tx_map = [rp for rp in range(OUTPUT_RP_MAX + 1) if get(*rpor_field(rp)) == U1TX_FN]
+    tx_map = [rp for rp in range(OUTPUT_RP_MAX + 1) if get(*rpor_field(rp)) == TXFN]
     if uspec.tx_rp is not None:
         reg, f = rpor_field(uspec.tx_rp) if uspec.tx_rp <= OUTPUT_RP_MAX else (None, None)
         if reg is None:
-            rep.add("error", "PPS_TX", f"{rp_name(uspec.tx_rp)} is input-only; U1TX needs an RPn output pin.")
+            rep.add("error", "PPS_TX", f"{rp_name(uspec.tx_rp)} is input-only; {U}TX needs an RPn output pin.")
         else:
             rep.registers[reg] = regs.get(reg, 0)
             v = get(reg, f)
-            if v != U1TX_FN:
-                rep.add("error", "PPS_TX", f"{reg}.{f} = {v}, but U1TX is output function 3 (Table 10-3, p.138): "
-                        f"set {reg}bits.{f} = 3 to put U1TX on RP{uspec.tx_rp}/{port_pin(uspec.tx_rp)}.", 3, v)
+            if v != TXFN:
+                rep.add("error", "PPS_TX", f"{reg}.{f} = {v}, but {U}TX is output function {TXFN} (Table 10-3, p.138): "
+                        f"set {reg}bits.{f} = {TXFN} to put {U}TX on RP{uspec.tx_rp}/{port_pin(uspec.tx_rp)}.", TXFN, v)
         others = [rp for rp in tx_map if rp != uspec.tx_rp]
         if others:
-            rep.add("warning", "PPS_TX_EXTRA", f"U1TX is also mapped to RP{others[0]}.")
+            rep.add("warning", "PPS_TX_EXTRA", f"{U}TX is also mapped to RP{others[0]}.")
     elif not tx_map:
-        rep.add("error", "PPS_TX", "U1TX is not mapped to any RPn pin (RPORx.RPnR = 3).")
+        rep.add("error", "PPS_TX", f"{U}TX is not mapped to any RPn pin (RPORx.RPnR = {TXFN}).")
     tx_rp = uspec.tx_rp if uspec.tx_rp is not None else (tx_map[0] if tx_map else None)
 
     # --- RX mapping
-    rxr = get("RPINR18", "U1RXR")
+    rxr = get(f"{RXREG}", f"{RXF}")
     if uspec.rx_rp is not None:
         if rxr != uspec.rx_rp:
-            rep.add("error", "PPS_RX", f"RPINR18.U1RXR = {rxr}, expected {uspec.rx_rp} to read U1RX from "
+            rep.add("error", "PPS_RX", f"{RXREG}.{RXF} = {rxr}, expected {uspec.rx_rp} to read {U}RX from "
                     f"{rp_name(uspec.rx_rp)}/{port_pin(uspec.rx_rp)} (p.147).", uspec.rx_rp, rxr)
     rx_rp = uspec.rx_rp if uspec.rx_rp is not None else (rxr if rxr != PPS_INPUT_OFF else None)
 
@@ -256,10 +258,10 @@ def check_uart(code: str, uspec: UartSpec, rep, emu=None):
         port, bit = pin[1], int(pin[2:])
         tris = (regs.get(f"TRIS{port}", 0xFFFF) >> bit) & 1
         if role == "TX" and tris != 0:
-            rep.add("warning", "TRIS_TX", f"TRIS{port}bits.TRIS{port}{bit} = 1: make the U1TX pin {pin} an output "
+            rep.add("warning", "TRIS_TX", f"TRIS{port}bits.TRIS{port}{bit} = 1: make the {U}TX pin {pin} an output "
                     f"(TRIS{port}bits.TRIS{port}{bit} = 0) so it idles high before the UART is enabled.", 0, tris)
         if role == "RX" and tris != 1:
-            rep.add("error", "TRIS_RX", f"TRIS{port}bits.TRIS{port}{bit} = 0 drives the U1RX pin {pin} as an output.", 1, tris)
+            rep.add("error", "TRIS_RX", f"TRIS{port}bits.TRIS{port}{bit} = 0 drives the {U}RX pin {pin} as an output.", 1, tris)
         an = analog_channel(pin)
         if an is not None and not (adpcfg >> an) & 1:
             rep.registers["AD1PCFGL"] = adpcfg
@@ -296,25 +298,27 @@ def pages_for_uart(uspec: UartSpec) -> list[int]:
 
 def uart_prompt_text(uspec: UartSpec) -> str:
     sol = uspec.solution()
+    N = uspec.uart
+    U, RXREG, RXF, TXFN = f"U{N}", *UART_RX[N], UART_TX_FN[N]
     opts = baud_options(uspec.fcy, uspec.baud)
-    s = [f"UART parameters (verified later): UART1, {uspec.baud} baud 8N1, Fcy = {uspec.fcy/1e6:g} MHz.",
-         "Baud math (DS39897C Eq. 17-1, p.200): BRGH=0 -> U1BRG = Fcy/(16*baud) - 1 ; BRGH=1 -> U1BRG = Fcy/(4*baud) - 1."]
+    s = [f"UART parameters (verified later): UART{N}, {uspec.baud} baud 8N1, Fcy = {uspec.fcy/1e6:g} MHz.",
+         f"Baud math (DS39897C Eq. 17-1, p.200): BRGH=0 -> {U}BRG = Fcy/(16*baud) - 1 ; BRGH=1 -> {U}BRG = Fcy/(4*baud) - 1."]
     for o in opts:
-        s.append(f"  BRGH={o.brgh}: U1BRG={o.brg} -> {o.actual:.0f} baud ({o.error_pct:+.2f}%)")
-    s.append(f"  Use BRGH={sol.brgh}, U1BRG={sol.brg} (lowest error). Compute it with a constant expression in the code.")
+        s.append(f"  BRGH={o.brgh}: {U}BRG={o.brg} -> {o.actual:.0f} baud ({o.error_pct:+.2f}%)")
+    s.append(f"  Use BRGH={sol.brgh}, {U}BRG={sol.brg} (lowest error). Compute it with a constant expression in the code.")
     s += ["Register facts (from DS39897C):",
-          "- U1MODE @0x0220 (p.202): UARTEN<15>, UEN<9:8>, BRGH<3>, PDSEL<2:1>, STSEL<0>. U1STA @0x0222 (p.204): UTXEN<10>, UTXBF<9>, TRMT<8>, URXDA<0>. U1BRG @0x0228.",
-          "- Set U1MODEbits.UARTEN = 1 BEFORE U1STAbits.UTXEN = 1. Transmit: wait while U1STAbits.UTXBF, then write U1TXREG.",
+          f"- {U}MODE (p.202): UARTEN<15>, UEN<9:8>, BRGH<3>, PDSEL<2:1>, STSEL<0>. {U}STA (p.204): UTXEN<10>, UTXBF<9>, TRMT<8>, URXDA<0>. {U}BRG = baud divisor.",
+          f"- Set {U}MODEbits.UARTEN = 1 BEFORE {U}STAbits.UTXEN = 1. Transmit: wait while {U}STAbits.UTXBF, then write {U}TXREG.",
           "- Peripheral Pin Select: unlock with __builtin_write_OSCCONL(OSCCON & 0xBF); map; lock with __builtin_write_OSCCONL(OSCCON | 0x40).",
-          "- U1TX output function number = 3 (Table 10-3, p.138): RPORxbits.RPnR = 3. U1RX input: RPINR18bits.U1RXR = n (p.147)."]
+          f"- {U}TX output function number = {TXFN} (Table 10-3, p.138): RPORxbits.RPnR = {TXFN}. {U}RX input: {RXREG}bits.{RXF} = n (p.147)."]
     if uspec.tx_rp is not None:
         reg, f = rpor_field(uspec.tx_rp)
         pin = port_pin(uspec.tx_rp)
-        s.append(f"- TX on RP{uspec.tx_rp} = pin {pin}: {reg}bits.{f} = 3; TRIS{pin[1]}bits.TRIS{pin[1]}{pin[2:]} = 0."
+        s.append(f"- TX on RP{uspec.tx_rp} = pin {pin}: {reg}bits.{f} = {TXFN}; TRIS{pin[1]}bits.TRIS{pin[1]}{pin[2:]} = 0."
                  + (f" {pin} is also AN{analog_channel(pin)}: AD1PCFGLbits.PCFG{analog_channel(pin)} = 1." if analog_channel(pin) is not None else ""))
     if uspec.rx_rp is not None:
         pin = port_pin(uspec.rx_rp)
-        s.append(f"- RX on {rp_name(uspec.rx_rp)} = pin {pin}: RPINR18bits.U1RXR = {uspec.rx_rp}; TRIS{pin[1]}bits.TRIS{pin[1]}{pin[2:]} = 1."
+        s.append(f"- RX on {rp_name(uspec.rx_rp)} = pin {pin}: {RXREG}bits.{RXF} = {uspec.rx_rp}; TRIS{pin[1]}bits.TRIS{pin[1]}{pin[2:]} = 1."
                  + (f" {pin} is also AN{analog_channel(pin)}: AD1PCFGLbits.PCFG{analog_channel(pin)} = 1." if analog_channel(pin) is not None else ""))
     s.append("- For delays use a hardware timer or `#define FCY 16000000UL` before `#include <libpic30.h>` and __delay_ms().")
     return "\n".join(s)

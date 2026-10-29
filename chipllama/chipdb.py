@@ -144,6 +144,13 @@ _PAGE_FALLBACK = {"TRIS": 133}
 for _n, _a, _pg, _f, _rst in _gen.SFRS:
     if _n not in REGISTERS:
         _add(Register(_n, _a, _pg, tuple(Field(fn, lsb, w) for fn, lsb, w in _f), reset=_rst))
+from . import ds_map_tables as _ds  # noqa: E402  (batch-2: SPI, I2C, UART2-4, PMP, RTCC, CRC, RCON, PMD)
+for _n, _a, _pg, _f, _rst in _ds.SFRS:
+    if _n not in REGISTERS:
+        _add(Register(_n, _a, _pg, tuple(Field(fn, lsb, w) for fn, lsb, w in _f), reset=_rst))
+for _n, _a, _rst in _ds.DATA:
+    DATA_REGS.setdefault(_n, _a)
+    DATA_RESET.setdefault(_n, _rst)
 for _r in list(REGISTERS.values()):
     if _r.name.startswith("TRIS") and _r.page == 0:
         REGISTERS[_r.name] = Register(_r.name, _r.address, 133, _r.fields, _r.reset)

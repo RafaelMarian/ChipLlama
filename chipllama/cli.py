@@ -95,7 +95,7 @@ def cmd_calc_uart(a, s) -> int:
     return 0
 
 
-CALC_KINDS = ("uart", "timer", "gpio", "irq", "adc", "pwm", "ic")
+CALC_KINDS = ("uart", "timer", "gpio", "irq", "adc", "pwm", "ic", "spi", "i2c", "rtcc", "crc", "pmp", "power", "usb")
 
 
 def cmd_calc(a, s) -> int:

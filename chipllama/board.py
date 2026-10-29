@@ -248,7 +248,7 @@ BOARD_FIXED = ("FWDTEN", "JTAGEN", "GCP", "GWRP")  # must equal OFF
 
 
 def check_config(code: str, spec_fosc_hz: float, rcdiv: int, cpdiv: int, profile: BoardProfile,
-                 ics: str, add) -> float | None:
+                 ics: str, add, allow=()) -> float | None:
     """Append findings through add(sev, code, msg, expected, actual). Returns the derived Fosc."""
     vals, probs = parse_pragmas(code)
     for p in probs:
@@ -277,6 +277,8 @@ def check_config(code: str, spec_fosc_hz: float, rcdiv: int, cpdiv: int, profile
         add("error", "ICS", f"ICS = {vals['ICS']} but the board's PICkit is wired to PGEC{ics[-1]}/PGED{ics[-1]}: "
                             "debugging would fail.", ics, vals["ICS"])
     for k in BOARD_FIXED:
+        if k in allow:
+            continue
         if vals.get(k, "OFF") != "OFF":
             add("error", k, f"{k} must be OFF on this board.", "OFF", vals[k])
     if not profile.crystal_hz and vals.get("POSCMOD", "NONE") != "NONE":

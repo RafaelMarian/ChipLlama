@@ -11,24 +11,33 @@ from __future__ import annotations
 
 import importlib
 
-MODULES = {"gpio": "gpio", "irq": "interrupts", "adc": "adc", "pwm": "pwm", "ic": "ic"}        # kind -> module name
+MODULES = {"gpio": "gpio", "irq": "interrupts", "adc": "adc", "pwm": "pwm", "ic": "ic",
+           "spi": "spi", "i2c": "i2c", "rtcc": "rtcc", "crc": "crc", "pmp": "pmp", "power": "power", "usb": "usb"}        # kind -> module name
 
 
 def _mod(kind: str):
     return importlib.import_module(f".{MODULES[kind]}", __package__)
 
 
-def fcy_from_text(text: str, fosc_hz: float | None = None) -> float:
-    """Fcy from an explicit 'NN MHz' clock in the text (Fosc unless it says Fcy/MIPS), else 16 MHz."""
+_BUS = r"(spi|sck|sclk|i2c|scl|sda|bus|baud|pwm|oc\d|clock\s+of\s+the\s+(?:spi|i2c))"
+
+
+def fcy_from_text(text: str, fosc_hz: float | None = None, default: float | None = 16e6) -> float | None:
+    """Fcy from an explicit CPU 'NN MHz' clock in the text (Fosc unless it says Fcy/MIPS), else `default`.
+    MHz values that belong to a bus (SPI SCK, I2C 1 MHz, PWM) are ignored."""
     import re
     if fosc_hz:
         return fosc_hz / 2
-    m = re.search(r"(\d+(?:\.\d+)?)\s*MHz(\s*(?:fcy|instruction|mips))?", text, re.I)
-    if m:
+    for m in re.finditer(r"(\d+(?:\.\d+)?)\s*MHz(\s*(?:fcy|instruction|mips))?", text, re.I):
+        before = text[max(0, m.start() - 25):m.start()]
+        after = text[m.end():m.end() + 15]
+        if re.search(_BUS, before + " " + after, re.I) and not re.search(r"fosc|cpu|crystal|oscillator|system|fcy|mips",
+                                                                           before + after, re.I):
+            continue
         f = float(m.group(1)) * 1e6
         return f if m.group(2) else f / 2
     m = re.search(r"(\d+(?:\.\d+)?)\s*MIPS", text, re.I)
-    return float(m.group(1)) * 1e6 if m else 16e6
+    return float(m.group(1)) * 1e6 if m else default
 
 
 def calc(kind: str, text: str, fosc_hz: float | None = None):
@@ -89,6 +98,16 @@ def timer_spec(specs: dict):
     return None
 
 
+def allowed_config(specs: dict) -> set:
+    """Board-fixed config settings a request legitimately turns on (e.g. FWDTEN for a watchdog request)."""
+    out: set = set()
+    for k, sp in specs.items():
+        f = getattr(_mod(k), "allow_config", None)
+        if f:
+            out |= f(sp)
+    return out
+
+
 def check_full(code: str, specs: dict, *, fcy: float, profile=None, ics: str = "PGx2", rep=None, require_config=True):
     """Peripheral-only request (no timer/UART spec): peripheral rules + configuration bits / clock tree."""
     from .checker import CheckReport
@@ -101,5 +120,6 @@ def check_full(code: str, specs: dict, *, fcy: float, profile=None, ics: str = "
     check_all(code, specs, rep, emu)
     if require_config:
         prof = profile or boardmod.get_profile("frcpll")
-        boardmod.check_config(code, fcy * 2, emu.get("CLKDIV", "RCDIV"), emu.get("CLKDIV", "CPDIV"), prof, ics, rep.add)
+        boardmod.check_config(code, fcy * 2, emu.get("CLKDIV", "RCDIV"), emu.get("CLKDIV", "CPDIV"), prof, ics, rep.add,
+                              allow=allowed_config(specs))
     return rep
