@@ -147,7 +147,7 @@ def run_agent(request: str, model: ChatModel, settings: Settings, *, max_iters: 
               hint: bool = False, spec: TimerSpec | None = None,
               compile_fn: Callable[..., CompileResult] = compile_c,
               on_event: Callable[[str, dict], None] | None = None, inject_fault: bool = False,
-              context: str = "") -> AgentResult:
+              context: str = "", context_kind: str = "debug") -> AgentResult:
     emit = on_event or (lambda *_: None)
     res = AgentResult("error", request, backend=getattr(model, "name", "?"))
     builtin = chipdb.is_builtin_family(settings.device)
@@ -214,7 +214,11 @@ def run_agent(request: str, model: ChatModel, settings: Settings, *, max_iters: 
     else:
         msgs = [Message("system", prompts.generic_system(dev)),
                 Message("user", prompts.generic_user_prompt(request, spec, dev, settings.ics))]
-    if context.strip():
+    if context.strip() and context_kind == "blocks":
+        msgs[1].text += ("\n\nSTARTING POINT FROM THE BLOCKS EDITOR (deterministic and already verified). Polish it: keep the "
+                         "exact behaviour, pins and register values; improve structure, names and comments:\n" + context.strip()[:6000])
+        res.notes.append("polishing Blocks-generated code")
+    elif context.strip():
         msgs[1].text += ("\n\nCONTEXT FROM REVERSE DEBUG OF THE REAL BOARD (deterministic, trust it; the new code must fix this):\n"
                          + context.strip()[:4000])
         res.notes.append("regenerating with reverse-debug fix context")

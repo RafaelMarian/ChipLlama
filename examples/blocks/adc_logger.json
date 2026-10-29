@@ -1,0 +1,86 @@
+{
+ "blocks": {
+  "languageVersion": 0,
+  "blocks": [
+   {
+    "type": "cl_on_start",
+    "inputs": {
+     "DO": {
+      "block": {
+       "type": "cl_uart_begin",
+       "fields": {
+        "BAUD": 115200,
+        "TX": 10,
+        "RX": 17
+       }
+      }
+     }
+    },
+    "x": 20,
+    "y": 20
+   },
+   {
+    "type": "cl_forever",
+    "inputs": {
+     "DO": {
+      "block": {
+       "type": "variables_set",
+       "fields": {
+        "VAR": {
+         "id": "var_level"
+        }
+       },
+       "inputs": {
+        "VALUE": {
+         "block": {
+          "type": "cl_adc_read",
+          "fields": {
+           "CH": 5
+          }
+         }
+        }
+       },
+       "next": {
+        "block": {
+         "type": "cl_uart_print_num",
+         "fields": {
+          "NL": "TRUE"
+         },
+         "inputs": {
+          "VALUE": {
+           "block": {
+            "type": "variables_get",
+            "fields": {
+             "VAR": {
+              "id": "var_level"
+             }
+            }
+           }
+          }
+         },
+         "next": {
+          "block": {
+           "type": "cl_delay_ms",
+           "fields": {
+            "MS": 200
+           }
+          }
+         }
+        }
+       }
+      }
+     }
+    },
+    "x": 380,
+    "y": 20
+   }
+  ]
+ },
+ "variables": [
+  {
+   "name": "level",
+   "id": "var_level"
+  }
+ ],
+ "title": "Read AN5 and print the value over UART every 200 ms"
+}

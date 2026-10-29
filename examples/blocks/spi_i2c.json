@@ -1,0 +1,84 @@
+{
+ "blocks": {
+  "languageVersion": 0,
+  "blocks": [
+   {
+    "type": "cl_on_start",
+    "inputs": {
+     "DO": {
+      "block": {
+       "type": "cl_spi_begin",
+       "fields": {
+        "KHZ": 1000,
+        "MODE": 0,
+        "SCK": 10,
+        "SDO": 17,
+        "SDI": 16
+       },
+       "next": {
+        "block": {
+         "type": "cl_i2c_begin",
+         "fields": {
+          "KHZ": 400
+         }
+        }
+       }
+      }
+     }
+    },
+    "x": 20,
+    "y": 20
+   },
+   {
+    "type": "cl_forever",
+    "inputs": {
+     "DO": {
+      "block": {
+       "type": "cl_spi_send",
+       "inputs": {
+        "VALUE": {
+         "block": {
+          "type": "math_number",
+          "fields": {
+           "NUM": 170
+          }
+         }
+        }
+       },
+       "next": {
+        "block": {
+         "type": "cl_i2c_write",
+         "fields": {
+          "ADDR": "0x48"
+         },
+         "inputs": {
+          "VALUE": {
+           "block": {
+            "type": "math_number",
+            "fields": {
+             "NUM": 1
+            }
+           }
+          }
+         },
+         "next": {
+          "block": {
+           "type": "cl_delay_ms",
+           "fields": {
+            "MS": 100
+           }
+          }
+         }
+        }
+       }
+      }
+     }
+    },
+    "x": 380,
+    "y": 20
+   }
+  ]
+ },
+ "variables": [],
+ "title": "SPI1 1 MHz mode 0 + I2C1 400 kHz: send a byte on each bus every 100 ms"
+}

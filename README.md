@@ -145,6 +145,17 @@ Sources for the pragma names: the datasheet gives bit meanings but no XC16 names
 MPLAB X-generated blocks for the PIC24FJ256GB110 in public forum posts (edaboard, Microchip forum) and from a
 p24fj256gb110.h listing. Run `xc16-gcc --help` or check `docs/config_index.html` in your XC16 install to confirm.
 
+## 🧩 Blocks (visual programming)
+
+The **Blocks** tab is a Blockly editor with PIC24-specific blocks: *Events* (on start, forever, every N ms on Timer1, pin change on CN pins, UART byte received), *Pins*, *Timing*, *Serial*, *Analog*, *Control*, *Variables & Math* and *Comms* (SPI1, I2C1).
+The C code is produced by a **deterministic generator** (`chipllama/blocks.py`, no AI). It goes through the same register checker as the Generate tab, and a **VERIFIED** badge is shown when it passes.
+You can also:
+- **Polish with Muse** sends the verified code to Muse Spark as the starting point, and the result is verified again.
+- Save and load workspaces as JSON.
+- Open one of five examples in `examples/blocks/`.
+
+Blockly 11.2.2 is vendored in `chipllama/web/vendor/`, so no CDN is needed (Apache-2.0, see `NOTICE.md`).
+
 ## Local dashboard
 
 `chipllama serve` starts the server on 127.0.0.1:8000 and opens your browser (`--no-browser` stops it opening).

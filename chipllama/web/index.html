@@ -43,9 +43,11 @@ pre{background:#0a0f1e;border:1px solid var(--line);border-radius:10px;padding:1
 dialog{background:var(--panel);color:var(--tx);border:1px solid var(--line);border-radius:14px;max-width:460px}dialog::backdrop{background:rgba(0,0,0,.6)}
 .ex{font-size:12px;color:var(--acc);cursor:pointer;margin-right:12px}
 #dout table{width:100%;border-collapse:collapse;font-size:12px}#dout th{text-align:left;color:var(--mut,#888);font-weight:500;padding:4px 6px;border-bottom:1px solid #3334}#dout td{padding:4px 6px;border-bottom:1px solid #2222;vertical-align:top;font-family:ui-monospace,monospace}#dout button.p{margin-top:10px}
-</style></head><body>
+.bgrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(380px,40%);gap:18px}@media(max-width:1100px){.bgrid{grid-template-columns:1fr}}
+</style>
+<script src="/vendor/blockly.min.js"></script><script src="/vendor/blockly.en.js"></script><script src="/static/blocks.js"></script></head><body>
 <header><div><div class="logo">🦙 <span>ChipLlama</span></div><div class="sub">PIC24FJ256GB110 copilot · Muse Spark · verified register code</div></div>
-<nav><button id="t-gen" class="on" onclick="tab('gen')">Generate</button><button id="t-dbg" onclick="tab('dbg')">Reverse debug</button><button id="t-set" onclick="tab('set')">Settings</button></nav>
+<nav><button id="t-gen" class="on" onclick="tab('gen')">Generate</button><button id="t-blk" onclick="tab('blk')">Blocks</button><button id="t-dbg" onclick="tab('dbg')">Reverse debug</button><button id="t-set" onclick="tab('set')">Settings</button></nav>
 <div id="chips"></div></header>
 <main>
 <!-- ================= GENERATE ================= -->
@@ -63,6 +65,17 @@ dialog{background:var(--panel);color:var(--tx);border:1px solid var(--line);bord
  <div class="card doc"><h3><span>Doctor <span id="docsum" class="sum"></span></span><button class="s" style="padding:3px 10px;font-size:11px;text-transform:none;letter-spacing:0" onclick="loadDoctor()">↻ refresh</button></h3><div id="doctor" class="mut">loading…</div></div>
  <div class="card"><h3>Board configuration bits</h3><div id="pmeta" class="mut f"></div><details><summary>show #pragma config block</summary><pre id="pragmas"></pre></details></div>
 </aside></div></section>
+<!-- ================= BLOCKS ================= -->
+<section id="p-blk" class="hide"><div class="bgrid">
+ <div class="card" style="padding:0;overflow:hidden"><h3 style="margin:0">Blocks <span class="row" style="flex:0 0 auto;gap:6px">
+  <select id="bex" onchange="Blocks.loadEx(this.value);this.value=''" style="width:auto;padding:5px 8px"></select>
+  <button class="s" onclick="Blocks.save()">Save</button><label class="s" style="margin:0;padding:8px 14px;border:1px solid var(--line);border-radius:10px;cursor:pointer;color:var(--tx);font-weight:600;font-size:13px;text-transform:none;letter-spacing:0">Load<input type="file" accept=".json" class="hide" onchange="this.files[0]&&Blocks.load(this.files[0])"></label></span></h3>
+  <div id="bws" style="height:calc(100vh - 190px);min-height:480px"></div></div>
+ <div><div class="card"><h3>Generated C <span><span id="bbadge" class="pill info">…</span></span></h3>
+  <div class="f mut" id="bintent"></div><div id="bfind"></div>
+  <pre id="bcode" style="max-height:calc(100vh - 360px)"></pre>
+  <div class="row"><button class="s" onclick="Blocks.copy()">Copy C</button><button class="p" onclick="Blocks.polish()" title="Sends the verified code to Muse Spark as a starting point; the result is verified again.">Polish with Muse</button></div></div></div>
+</div></section>
 <!-- ================= DEBUG ================= -->
 <section id="p-dbg" class="hide"><div class="grid"><div>
  <div class="card"><h3><span>Image → diagnosis <span class="sum">Muse Spark vision + deterministic decode</span></span><button class="s" style="padding:3px 10px;font-size:11px;text-transform:none;letter-spacing:0" onclick="clearShots()">clear</button></h3>
@@ -114,7 +127,7 @@ const $=id=>document.getElementById(id);let SET=null,LAST=null,FILES=[],FIX_CONT
 function el(t,c,x){const e=document.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e}
 function pill(t,c){return el('span','pill '+c,t)}const sevc={error:'bad',warning:'warn',info:'info'};
 function toast(m){const t=$('toast');t.textContent=m;t.classList.add('on');setTimeout(()=>t.classList.remove('on'),2600)}
-function tab(n){for(const k of['gen','dbg','set']){$('p-'+k).classList.toggle('hide',k!=n);$('t-'+k).classList.toggle('on',k==n)}}
+function tab(n){for(const k of['gen','blk','dbg','set']){$('p-'+k).classList.toggle('hide',k!=n);$('t-'+k).classList.toggle('on',k==n)}if(n==='blk'&&window.Blocks){Blocks.init().then(()=>Blocks.resize())}}
 function ex(e){$('req').value=e.textContent}
 async function api(u,o){const r=await fetch(u,o);const ct=r.headers.get('content-type')||'';const j=ct.includes('json')?await r.json():null;if(!r.ok)throw new Error((j&&j.detail)||r.statusText);return j}
 const post=(u,b)=>api(u,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)});
@@ -129,8 +142,8 @@ x.append(dot,el('span','k',r.label),v);return x}));$('docsum').textContent=n.err
 // ---------- generate (streamed)
 function step(cls,title){const s=el('div','step '+cls);s.append(el('b','',title));$('steps').append(s);s.scrollIntoView({block:'nearest',behavior:'smooth'});return s}
 function diffPre(t){const p=el('pre','diff');t.split('\n').forEach(l=>{p.append(el('span',l.startsWith('+')&&!l.startsWith('+++')?'a':l.startsWith('-')&&!l.startsWith('---')?'r':l.startsWith('@@')?'h':'',l+'\n'))});return p}
-async function generate(){const ctx=FIX_CONTEXT;FIX_CONTEXT='';const b=$('gen');b.disabled=true;b.textContent='Working…';$('prog').classList.remove('hide');$('final').classList.add('hide');$('steps').replaceChildren();let running=null;const t0=Date.now();
- try{const r=await fetch('/api/generate/stream',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({request:$('req').value,use_images:$('imgs').checked,inject_fault:$('fault').checked,context:ctx})});
+async function generate(){const bctx=window.BLOCKS_CONTEXT||'';window.BLOCKS_CONTEXT='';const ctx=bctx||FIX_CONTEXT;const ckind=bctx?'blocks':'debug';FIX_CONTEXT='';const b=$('gen');b.disabled=true;b.textContent='Working…';$('prog').classList.remove('hide');$('final').classList.add('hide');$('steps').replaceChildren();let running=null;const t0=Date.now();
+ try{const r=await fetch('/api/generate/stream',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({request:$('req').value,use_images:$('imgs').checked,inject_fault:$('fault').checked,context:ctx,context_kind:ckind})});
   if(!r.ok){const j=await r.json().catch(()=>({}));throw new Error(j.detail||r.statusText)}
   const rd=r.body.getReader(),dec=new TextDecoder();let buf='';
   for(;;){const{value,done}=await rd.read();if(done)break;buf+=dec.decode(value,{stream:true});let i;while((i=buf.indexOf('\n'))>=0){const line=buf.slice(0,i);buf=buf.slice(i+1);if(line.trim())running=onEvent(JSON.parse(line),running)}}
@@ -193,7 +206,7 @@ async function dbg(){const o=$('dout'),b=$('dbgb');
  try{const j=await api('/api/debug/vision',{method:'POST',body:fd});s1.className='step ok';
   const e=j.extraction;s1.append(el('div','f mut',`kind: ${e.kind} · confidence ${(e.confidence||0).toFixed(2)}`+(e.repaired&&e.repaired.length?' · repaired: '+e.repaired.join('; '):'')));
   const ex=el('details');ex.append(el('summary','','extracted JSON'),el('pre','',JSON.stringify({registers:e.registers,scope:e.scope,serial:e.serial},null,1)));s1.append(ex);
-  (e.passes||[]).slice(1).forEach(p=>{const d=p.disagree&&Object.keys(p.disagree).length,x=dstep(p.error?'warn':d||p.reads?'warn':'ok',`1.${p.pass} · pass ${p.pass}: ${p.what}`);x.append(el('div','f mut',p.error||(p.reads?'reads: '+Object.entries(p.reads).map(([k,v])=>k+' '+v.join(' / ')).join(', '):d?'disagree: '+Object.entries(p.disagree).map(([k,v])=>k+' '+v.join(' vs ')).join(', '):'all '+(p.agree||[]).length+' values agree'))+(p.voted?' · vote: '+Object.entries(p.voted).map(([k,v])=>k+'='+v).join(', '):'')))});
+  (e.passes||[]).slice(1).forEach(p=>{const d=p.disagree&&Object.keys(p.disagree).length,x=dstep(p.error?'warn':d||p.reads?'warn':'ok',`1.${p.pass} · pass ${p.pass}: ${p.what}`);x.append(el('div','f mut',p.error||(p.reads?'reads: '+Object.entries(p.reads).map(([k,v])=>k+' '+v.join(' / ')).join(', '):d?'disagree: '+Object.entries(p.disagree).map(([k,v])=>k+' '+v.join(' vs ')).join(', '):'all '+(p.agree||[]).length+' values agree')+(p.voted?' · vote: '+Object.entries(p.voted).map(([k,v])=>k+'='+v).join(', '):'')))});
   Object.entries(e.disputed||{}).forEach(([k,v])=>{const x=dstep('warn','⚠ '+k+' read as '+v.join(' or '));x.append(el('div','f mut','low confidence - not used as sole evidence for a bug'))});
   const s2=dstep(j.findings.some(r=>r.status=='bad')?'bad':j.findings.some(r=>r.status=='warn')?'warn':'ok','2 · Deterministic decode (chipdb + timer/baud math)');s2.append(el('div','f mut',`${j.findings.length} rows · clock: ${j.clock.source||''}`));
   const s3=dstep(j.explanation?'ok':'run2','3 · Grounded explanation'+(j.explanation?' (Muse Spark)':' (rules only)'));

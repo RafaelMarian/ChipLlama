@@ -31,6 +31,7 @@ from .models import ModelError, make_model
 from .timers import parse_request, solve
 
 WEB = Path(__file__).parent / "web"
+EXAMPLES = Path(__file__).resolve().parent.parent / "examples"
 
 
 class GenerateReq(BaseModel):
@@ -41,6 +42,11 @@ class GenerateReq(BaseModel):
     hint: bool = False
     inject_fault: bool = False
     context: str = ""
+    context_kind: str = "debug"
+
+
+class BlocksReq(BaseModel):
+    workspace: dict
 
 
 class CalcReq(BaseModel):
@@ -82,6 +88,41 @@ def create_app(settings: Settings | None = None, model_factory: Callable | None 
         return FileResponse(WEB / "index.html")
 
     # ------------------------------------------------------------ status / settings
+    @app.get("/vendor/{name}")
+    def vendor(name: str):
+        f = WEB / "vendor" / name
+        if "/" in name or "\\" in name or not f.is_file():
+            raise HTTPException(404)
+        return FileResponse(f)
+
+    @app.get("/static/{name}")
+    def static(name: str):
+        f = WEB / name
+        if "/" in name or "\\" in name or not f.is_file() or f.suffix not in (".js", ".css", ".woff2", ".svg", ".png", ".cur", ".mp3", ".wav", ".ogg"):
+            raise HTTPException(404)
+        return FileResponse(f)
+
+    # ------------------------------------------------------------ blocks
+    @app.get("/api/blocks/meta")
+    def blocks_meta():
+        from . import blocks as bl
+        ex = []
+        for f in sorted(EXAMPLES.glob("blocks/*.json")):
+            ex.append({"name": f.stem, "title": json.loads(f.read_text(encoding="utf-8")).get("title", f.stem)})
+        return {"pins": bl.pin_meta(), "examples": ex}
+
+    @app.get("/api/blocks/example/{name}")
+    def blocks_example(name: str):
+        f = EXAMPLES / "blocks" / f"{name}.json"
+        if not name.replace("_", "").isalnum() or not f.is_file():
+            raise HTTPException(404)
+        return json.loads(f.read_text(encoding="utf-8"))
+
+    @app.post("/api/blocks/generate")
+    def blocks_generate(req: BlocksReq):
+        from . import blocks as bl
+        return bl.generate(req.workspace, cur())
+
     @app.get("/api/status")
     def status():
         s = cur()
@@ -182,7 +223,7 @@ def create_app(settings: Settings | None = None, model_factory: Callable | None 
         except ValueError as e:
             raise HTTPException(400, str(e))
         res = run_agent(req.request, model, cur(), max_iters=_iters(req), use_images=req.use_images,
-                        hint=req.hint, compile_fn=compile_fn, inject_fault=req.inject_fault, context=req.context)
+                        hint=req.hint, compile_fn=compile_fn, inject_fault=req.inject_fault, context=req.context, context_kind=req.context_kind)
         return res.to_dict()
 
     @app.post("/api/generate/stream")
@@ -205,7 +246,7 @@ def create_app(settings: Settings | None = None, model_factory: Callable | None 
             try:
                 res = run_agent(req.request, model, cur(), max_iters=_iters(req), use_images=req.use_images,
                                 hint=req.hint, compile_fn=compile_fn, on_event=on_event,
-                                inject_fault=req.inject_fault, context=req.context)
+                                inject_fault=req.inject_fault, context=req.context, context_kind=req.context_kind)
                 q.put({"event": "done", "data": res.to_dict()})
             except Exception as e:  # surface unexpected failures to the UI
                 q.put({"event": "done", "data": {"status": "error", "error": f"{type(e).__name__}: {e}", "attempts": []}})
