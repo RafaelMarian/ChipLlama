@@ -33,6 +33,34 @@ def cmd_doctor(a, s: Settings) -> int:
     return 0
 
 
+def cmd_devices(a, s: Settings) -> int:
+    from . import edc
+    roots = edc.pack_roots(s.mplab_packs_dir)
+    devs = edc.search_devices(a.query or "", s.mplab_packs_dir, a.limit)
+    if not roots:
+        print("no MPLAB X packs folder found; set MPLAB_PACKS_DIR (e.g. C:\\Program Files\\Microchip\\MPLABX\\v6.25\\packs)")
+    for d in devs:
+        print(f"{d['name']:<22} {d['family']:<8} {d['compiler']:<5} {d['path']}")
+    print(f"{len(devs)} device(s) in: " + ("; ".join(roots) or "-"))
+    return 0 if devs else 1
+
+
+def cmd_pragmas(a, s: Settings) -> int:
+    from . import chipdb, pragmas
+    from .board import render_pragmas
+    dev = chipdb.get_device(a.device, s.mplab_packs_dir, s.cache_dir, a.edc)
+    if dev is None:
+        print(f"no EDC file for {a.device} (set MPLAB_PACKS_DIR or pass --edc path/to/{a.device.upper()}.PIC)", file=sys.stderr)
+        return 2
+    ics = a.ics or s.ics
+    if chipdb.is_builtin_family(dev.name) and not a.generic:
+        print(f"// {dev.name}: board profile '{s.clock_profile}' (verified clock tree), data: {dev.source}")
+        print(render_pragmas(s.profile(), ics))
+    else:
+        print(pragmas.render(dev, ics))
+    return 0
+
+
 def cmd_calc(a, s) -> int:
     spec = parse_request(a.request)
     if a.fosc:
@@ -151,9 +179,17 @@ def cmd_serve(a, s: Settings) -> int:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    p = argparse.ArgumentParser("chipllama", description="Verifiable AI copilot for PIC24FJ256GB110 (XC16)")
+    p = argparse.ArgumentParser("chipllama", description="Verifiable AI copilot for Microchip PIC MCUs (XC8/XC16/XC32)")
     sub = p.add_subparsers(dest="cmd", required=True)
     sub.add_parser("doctor", help="show configuration / toolchain status").set_defaults(fn=cmd_doctor)
+    dv = sub.add_parser("devices", help="list PIC devices found in the MPLAB X packs (EDC files)")
+    dv.add_argument("query", nargs="?", default=""); dv.add_argument("--limit", type=int, default=500)
+    dv.set_defaults(fn=cmd_devices)
+    pr = sub.add_parser("pragmas", help="print a complete safe #pragma config block for a device")
+    pr.add_argument("device"); pr.add_argument("--ics", help="programmer pin pair, e.g. PGx2")
+    pr.add_argument("--edc", help="explicit path to a <DEVICE>.PIC file")
+    pr.add_argument("--generic", action="store_true", help="EDC safe defaults even for the built-in board profile")
+    pr.set_defaults(fn=cmd_pragmas)
     c = sub.add_parser("calc", help="deterministic timer calculator (no AI, no key)")
     c.add_argument("request"); c.add_argument("--fosc", type=float, help="Fosc in MHz (overrides text)")
     c.add_argument("--json", action="store_true", help="also print JSON")

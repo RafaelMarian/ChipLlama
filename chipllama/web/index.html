@@ -77,7 +77,7 @@ dialog{background:var(--panel);color:var(--tx);border:1px solid var(--line);bord
 <!-- ================= SETTINGS ================= -->
 <section id="p-set" class="hide"><div class="grid"><div>
  <div class="card"><h3>Target &amp; board</h3>
-  <div class="row"><div><label>Device</label><input id="s-device"></div><div><label>Debug/program pin pair (ICS) - match your wiring</label><select id="s-ics"></select></div></div>
+  <div class="row"><div><label>Device (type to search MPLAB packs)</label><input id="s-device" list="devlist" autocomplete="off" oninput="devSearch()" onchange="devInfo()"><datalist id="devlist"></datalist><div id="devinfo" class="muted" style="font-size:12px"></div></div><div><label>Debug/program pin pair (ICS) - match your wiring</label><select id="s-ics"></select></div></div>
   <div class="row"><div><label>Clock profile</label><select id="s-clock_profile"></select></div><div><label>Crystal frequency, Hz (external crystal profile only)</label><input id="s-crystal_hz" type="number"></div></div>
  </div>
  <div class="card"><h3>Model</h3>
@@ -88,7 +88,9 @@ dialog{background:var(--panel);color:var(--tx);border:1px solid var(--line);bord
   <div class="row"><div><label>Baseten model</label><input id="s-baseten_model"></div><div><label>Baseten reasoning effort (blank = default)</label><input id="s-baseten_reasoning_effort"></div></div>
  </div>
  <div class="card"><h3>Toolchain</h3>
-  <label>xc16-gcc path (blank = auto)</label><div class="row"><input id="s-xc16_gcc" style="flex:4"><button class="s" style="flex:0 0 auto" onclick="detect()">Auto-detect</button></div>
+  <label>MPLAB X packs folder (blank = auto, e.g. C:\Program Files\Microchip\MPLABX\v6.25\packs)</label><input id="s-mplab_packs_dir">
+  <div class="row"><div><label>xc8-cc path (PIC10/12/16/18, blank = auto)</label><input id="s-xc8_cc"></div><div><label>xc32-gcc path (PIC32, blank = auto)</label><input id="s-xc32_gcc"></div></div>
+  <label>xc16-gcc path (PIC24/dsPIC, blank = auto)</label><div class="row"><input id="s-xc16_gcc" style="flex:4"><button class="s" style="flex:0 0 auto" onclick="detect()">Auto-detect</button></div>
   <label>ipecmd path (blank = auto)</label><input id="s-ipecmd_path">
   <div class="row"><div><label>Programmer</label><select id="s-ipecmd_tool"></select></div><div><label>Serial (blank = first)</label><input id="s-ipecmd_serial"></div>
    <div><label>PICkit powers the target</label><select id="s-ipecmd_power_target"><option value="false">no (board self-powered)</option><option value="true">yes (-W)</option></select></div>
@@ -109,7 +111,7 @@ function tab(n){for(const k of['gen','dbg','set']){$('p-'+k).classList.toggle('h
 function ex(e){$('req').value=e.textContent}
 async function api(u,o){const r=await fetch(u,o);const ct=r.headers.get('content-type')||'';const j=ct.includes('json')?await r.json():null;if(!r.ok)throw new Error((j&&j.detail)||r.statusText);return j}
 const post=(u,b)=>api(u,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)});
-async function chips(){const s=await api('/api/status');const c=$('chips');c.replaceChildren(pill(s.device,'info'),pill(s.backend+(((s.backend=='meta'?s.meta_key_set:s.baseten_key_set))?'':' · no key'),(s.backend=='meta'?s.meta_key_set:s.baseten_key_set)?'ok':'warn'),pill('xc16 '+(s.xc16_gcc?'ok':'missing'),s.xc16_gcc?'ok':'warn'),pill('ICS '+s.ics,'info'),pill('flash '+(s.flash_enabled?'ON':'off'),s.flash_enabled?'warn':'info'))}
+async function chips(){const s=await api('/api/status');const c=$('chips');c.replaceChildren(pill(s.device,'info'),pill(s.backend+(((s.backend=='meta'?s.meta_key_set:s.baseten_key_set))?'':' · no key'),(s.backend=='meta'?s.meta_key_set:s.baseten_key_set)?'ok':'warn'),pill((s.compiler||'xc16')+' '+(s.xc16_gcc?'ok':'missing'),s.xc16_gcc?'ok':'warn'),pill('ICS '+s.ics,'info'),pill('flash '+(s.flash_enabled?'ON':'off'),s.flash_enabled?'warn':'info'))}
 const ICON={ok:'✓',warn:'!',info:'i',error:'✕'};
 function tail(p){const t=String(p).split(/[\\/]/).filter(Boolean);return t.length>2?'…/'+t.slice(-2).join('/'):p}
 async function loadDoctor(){const d=$('doctor');try{const j=await api('/api/doctor');const n={ok:0,warn:0,info:0,error:0};
@@ -168,15 +170,17 @@ async function dbg(){const fd=new FormData();fd.append('dump',$('dump').value);f
   const c=el('div','card');c.append(el('h3','','Decoded registers'+(j.transcribed_from_image?' (read from image)':'')));j.decoded.forEach(d=>c.append(el('div','f',`${d.register} = ${d.value}  `+Object.entries(d.fields).map(([k,v])=>k+'='+v).join(' '))));o.append(c);
   (j.notes||[]).forEach(n=>o.append(el('div','f mut','note: '+n)))}catch(e){o.replaceChildren(el('div','card','Error: '+e.message))}b.disabled=false}
 // ---------- settings
-const FIELDS=['device','ics','clock_profile','crystal_hz','backend','max_iters','max_tokens','meta_model','meta_reasoning_effort','baseten_model','baseten_reasoning_effort','xc16_gcc','ipecmd_path','ipecmd_tool','ipecmd_serial','ipecmd_power_target','enable_flash','datasheet_pdf'];
+const FIELDS=['device','ics','clock_profile','crystal_hz','backend','max_iters','max_tokens','meta_model','meta_reasoning_effort','baseten_model','baseten_reasoning_effort','xc16_gcc','xc8_cc','xc32_gcc','mplab_packs_dir','ipecmd_path','ipecmd_tool','ipecmd_serial','ipecmd_power_target','enable_flash','datasheet_pdf'];
 function opts(id,list){const s=$('s-'+id);s.replaceChildren(...list.map(o=>{const x=el('option','',o.title||o);x.value=o.key||o;return x}))}
 function keyPill(id,on){const p=$(id);p.className='pill '+(on?'ok':'warn');p.textContent=on?'set':'not set'}
 async function loadSettings(){SET=await api('/api/settings');const o=SET.options;opts('ics',o.ics);opts('clock_profile',o.clock_profile);opts('backend',o.backend);opts('ipecmd_tool',o.ipecmd_tool);opts('meta_reasoning_effort',o.reasoning_effort);
- const s=SET.settings;FIELDS.forEach(k=>{$('s-'+k).value=String(s[k])});keyPill('k-meta',s.meta_api_key_set);keyPill('k-baseten',s.baseten_api_key_set);$('s-meta_api_key').value='';$('s-baseten_api_key').value='';$('sfile').textContent='File: '+SET.file}
+ const s=SET.settings;FIELDS.forEach(k=>{$('s-'+k).value=String(s[k])});keyPill('k-meta',s.meta_api_key_set);keyPill('k-baseten',s.baseten_api_key_set);$('s-meta_api_key').value='';$('s-baseten_api_key').value='';$('sfile').textContent='File: '+SET.file;devInfo()}
+let DEVT=null;function devSearch(){clearTimeout(DEVT);DEVT=setTimeout(async()=>{const q=$('s-device').value.trim();const j=await api('/api/devices?limit=60&q='+encodeURIComponent(q));$('devlist').replaceChildren(...j.devices.map(d=>{const o=document.createElement('option');o.value=d.name;o.label=d.family+' · '+d.compiler.toUpperCase();return o}));if(!j.roots.length)$('devinfo').textContent='No MPLAB X packs found - set the packs folder below.'},250)}
+async function devInfo(){const n=$('s-device').value.trim();if(!n)return;try{const r=await fetch('/api/device?name='+encodeURIComponent(n));if(!r.ok){$('devinfo').textContent='No device data for '+n+' (check packs folder)';return}const d=await r.json();$('devinfo').textContent=d.family+' · '+d.compiler.toUpperCase()+' · '+d.settings+' config settings · '+d.sfrs+' SFRs · '+(d.source=='built-in'?'built-in data':d.source)}catch(e){}}
 async function saveSettings(){const u={};FIELDS.forEach(k=>{let v=$('s-'+k).value;if(v==='true')v=true;else if(v==='false')v=false;u[k]=v});
  for(const k of['meta_api_key','baseten_api_key']){if($('s-'+k).value)u[k]=$('s-'+k).value}
  try{await post('/api/settings',u);toast('Settings saved');await loadSettings();chips();loadDoctor()}catch(e){toast('Not saved: '+e.message)}}
 async function clearKey(k){if(!confirm('Remove the saved '+k+' from settings.json?'))return;await post('/api/settings',{[k]:'__clear__'});toast('Key cleared');loadSettings();chips()}
-async function detect(){const j=await post('/api/detect',{});if(j.xc16_gcc){$('s-xc16_gcc').value=j.xc16_gcc;toast('Found xc16-gcc')}else toast('xc16-gcc not found - enter the path');if(j.ipecmd&&!$('s-ipecmd_path').value)$('s-ipecmd_path').value=j.ipecmd}
+async function detect(){const j=await post('/api/detect',{});const fnd=[];[['xc16_gcc','xc16'],['xc8_cc','xc8'],['xc32_gcc','xc32']].forEach(([k,n])=>{if(j[k]&&!$('s-'+k).value){$('s-'+k).value=j[k]}if(j[k])fnd.push(n)});toast(fnd.length?'Found '+fnd.join(', '):'No XC compiler found - enter the path');if(j.ipecmd&&!$('s-ipecmd_path').value)$('s-ipecmd_path').value=j.ipecmd}
 chips();loadDoctor();loadSettings();
 </script></body></html>

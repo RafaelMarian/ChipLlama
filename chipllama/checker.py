@@ -192,3 +192,15 @@ def check_timer(code: str, spec: TimerSpec, emu: Emulation | None = None, *,
         extra = sorted(emu.unknown_targets)[:6]
         rep.add("info", "UNMODELLED", "writes to registers the checker does not model (not verified): " + ", ".join(extra))
     return rep
+
+
+def check_device(code: str, dev, *, ics: str = "PGx2", rep: CheckReport | None = None,
+                 require_config: bool = True, sfr_check: bool = True) -> CheckReport:
+    """Device-generic verification from Microchip EDC data: every `#pragma config` name/value must exist
+    on the device, critical settings must be present, and every REGbits.FIELD must be a real bitfield."""
+    from . import pragmas
+    rep = rep or CheckReport()
+    pragmas.check(code, dev, rep.add, ics, require=require_config)
+    if sfr_check and dev.source != "built-in":
+        pragmas.check_sfr_fields(code, dev, rep.add)
+    return rep

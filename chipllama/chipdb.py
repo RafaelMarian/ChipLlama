@@ -115,3 +115,58 @@ PAGES = {
     "clock": [123, 124, 125, 290],  # OSCCON, CLKDIV, CW2
 }
 PAGE_OF_REGISTER = {r.name: r.page for r in REGISTERS.values()}
+
+
+# ---------------------------------------------------------------- any PIC via Microchip EDC files
+def builtin_device():
+    """PIC24FJ256GB110 as an edc.Device built from the hand-checked tables above (fallback without packs)."""
+    from . import edc
+    from .board import SETTINGS, COMMENTS, pragma_values, get_profile
+    dflt = pragma_values(get_profile("frcpll"))
+    sets = []
+    for name, (word, allowed) in SETTINGS.items():
+        if hasattr(allowed, "match"):
+            if name == "WDTPS":
+                vals = [f"PS{2**i}" for i in range(16)]
+            else:
+                vals = [f"WPFP{i}" for i in range(512)]
+        else:
+            vals = sorted(allowed)
+        sets.append(edc.ConfigSetting(name, word, COMMENTS.get(name, ""), 0, 1,
+                                      [edc.ConfigValue(v, "") for v in vals], dflt.get(name)))
+    sfrs = {r.name: edc.SFR(r.name, r.address, 16, [edc.SFRField(f.name, f.lsb, f.width, f.desc) for f in r.fields])
+            for r in REGISTERS.values()}
+    for n, a in DATA_REGS.items():
+        sfrs[n] = edc.SFR(n, a, 16)
+    return edc.Device(DEVICE, "24xxxx", "PIC24", "xc16", settings=sets, sfrs=sfrs, program_bytes=262144 - 1536,
+                      data_bytes=16384, icsp_pairs=[1, 2, 3], datasheet_id="39897", source="built-in")
+
+
+_DEV_CACHE: dict = {}
+
+
+def get_device(name: str | None = None, packs_dir: str = "", cache_dir: str = ".cache", path: str | None = None):
+    """EDC data when a pack (or explicit path) has the device, else built-in data for PIC24FJ256GB110, else None."""
+    from . import edc
+    name = (name or DEVICE).upper()
+    key = (name, packs_dir, path)
+    if key in _DEV_CACHE:
+        return _DEV_CACHE[key]
+    dev = None
+    try:
+        dev = edc.load_device(name, packs_dir, cache_dir, path)
+    except Exception:   # malformed pack file -> fall back
+        dev = None
+    if dev is None and name == DEVICE:
+        dev = builtin_device()
+    _DEV_CACHE[key] = dev
+    return dev
+
+
+def device_for(settings):
+    return get_device(settings.device, getattr(settings, "mplab_packs_dir", ""), settings.cache_dir)
+
+
+def is_builtin_family(name: str) -> bool:
+    """The deterministic Timer1/clock emulator is modelled on PIC24FJ256GB110 only."""
+    return name.upper() == DEVICE

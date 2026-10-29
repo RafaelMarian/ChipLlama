@@ -12,7 +12,8 @@ import time
 from dataclasses import dataclass, field
 from typing import Callable
 
-from .checker import CheckReport, check_timer
+from .checker import CheckReport, check_timer, check_device
+from . import chipdb
 from .compiler import CompileResult, compile_c
 from .config import Settings
 from .datasheet import load_page_images, pages_for_spec
@@ -123,16 +124,32 @@ def run_agent(request: str, model: ChatModel, settings: Settings, *, max_iters: 
         return res
     emit("spec", {"spec": spec.to_dict(), "reference": res.solution.to_dict()})
 
+    try:
+        dev = chipdb.device_for(settings)
+    except Exception as e:   # pragma: no cover - defensive
+        dev, _ = None, res.notes.append(f"device data unavailable: {e}")
+    builtin = chipdb.is_builtin_family(settings.device)
+    if not builtin and dev is None:
+        res.error = (f"no device data for {settings.device}: install its MPLAB X device pack or set "
+                     "MPLAB_PACKS_DIR to the packs folder")
+        return res
+    if dev is not None:
+        res.notes.append(f"device data: {dev.source} ({dev.family}, {dev.compiler})")
+
     imgs: list[tuple[int, bytes]] = []
     note = ""
-    if use_images:
+    if use_images and builtin:
         imgs, note = load_page_images(pages_for_spec(spec), settings)
         res.notes.append(note)
     image_note = (f"Attached are datasheet page images, in order: {', '.join('p%d' % p for p, _ in imgs)}." if imgs else "")
-    msgs = [Message("system", prompts.SYSTEM),
-            Message("user", prompts.first_user_prompt(request, spec, res.solution if hint else None, image_note,
-                                                      settings.profile(), settings.ics),
-                    [b for _, b in imgs])]
+    if builtin:
+        msgs = [Message("system", prompts.SYSTEM),
+                Message("user", prompts.first_user_prompt(request, spec, res.solution if hint else None, image_note,
+                                                          settings.profile(), settings.ics),
+                        [b for _, b in imgs])]
+    else:
+        msgs = [Message("system", prompts.generic_system(dev)),
+                Message("user", prompts.generic_user_prompt(request, spec, dev, settings.ics))]
     for i in range(1, max_iters + 1):
         t0 = time.time()
         emit("model_call", {"n": i, "backend": getattr(model, "name", "?")})
@@ -148,7 +165,14 @@ def run_agent(request: str, model: ChatModel, settings: Settings, *, max_iters: 
             msgs += [Message("assistant", text), Message("user", "No ```c code block found. Return the complete C file in one ```c block.")]
             emit("attempt", {"n": i, "error": "no code"})
             continue
-        chk = check_timer(code, spec, profile=settings.profile(), ics=settings.ics)
+        if builtin:
+            chk = check_timer(code, spec, profile=settings.profile(), ics=settings.ics)
+            if dev is not None and dev.source != "built-in":
+                check_device(code, dev, ics=settings.ics, rep=chk, require_config=False)
+        else:
+            chk = check_device(code, dev, ics=settings.ics)
+            chk.add("info", "TIMING_UNVERIFIED", f"timer period/clock math is not emulated for {dev.family} yet; "
+                    "configuration bits and register/bitfield names were verified against the EDC data.")
         cmp_ = compile_fn(code, settings)
         att = Attempt(i, code, chk, cmp_, time.time() - t0, text)
         res.attempts.append(att)

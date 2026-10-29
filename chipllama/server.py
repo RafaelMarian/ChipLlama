@@ -19,7 +19,8 @@ from pydantic import BaseModel
 from . import __version__
 from .agent import run_agent
 from .board import ICS_PAIRS, PROFILE_KEYS, get_profile, render_pragmas
-from .compiler import compile_c, find_tool
+from .compiler import compile_c, find_tool, find_compiler
+from . import chipdb, edc as edcmod, pragmas as pragmamod
 from .config import Settings, apply_settings_file, public_view, save_settings, settings_path
 from .datasheet import load_page_images
 from .debug import debug_session
@@ -85,7 +86,7 @@ def create_app(settings: Settings | None = None, model_factory: Callable | None 
         return {"version": __version__, "device": s.device, "backend": s.backend,
                 "meta_key_set": bool(s.meta_api_key), "baseten_key_set": bool(s.baseten_api_key),
                 "meta_model": s.meta_model, "baseten_model": s.baseten_model,
-                "xc16_gcc": find_tool("xc16-gcc", s.xc16_gcc), "ipecmd": find_ipecmd(s.ipecmd_path),
+                "xc16_gcc": find_compiler(s)[1], "compiler": find_compiler(s)[0], "ipecmd": find_ipecmd(s.ipecmd_path),
                 "flash_enabled": s.enable_flash, "flash_tool": s.ipecmd_tool, "ipe_part": part_name(s.device),
                 "datasheet_found": Path(s.datasheet_pdf).is_file(), "clock_profile": s.clock_profile, "ics": s.ics}
 
@@ -117,11 +118,42 @@ def create_app(settings: Settings | None = None, model_factory: Callable | None 
     def detect():
         s = cur()
         return {"xc16_gcc": find_tool("xc16-gcc", ""), "xc16_bin2hex": find_tool("xc16-bin2hex", ""),
+                "xc8_cc": find_tool("xc8-cc", "", "xc8"), "xc32_gcc": find_tool("xc32-gcc", "", "xc32"),
+                "mplab_packs": edcmod.default_pack_roots(),
                 "ipecmd": find_ipecmd(""), "configured": {"xc16_gcc": s.xc16_gcc, "ipecmd_path": s.ipecmd_path}}
+
+    @app.get("/api/devices")
+    def devices(q: str = "", limit: int = 200):
+        s = cur()
+        return {"roots": edcmod.pack_roots(s.mplab_packs_dir),
+                "devices": [{k: v for k, v in d.items() if k != "path"}
+                            for d in edcmod.search_devices(q, s.mplab_packs_dir, max(1, min(limit, 2000)))]}
+
+    @app.get("/api/device")
+    def device_ep(name: str = ""):
+        s = cur()
+        dev = chipdb.get_device(name or s.device, s.mplab_packs_dir, s.cache_dir)
+        if dev is None:
+            raise HTTPException(404, f"no EDC data for {name or s.device} (check MPLAB_PACKS_DIR)")
+        return {"name": dev.name, "family": dev.family, "compiler": dev.compiler, "source": dev.source,
+                "program_bytes": dev.program_bytes, "data_bytes": dev.data_bytes, "eeprom_bytes": dev.eeprom_bytes,
+                "icsp_pairs": dev.icsp_pairs, "settings": len(dev.visible_settings()), "sfrs": len(dev.sfrs),
+                "pragmas": _pragma_text(s, dev)}
+
+    def _pragma_text(s, dev) -> str:
+        if chipdb.is_builtin_family(dev.name):
+            return render_pragmas(s.profile(), s.ics)
+        return pragmamod.render(dev, s.ics)
 
     @app.get("/api/pragmas")
     def pragmas():
         s = cur()
+        if not chipdb.is_builtin_family(s.device):
+            dev = chipdb.device_for(s)
+            if dev is None:
+                raise HTTPException(404, f"no EDC data for {s.device}")
+            return {"profile": "edc", "title": f"{dev.name} safe defaults (internal oscillator, WDT off)",
+                    "fosc_hz": None, "text": pragmamod.render(dev, s.ics), "clock_code": []}
         p = s.profile()
         return {"profile": p.key, "title": p.title, "fosc_hz": p.fosc_hz, "text": render_pragmas(p, s.ics),
                 "clock_code": p.clock_code}

@@ -42,6 +42,9 @@ class Settings:
     device: str = "PIC24FJ256GB110"
     xc16_gcc: str = ""
     xc16_bin2hex: str = ""
+    xc8_cc: str = ""
+    xc32_gcc: str = ""
+    mplab_packs_dir: str = ""
     datasheet_pdf: str = "datasheets/DS39897C.pdf"
     enable_flash: bool = False
     ipecmd_path: str = ""
@@ -82,6 +85,9 @@ class Settings:
             device=e("CHIPLLAMA_DEVICE", "PIC24FJ256GB110"),
             xc16_gcc=e("XC16_GCC", ""),
             xc16_bin2hex=e("XC16_BIN2HEX", ""),
+            xc8_cc=e("XC8_CC", ""),
+            xc32_gcc=e("XC32_GCC", ""),
+            mplab_packs_dir=e("MPLAB_PACKS_DIR", ""),
             datasheet_pdf=e("DATASHEET_PDF", "datasheets/DS39897C.pdf"),
             enable_flash=_b("CHIPLLAMA_ENABLE_FLASH"),
             ipecmd_path=e("IPECMD_PATH", ""),
@@ -98,7 +104,7 @@ class Settings:
 
 # ---------------------------------------------------------------- settings.json (dashboard)
 SECRET_FIELDS = ("meta_api_key", "baseten_api_key")
-UI_FIELDS = ("device", "clock_profile", "crystal_hz", "ics", "xc16_gcc", "xc16_bin2hex", "ipecmd_path",
+UI_FIELDS = ("device", "clock_profile", "crystal_hz", "ics", "xc16_gcc", "xc16_bin2hex", "xc8_cc", "xc32_gcc", "mplab_packs_dir", "ipecmd_path",
              "ipecmd_tool", "ipecmd_serial", "ipecmd_power_target", "enable_flash", "backend", "meta_model",
              "meta_reasoning_effort", "baseten_model", "baseten_reasoning_effort", "max_iters", "max_tokens",
              "datasheet_pdf") + SECRET_FIELDS
@@ -164,6 +170,11 @@ def save_settings(update: dict, path: Path | None = None) -> dict:
             raise ValueError("backend must be meta or baseten")
         if k == "max_iters" and not 1 <= v <= 10:
             raise ValueError("max_iters must be 1..10")
+        if k == "device":
+            import re as _re
+            v = v.strip().upper()
+            if not _re.fullmatch(r"(DS)?PIC[0-9A-Z]{3,20}", v):
+                raise ValueError("device must look like PIC18F45K22 / PIC24FJ256GB110 / DSPIC33CK256MP506")
         if k == "crystal_hz" and not 1e6 <= v <= 48e6:
             raise ValueError("crystal_hz out of range")
         cur[k] = v
