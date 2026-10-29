@@ -50,3 +50,15 @@ def test_compile_blocks_script_runs():
     p = subprocess.run([sys.executable, str(root / "scripts" / "compile_blocks_examples.py")], capture_output=True, text=True)
     assert p.returncode == 0, p.stdout + p.stderr
     assert "FAILED" not in p.stdout and ("VERIFIED" in p.stdout or "SKIPPED" in p.stdout)
+
+
+def test_blocks_emit_only_used_helpers():
+    import json
+    from chipllama import blocks
+    from chipllama.config import Settings
+    root = Path(__file__).resolve().parent.parent / "examples" / "blocks"
+    for f in root.glob("*.json"):
+        c = blocks.generate(json.loads(f.read_text(encoding="utf-8")), Settings())["c"]
+        for name in ("uart_putc", "uart_print", "uart_print_num", "adc_read", "spi1_xfer", "i2c1_wait", "i2c1_write"):
+            if f"{name}(" in c:
+                assert c.count(f"{name}(") >= 2, (f.stem, name)   # definition + at least one call

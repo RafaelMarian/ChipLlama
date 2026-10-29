@@ -396,24 +396,26 @@ def emit(p: Program, profile, ics: str = "PGx2") -> str:
         pps = ["    __builtin_write_OSCCONL(OSCCON & 0xBF);   /* unlock PPS */"] + pps_in + pps_out + [
             "    __builtin_write_OSCCONL(OSCCON | 0x40);   /* lock PPS */"]
     L += ["static void hw_init(void)", "{"] + pps + init + ["}", ""]
-    # ---- helpers
+    # ---- helpers (only the ones the program calls are emitted; avoids -Wunused-function)
+    H = []
     if uspec:
-        L += ["static void uart_putc(char c) { while (U1STAbits.UTXBF); U1TXREG = c; }",
-              "static void uart_print(const char *s) { while (*s) uart_putc(*s++); }",
-              "static void uart_print_num(int v)", "{", "    char b[7]; int i = 0; unsigned int u = v < 0 ? -v : v;",
-              "    if (v < 0) uart_putc('-');", "    do { b[i++] = '0' + u % 10; u /= 10; } while (u);",
-              "    while (i) uart_putc(b[--i]);", "}", ""]
+        H += [("uart_putc", ["static void uart_putc(char c) { while (U1STAbits.UTXBF); U1TXREG = c; }"]),
+              ("uart_print", ["static void uart_print(const char *s) { while (*s) uart_putc(*s++); }", ""]),
+              ("uart_print_num", ["static void uart_print_num(int v)", "{", "    char b[7]; int i = 0; unsigned int u = v < 0 ? -v : v;",
+               "    if (v < 0) uart_putc('-');", "    do { b[i++] = '0' + u % 10; u /= 10; } while (u);",
+               "    while (i) uart_putc(b[--i]);", "}", ""])]
     if "adc" in pspecs:
-        L += ["static unsigned int adc_read(unsigned int ch)", "{", "    AD1CHS = ch;", "    AD1CON1bits.SAMP = 1;",
-              "    while (!AD1CON1bits.DONE);", "    return ADC1BUF0;", "}", ""]
+        H += [("adc_read", ["static unsigned int adc_read(unsigned int ch)", "{", "    AD1CHS = ch;", "    AD1CON1bits.SAMP = 1;",
+               "    while (!AD1CON1bits.DONE);", "    return ADC1BUF0;", "}", ""])]
     if "spi" in pspecs:
-        L += ["static unsigned char spi1_xfer(unsigned char b)", "{", "    SPI1BUF = b;",
-              "    while (!SPI1STATbits.SPIRBF);", "    return SPI1BUF;", "}", ""]
+        H += [("spi1_xfer", ["static unsigned char spi1_xfer(unsigned char b)", "{", "    SPI1BUF = b;",
+               "    while (!SPI1STATbits.SPIRBF);", "    return SPI1BUF;", "}", ""])]
     if "i2c" in pspecs:
-        L += ["static void i2c1_wait(void) { while (I2C1CON & 0x001F); while (I2C1STATbits.TRSTAT); }",
-              "static void i2c1_write(unsigned char addr, unsigned char data)", "{",
-              "    I2C1CONbits.SEN = 1; while (I2C1CONbits.SEN);", "    I2C1TRN = addr << 1; i2c1_wait();",
-              "    I2C1TRN = data; i2c1_wait();", "    I2C1CONbits.PEN = 1; while (I2C1CONbits.PEN);", "}", ""]
+        H += [("i2c1_wait", ["static void i2c1_wait(void) { while (I2C1CON & 0x001F); while (I2C1STATbits.TRSTAT); }"]),
+              ("i2c1_write", ["static void i2c1_write(unsigned char addr, unsigned char data)", "{",
+               "    I2C1CONbits.SEN = 1; while (I2C1CONbits.SEN);", "    I2C1TRN = addr << 1; i2c1_wait();",
+               "    I2C1TRN = data; i2c1_wait();", "    I2C1CONbits.PEN = 1; while (I2C1CONbits.PEN);", "}", ""])]
+    helper_at = len(L)
     # ---- ISRs
     if tspec:
         L += ["void __attribute__((interrupt, auto_psv)) _T1Interrupt(void)", "{"] + p.every[1] + ["    IFS0bits.T1IF = 0;", "}", ""]
@@ -427,6 +429,17 @@ def emit(p: Program, profile, ics: str = "PGx2") -> str:
             "    IFS0bits.U1RXIF = 0;", "}", ""]
     L += ["int main(void)", "{"] + ["    " + x for x in profile.clock_code] + ["    hw_init();"] + p.start + [
         "    while (1) {"] + p.loop + ["    }", "}", ""]
+    used_text, keep = "\n".join(L[helper_at:]), set()
+    changed = True
+    while changed:
+        changed = False
+        for name, body in H:
+            if name not in keep and re.search(rf"\b{name}\s*\(", used_text):
+                keep.add(name); used_text += "\n" + "\n".join(body); changed = True
+    hl = [x for name, body in H if name in keep for x in body]
+    if hl and hl[-1] != "":
+        hl.append("")
+    L[helper_at:helper_at] = hl
     return "\n".join(L)
 
 

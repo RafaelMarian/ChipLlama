@@ -125,6 +125,15 @@ def _dfp_for(settings: Settings, comp: str, compiler_path: str | None = None) ->
         return None
 
 
+def link_command(gcc: str, mcpu: str, src: str, out: str, extra=()) -> list[str]:
+    """Compile + link in one step. -mcpu must be given at link time too, and the device linker script
+    (p<cpu>.gld, found by xc16-gcc via -mcpu's support dir) supplies the SFR symbols (_LATAbits, _SPI1BUF...);
+    without it every SFR reference is an undefined symbol."""
+    return [gcc, f"-mcpu={mcpu}", *extra, "-omf=elf", "-O1", "-Wall", src, "-o", out,
+            f"-Wl,--script=p{mcpu}.gld,--heap=0,--stack=16,--check-sections,--data-init,--pack-data,"
+            "--handles,--isr,--no-gc-sections,--fill-upper=0,--stackguard=16,--no-force-link,--smart-io"]
+
+
 def compile_c(source: str, settings: Settings, runner=subprocess.run, link: bool = False,
               workdir: str | None = None) -> CompileResult:
     comp, gcc = find_compiler(settings)
@@ -144,7 +153,7 @@ def compile_c(source: str, settings: Settings, runner=subprocess.run, link: bool
     extra = [f"-mdfp={dfp}"] if dfp else []
     if link:
         out = Path(tmp) / "main.elf"
-        cmd = [gcc, f"-mcpu={mcpu}", *extra, "-O1", "-Wall", str(src), "-o", str(out)]
+        cmd = link_command(gcc, mcpu, str(src), str(out), extra)
     else:
         out = Path(tmp) / "main.o"
         cmd = [gcc, f"-mcpu={mcpu}", *extra, "-O1", "-Wall", "-c", str(src), "-o", str(out)]
@@ -161,7 +170,7 @@ def compile_c(source: str, settings: Settings, runner=subprocess.run, link: bool
         b2n = "xc-dsc-bin2hex" if comp == "xc-dsc" else "xc16-bin2hex"
         b2h = (find_tool(b2n, settings.xc16_bin2hex) if comp == "xc16" else None) or str(Path(gcc).with_name(b2n + Path(gcc).suffix))
         hp = runner([b2h, str(out)], capture_output=True, text=True, timeout=60)
-        if hp.returncode == 0:
+        if hp.returncode == 0 and (Path(tmp) / "main.hex").is_file():
             res.hex_path = str(Path(tmp) / "main.hex")
         else:
             res.output += "\n" + (hp.stdout or "") + (hp.stderr or "")

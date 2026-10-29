@@ -27,7 +27,7 @@ def settings() -> Settings:
     return Settings()
 
 
-def run(link: bool = False, require: bool = False, out=print) -> int:
+def run(link: bool = False, require: bool = False, out=print, verbose: bool = False) -> int:
     s = settings()
     comp, path = compiler.find_compiler(s)
     out(f"device {s.device}; compiler {comp}: {path or 'NOT FOUND'}")
@@ -45,15 +45,24 @@ def run(link: bool = False, require: bool = False, out=print) -> int:
             out(f"FAILED   {f.stem}: checker: {errs[0].get('code')} {errs[0].get('message', '')}")
             continue
         c = compiler.compile_c(r["c"], s, link=link)
-        if c.status == "ok":
-            out(f"VERIFIED {f.stem} ({len(r['c'].splitlines())} lines)")
+        warns = [d for d in c.diagnostics if d.severity == "warning"]
+        wtxt = f", {len(warns)} warning(s): " + "; ".join(f"line {d.line}: {d.message}" for d in warns[:3]) if warns else ""
+        if c.status == "ok" and (not link or c.hex_path):
+            out(f"VERIFIED {f.stem} ({len(r['c'].splitlines())} lines" + (", .hex built" if link else "") + f"){wtxt}")
         elif c.status == "skipped":
             out(f"SKIPPED  {f.stem}: checker clean, {c.reason}")
             failed += require
         else:
             failed += 1
-            first = c.diagnostics[0] if c.diagnostics else None
-            out(f"FAILED   {f.stem}: {comp}: " + (f"line {first.line}: {first.message}" if first else c.output.strip()[:300]))
+            errs = [d for d in c.diagnostics if d.severity != "warning"]
+            if errs:
+                why = f"line {errs[0].line}: {errs[0].message}"
+            else:
+                bad = [l.strip() for l in c.output.splitlines() if "undefined reference" in l or "error" in l.lower()]
+                why = (bad[0] if bad else c.output.strip()[-300:]) or "no .hex produced"
+            out(f"FAILED   {f.stem}: {comp}: {why}{wtxt}")
+            if verbose:
+                out("    cmd: " + " ".join(c.command or []))
     out(f"{len(files)} examples, {failed} failed")
     return 1 if failed else 0
 
@@ -62,5 +71,6 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--link", action="store_true", help="link to .elf/.hex instead of -c")
     ap.add_argument("--require-compiler", action="store_true", help="treat a missing compiler as failure")
+    ap.add_argument("-v", "--verbose", action="store_true", help="print the compiler command on failure")
     a = ap.parse_args()
-    sys.exit(run(a.link, a.require_compiler))
+    sys.exit(run(a.link, a.require_compiler, verbose=a.verbose))
