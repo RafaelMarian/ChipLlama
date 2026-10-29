@@ -17,6 +17,7 @@ Rules:
 - ALWAYS start the file (right after `#include <xc.h>`) with the complete `#pragma config` block given in the request, every line, unchanged unless the requested Fosc needs a different clock mode. The board is bare (no crystal, nothing else sets the configuration words), so code without them does not run as intended.
 - The clock configuration must produce exactly the FOSC used in the timing math: FRCPLL -> PLL input must be 4 MHz (FRC 8 MHz / RCDIV / PLLDIV), PLL 96 MHz / 3 = 32 MHz, then CLKDIV.CPDIV (0=32,1=16,2=8,3=4 MHz). FRC = 8 MHz. Never use POSCMOD other than NONE or FNOSC=PRI/PRIPLL unless the request says a crystal is fitted.
 - Run the given clock statements (CLKDIVbits...) first in main(), before any peripheral init. Do not use _CONFIGx() macros and do not invent registers. Include a `main()` that calls the init function and loops forever.
+- UART/PPS: map pins between __builtin_write_OSCCONL(OSCCON & 0xBF) and __builtin_write_OSCCONL(OSCCON | 0x40); RPORxbits.RPnR = 3 for U1TX, RPINR18bits.U1RXR = n for U1RX; make RBn pins digital via AD1PCFGL; enable UARTEN before UTXEN.
 - If the datasheet page images contradict your memory, trust the images and the register table given below."""
 
 
@@ -60,11 +61,20 @@ def board_text(profile: "boardmod.BoardProfile", ics: str) -> str:
     return "\n".join(s)
 
 
-def first_user_prompt(request: str, spec: TimerSpec, solution_hint: TimerSolution | None, image_note: str,
-                      profile: "boardmod.BoardProfile | None" = None, ics: str = "PGx2") -> str:
+def first_user_prompt(request: str, spec: TimerSpec | None, solution_hint: TimerSolution | None, image_note: str,
+                      profile: "boardmod.BoardProfile | None" = None, ics: str = "PGx2", uspec=None) -> str:
     profile = profile or boardmod.get_profile("frcpll")
-    s = [f"Request: {request}", "", "Parameters extracted by the tool (verified later): " + spec_text(spec), "",
-         board_text(profile, ics), "", register_table_text(spec)]
+    s = [f"Request: {request}", ""]
+    if spec is not None:
+        s += ["Parameters extracted by the tool (verified later): " + spec_text(spec), ""]
+    s += [board_text(profile, ics)]
+    if spec is not None:
+        s += ["", register_table_text(spec)]
+    if uspec is not None:
+        from .uart import uart_prompt_text
+        s += ["", uart_prompt_text(uspec)]
+        if spec is None:
+            s += ["Timing that is not part of the verified spec (e.g. 'every 1 s') may use __delay_ms() or a timer."]
     if image_note:
         s += ["", image_note]
     if solution_hint:

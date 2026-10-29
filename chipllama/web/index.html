@@ -27,7 +27,7 @@ pre{background:#0a0f1e;border:1px solid var(--line);border-radius:10px;padding:1
 .diff .a{color:#86efac}.diff .r{color:#fca5a5}.diff .h{color:#93c5fd}
 .steps{position:relative;margin-left:8px;border-left:2px solid var(--line);padding-left:18px}
 .step{position:relative;margin-bottom:14px;animation:fade .3s}.step:before{content:"";position:absolute;left:-25px;top:6px;width:12px;height:12px;border-radius:50%;background:var(--mut)}
-.step.ok:before{background:var(--ok)}.step.bad:before{background:var(--bad)}.step.run:before{background:var(--acc);box-shadow:0 0 0 0 var(--acc);animation:pulse 1.2s infinite}
+.step.ok:before{background:var(--ok)}.step.bad:before{background:var(--bad)}.step.run2:before{background:var(--acc)}.step.run:before{background:var(--acc);box-shadow:0 0 0 0 var(--acc);animation:pulse 1.2s infinite}
 .step{background:transparent;color:var(--tx)}
 @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(91,140,255,.6)}100%{box-shadow:0 0 0 10px rgba(91,140,255,0)}}@keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1}}
 .f{margin:4px 0;font-size:13px}.mut{color:var(--mut)}table{border-collapse:collapse;width:100%;font:12.5px var(--mono);margin-top:8px}td,th{border-bottom:1px solid var(--line);padding:5px 8px;text-align:left}th{color:var(--mut);font-weight:600}
@@ -51,9 +51,10 @@ dialog{background:var(--panel);color:var(--tx);border:1px solid var(--line);bord
 <section id="p-gen"><div class="grid"><div>
  <div class="card"><h3>What should the chip do?</h3>
   <textarea id="req">Timer1 interrupt every 10 ms, priority 5</textarea>
-  <div style="margin:8px 0"><span class="ex" onclick="ex(this)">Timer1 interrupt every 10 ms, priority 5</span><span class="ex" onclick="ex(this)">Timer2 polling, 250 us period</span><span class="ex" onclick="ex(this)">32-bit Timer2/3 interrupt every 2 seconds</span></div>
+  <div style="margin:8px 0"><span class="ex" onclick="ex(this)">UART1 115200 on RP10 TX / RP17 RX, print hello every 1 s</span><span class="ex" onclick="ex(this)">Timer1 10 ms toggle RA0</span><span class="ex" onclick="ex(this)">Timer1 interrupt every 10 ms, priority 5</span><span class="ex" onclick="ex(this)">Timer2 polling, 250 us period</span><span class="ex" onclick="ex(this)">32-bit Timer2/3 interrupt every 2 seconds</span></div>
   <div class="row"><button class="p" id="gen" onclick="generate()" style="flex:0 0 auto">Generate &amp; verify</button>
-   <label style="flex:0 0 auto;margin:0"><input type="checkbox" id="imgs" checked style="width:auto"> datasheet page images</label><span class="mut" id="genmeta" style="flex:2"></span></div>
+   <label style="flex:0 0 auto;margin:0"><input type="checkbox" id="imgs" checked style="width:auto"> datasheet page images</label>
+   <label style="flex:0 0 auto;margin:0" title="Deliberately corrupts the model's first attempt so you can watch the agent detect and fix it. Clearly labelled in the timeline."><input type="checkbox" id="fault" style="width:auto"> Demo: self-correction (inject fault)</label><span class="mut" id="genmeta" style="flex:2"></span></div>
  </div>
  <div id="prog" class="card hide"><h3>Agent progress</h3><div class="steps" id="steps"></div></div>
  <div id="final" class="card hide"></div>
@@ -123,14 +124,22 @@ x.append(dot,el('span','k',r.label),v);return x}));$('docsum').textContent=n.err
 function step(cls,title){const s=el('div','step '+cls);s.append(el('b','',title));$('steps').append(s);s.scrollIntoView({block:'nearest',behavior:'smooth'});return s}
 function diffPre(t){const p=el('pre','diff');t.split('\n').forEach(l=>{p.append(el('span',l.startsWith('+')&&!l.startsWith('+++')?'a':l.startsWith('-')&&!l.startsWith('---')?'r':l.startsWith('@@')?'h':'',l+'\n'))});return p}
 async function generate(){const b=$('gen');b.disabled=true;b.textContent='Working…';$('prog').classList.remove('hide');$('final').classList.add('hide');$('steps').replaceChildren();let running=null;const t0=Date.now();
- try{const r=await fetch('/api/generate/stream',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({request:$('req').value,use_images:$('imgs').checked})});
+ try{const r=await fetch('/api/generate/stream',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({request:$('req').value,use_images:$('imgs').checked,inject_fault:$('fault').checked})});
   if(!r.ok){const j=await r.json().catch(()=>({}));throw new Error(j.detail||r.statusText)}
   const rd=r.body.getReader(),dec=new TextDecoder();let buf='';
   for(;;){const{value,done}=await rd.read();if(done)break;buf+=dec.decode(value,{stream:true});let i;while((i=buf.indexOf('\n'))>=0){const line=buf.slice(0,i);buf=buf.slice(i+1);if(line.trim())running=onEvent(JSON.parse(line),running)}}
  }catch(e){step('bad','Error').append(el('div','f',e.message))}
  b.disabled=false;b.textContent='Generate & verify';$('genmeta').textContent=((Date.now()-t0)/1000).toFixed(1)+' s'}
 function onEvent(ev,running){const d=ev.data;
- if(ev.event=='spec'){const s=d.spec,r=d.reference;const x=step('ok','Parsed request');x.append(el('div','f',`Timer${s.bits32?'2/3 (32-bit)':s.timer} · ${s.period_s?(s.period_s*1e3).toPrecision(6)+' ms':'period ?'} · Fosc ${s.fosc_hz/1e6} MHz → Fcy ${s.fosc_hz/2e6} MHz · ${s.interrupt?'interrupt':'polling'}`),el('div','f mut',`Reference: TCKPS=${r.tckps} (1:${r.prescale}), PR=${r.period_reg}, ${r.error_ppm.toFixed(0)} ppm`));(s.notes||[]).forEach(n=>x.append(el('div','f mut','· '+n)));return null}
+ if(ev.event=='spec'){const s=d.spec,r=d.reference,u=d.uart;const x=step('ok','Parsed request');
+  if(s){x.append(el('div','f',`Timer${s.bits32?'2/3 (32-bit)':s.timer} · ${s.period_s?(s.period_s*1e3).toPrecision(6)+' ms':'period ?'} · Fosc ${s.fosc_hz/1e6} MHz → Fcy ${s.fosc_hz/2e6} MHz · ${s.interrupt?'interrupt':'polling'}`),el('div','f mut',`Reference: TCKPS=${r.tckps} (1:${r.prescale}), PR=${r.period_reg}, ${r.error_ppm.toFixed(0)} ppm`));(s.notes||[]).forEach(n=>x.append(el('div','f mut','· '+n)))}
+  if(u){const b=u.solution;x.append(el('div','f',`UART${u.uart} · ${u.baud} baud · TX ${u.tx_rp!=null?'RP'+u.tx_rp+' ('+u.tx_pin+')':'any'} · RX ${u.rx_rp!=null?'RP'+u.rx_rp+' ('+u.rx_pin+')':'any'} · Fcy ${u.fcy/1e6} MHz`),el('div','f mut',`Reference: BRGH=${b.brgh}, U1BRG=${b.brg} → ${Math.round(b.actual)} baud (${b.error_pct.toFixed(2)}%)`));(u.notes||[]).forEach(n=>x.append(el('div','f mut','· '+n)))}
+  if(d.demo_fault_injection){const q=el('div','f');q.append(pill('DEMO','warn'),el('span','',' Fault injection ON: attempt 1 will be corrupted on purpose to show self-correction.'));x.append(q)}
+  return null}
+ if(ev.event=='fault'){if(running)running.remove();const x=step('bad',`DEMO fault injection · attempt ${d.n}`);const q=el('div','f');q.append(pill('DEMO','warn'),el('span','',' '+d.description+' (done by ChipLlama, not the model)'));x.append(q);
+  if(d.diff){const dd=el('details');dd.append(el('summary','','what was corrupted'),diffPre(d.diff));dd.open=true;x.append(dd)}return null}
+ if(ev.event=='reflect'){const x=step('run2',`Self-correction · reading feedback for attempt ${d.n}`);x.append(el('div','f',`Errors fed back: ${(d.errors||[]).join(', ')||'compile errors'}`));
+  if(d.pages&&d.pages.length){const q=el('div','f mut');q.append(document.createTextNode('Re-reading datasheet '+d.pages.map(p=>'p.'+p).join(', ')+(d.images_attached&&d.images_attached.length?' (page images sent to the model)':'')+' '));d.pages.forEach(p=>{const a=el('a','','p.'+p+' ');a.href='/api/page/'+p+'.png';a.target='_blank';q.append(a)});x.append(q)}return null}
  if(ev.event=='model_call'){return step('run',`Attempt ${d.n}: asking ${d.backend}…`)}
  if(ev.event=='attempt'){if(running)running.remove();if(d.error){step('bad','Attempt '+d.n+': '+d.error);return null}
   const ok=d.check.ok&&d.compile.status!=='error';const x=step(ok?'ok':'bad',`Attempt ${d.n} · ${d.seconds}s `);
@@ -140,9 +149,10 @@ function onEvent(ev,running){const d=ev.data;
   if(d.compile.output){const de=el('details');de.append(el('summary','','compiler output'),el('pre','',d.compile.output));if(d.compile.status=='error')de.open=true;x.append(de)}
   const de=el('details');de.append(el('summary','','registers: code vs reference'));const t=el('table');const h=el('tr');['register','code gives','reference'].forEach(k=>h.append(el('th','',k)));t.append(h);
   Object.keys(d.check.registers).forEach(k=>{const tr=el('tr');tr.append(el('td','',k),el('td','',d.check.registers[k]),el('td','',d.check.expected[k]||''));t.append(tr)});de.append(t);x.append(de);
-  if(d.diff){const dd=el('details');dd.append(el('summary','','diff vs previous attempt'),diffPre(d.diff));dd.open=true;x.append(dd)}
+  if(d.diff){const dd=el('details');dd.append(el('summary','',d.n>1?'fix applied by the agent (diff vs previous attempt)':'diff vs previous attempt'),diffPre(d.diff));dd.open=true;x.append(dd)}
+  if(d.injected_fault){const q=el('div','f');q.append(pill('DEMO','warn'),el('span','mut',' this attempt contains an injected fault'));x.insertBefore(q,x.children[1]||null)}
   return null}
- if(ev.event=='done'){if(running)running.remove();showFinal(d);return null}return running}
+ if(ev.event=='done'){if(running)running.remove();step(d.status=='verified'?'ok':'bad',d.status=='verified'?'VERIFIED':'FAILED'+(d.error?': '+d.error:''));showFinal(d);return null}return running}
 function showFinal(j){LAST=j;const f=$('final');f.classList.remove('hide');f.replaceChildren();
  const h=el('div','row');h.append(el('h3','',''),);f.append(pill(j.status.toUpperCase(),j.status=='verified'?'ok':'bad'),el('span','mut',' '+(j.verification_level||'')+(j.error?' · '+j.error:'')));
  if(!j.code)return;f.append(el('pre','',j.code));

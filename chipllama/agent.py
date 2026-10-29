@@ -19,6 +19,8 @@ from .config import Settings
 from .datasheet import load_page_images, pages_for_spec
 from .models.base import ChatModel, Message, ModelError
 from . import prompts
+from . import uart as uartmod
+from .faults import DEMO_LABEL, inject_fault as make_fault
 from .timers import TimerSpec, TimerSolution, parse_request, solve
 
 _FENCE = re.compile(r"```(?:c|C|cpp|xc16)?[ \t]*\n(.*?)```", re.S)
@@ -41,10 +43,11 @@ class Attempt:
     compile: CompileResult
     seconds: float
     model_text: str = ""
+    injected_fault: dict | None = None
 
     def to_dict(self):
         return {"n": self.n, "code": self.code, "check": self.check.to_dict(), "compile": self.compile.to_dict(),
-                "seconds": round(self.seconds, 2)}
+                "seconds": round(self.seconds, 2), "injected_fault": self.injected_fault}
 
 
 @dataclass
@@ -57,6 +60,8 @@ class AgentResult:
     notes: list[str] = field(default_factory=list)
     error: str = ""
     backend: str = ""
+    uart: "uartmod.UartSpec | None" = None
+    fault: dict | None = None
 
     @property
     def code(self) -> str:
@@ -72,6 +77,7 @@ class AgentResult:
                 "reference": self.solution.to_dict() if self.solution else None,
                 "attempts": [a.to_dict() for a in self.attempts], "notes": self.notes, "error": self.error,
                 "compiled": self.compiled, "code": self.code,
+                "uart": self.uart.to_dict() if self.uart else None, "demo_fault_injection": self.fault,
                 "verification_level": ("registers+compile" if self.status == "verified" and self.compiled else
                                        "registers only (compiler unavailable)" if self.status == "verified" else "none")}
 
@@ -105,30 +111,69 @@ def resolve_spec(request: str, model: ChatModel | None, notes: list[str]) -> Tim
     return spec
 
 
+_TIMER_WORDS = re.compile(r"\btimer\s*\d|\bTMR\d|\bT\dCON|\bPR\d\b|\binterrupt every\b", re.I)
+
+# finding code -> datasheet pages the agent "re-reads" on failure
+_FINDING_PAGES = {"PERIOD": "timer", "PR_UNSET": "timer", "TCKPS": "timer", "TON": "timer", "TCS": "timer",
+                  "T32": "timer", "BRG": [200, 202], "BRG_UNSET": [200], "UARTEN": [202], "UTXEN": [204],
+                  "PPS_TX": [138], "PPS_RX": [147], "PPS_LOCKED": [123, 136], "TRIS_RX": [], "ANALOG_RX": [273],
+                  "IE": [90], "IP": [97], "ISR": [84], "ISR_FLAG": [84], "FNOSC_MISSING": [123, 124, 125],
+                  "CLOCK": [123, 124, 125]}
+
+
+def pages_for_findings(codes: list[str], spec: TimerSpec | None, uspec=None) -> list[int]:
+    pages: list[int] = []
+    for c in codes:
+        v = _FINDING_PAGES.get(c)
+        if v is None:
+            for k, vv in _FINDING_PAGES.items():
+                if c.startswith(k):
+                    v = vv
+                    break
+        if v == "timer":
+            v = pages_for_spec(spec)[:2] if spec else []
+        if c == "PPS_TX" and uspec is not None and uspec.tx_rp is not None and uspec.tx_rp <= uartmod.OUTPUT_RP_MAX:
+            v = list(v or []) + [chipdb.REGISTERS[uartmod.rpor_field(uspec.tx_rp)[0]].page]
+        pages += list(v or [])
+    return list(dict.fromkeys(pages))[:4]
+
+
 def run_agent(request: str, model: ChatModel, settings: Settings, *, max_iters: int = 4, use_images: bool = True,
               hint: bool = False, spec: TimerSpec | None = None,
               compile_fn: Callable[..., CompileResult] = compile_c,
-              on_event: Callable[[str, dict], None] | None = None) -> AgentResult:
+              on_event: Callable[[str, dict], None] | None = None, inject_fault: bool = False) -> AgentResult:
     emit = on_event or (lambda *_: None)
     res = AgentResult("error", request, backend=getattr(model, "name", "?"))
+    builtin = chipdb.is_builtin_family(settings.device)
+    uspec = uartmod.parse_uart_request(request, settings.profile().fosc_hz / 2) if builtin else None
+    want_timer = uspec is None or bool(_TIMER_WORDS.search(request)) or spec is not None
+    res.uart = uspec
+    if uspec:
+        res.notes.extend(uspec.notes)
     try:
-        spec = spec or resolve_spec(request, model, res.notes)
-        if any(n.startswith("no clock stated") for n in spec.notes):
-            spec.fosc_hz = settings.profile().fosc_hz
-            spec.notes = [n for n in spec.notes if not n.startswith("no clock stated")] + [
-                f"no clock stated: using board profile '{settings.clock_profile}' -> Fosc = {spec.fosc_hz/1e6:g} MHz"]
-        res.spec = spec
-        res.solution = solve(spec)
+        if want_timer:
+            spec = spec or resolve_spec(request, model, res.notes)
+            if any(n.startswith("no clock stated") for n in spec.notes):
+                spec.fosc_hz = settings.profile().fosc_hz
+                spec.notes = [n for n in spec.notes if not n.startswith("no clock stated")] + [
+                    f"no clock stated: using board profile '{settings.clock_profile}' -> Fosc = {spec.fosc_hz/1e6:g} MHz"]
+            res.spec = spec
+            res.solution = solve(spec)
+            if uspec:
+                uspec.fcy = spec.fcy
     except ValueError as e:
         res.error = str(e)
         return res
-    emit("spec", {"spec": spec.to_dict(), "reference": res.solution.to_dict()})
+    emit("spec", {"spec": spec.to_dict() if res.spec else None,
+                  "reference": res.solution.to_dict() if res.solution else None,
+                  "uart": uspec.to_dict() if uspec else None, "demo_fault_injection": bool(inject_fault)})
+    if inject_fault:
+        res.notes.append(f"{DEMO_LABEL} enabled: the first model attempt will be corrupted on purpose to demonstrate self-correction")
 
     try:
         dev = chipdb.device_for(settings)
     except Exception as e:   # pragma: no cover - defensive
         dev, _ = None, res.notes.append(f"device data unavailable: {e}")
-    builtin = chipdb.is_builtin_family(settings.device)
     if not builtin and dev is None:
         res.error = (f"no device data for {settings.device}: install its MPLAB X device pack or set "
                      "MPLAB_PACKS_DIR to the packs folder")
@@ -139,13 +184,14 @@ def run_agent(request: str, model: ChatModel, settings: Settings, *, max_iters: 
     imgs: list[tuple[int, bytes]] = []
     note = ""
     if use_images and builtin:
-        imgs, note = load_page_images(pages_for_spec(spec), settings)
+        pages = (pages_for_spec(spec) if res.spec else []) + (uartmod.pages_for_uart(uspec) if uspec else [])
+        imgs, note = load_page_images(list(dict.fromkeys(pages))[:8], settings)
         res.notes.append(note)
     image_note = (f"Attached are datasheet page images, in order: {', '.join('p%d' % p for p, _ in imgs)}." if imgs else "")
     if builtin:
         msgs = [Message("system", prompts.SYSTEM),
-                Message("user", prompts.first_user_prompt(request, spec, res.solution if hint else None, image_note,
-                                                          settings.profile(), settings.ics),
+                Message("user", prompts.first_user_prompt(request, res.spec, res.solution if hint else None, image_note,
+                                                          settings.profile(), settings.ics, uspec=uspec),
                         [b for _, b in imgs])]
     else:
         msgs = [Message("system", prompts.generic_system(dev)),
@@ -165,8 +211,26 @@ def run_agent(request: str, model: ChatModel, settings: Settings, *, max_iters: 
             msgs += [Message("assistant", text), Message("user", "No ```c code block found. Return the complete C file in one ```c block.")]
             emit("attempt", {"n": i, "error": "no code"})
             continue
+        fault = None
+        if inject_fault and res.fault is None:
+            tnum = (23 if res.spec.bits32 else res.spec.timer) if res.spec else None
+            f = make_fault(code, timer=tnum, uart=uspec is not None)
+            if f is None:
+                res.fault = {"label": DEMO_LABEL, "kind": "none", "description": "no injectable pattern found; attempt left unchanged", "diff": ""}
+                emit("fault", dict(res.fault, n=i))
+            else:
+                fault = res.fault = f.to_dict()
+                code = f.corrupted
+                text = "```c\n" + code + "```"          # the model sees the corrupted file as its previous answer
+                res.notes.append(f"{DEMO_LABEL} on attempt {i}: {f.description}")
+                emit("fault", dict(fault, n=i))
         if builtin:
-            chk = check_timer(code, spec, profile=settings.profile(), ics=settings.ics)
+            if res.spec:
+                chk = check_timer(code, res.spec, profile=settings.profile(), ics=settings.ics)
+                if uspec:
+                    uartmod.check_uart(code, uspec, chk)
+            else:
+                chk = uartmod.check_uart_full(code, uspec, profile=settings.profile(), ics=settings.ics)
             if dev is not None and dev.source != "built-in":
                 check_device(code, dev, ics=settings.ics, rep=chk, require_config=False)
         else:
@@ -174,14 +238,25 @@ def run_agent(request: str, model: ChatModel, settings: Settings, *, max_iters: 
             chk.add("info", "TIMING_UNVERIFIED", f"timer period/clock math is not emulated for {dev.family} yet; "
                     "configuration bits and register/bitfield names were verified against the EDC data.")
         cmp_ = compile_fn(code, settings)
-        att = Attempt(i, code, chk, cmp_, time.time() - t0, text)
+        att = Attempt(i, code, chk, cmp_, time.time() - t0, text, injected_fault=fault)
         res.attempts.append(att)
         emit("attempt", att.to_dict())
         if chk.ok and cmp_.ok:
             res.status = "verified"
             return res
-        msgs += [Message("assistant", text), Message("user", prompts.feedback_prompt(
-            cmp_.feedback_text() if cmp_.status == "error" else "", chk.feedback_text()))]
+        if i == max_iters:
+            break
+        codes = [f.code for f in chk.errors] + (["COMPILE"] if cmp_.status == "error" else [])
+        fb_pages = pages_for_findings(codes, res.spec, uspec) if builtin else []
+        fb_imgs: list[tuple[int, bytes]] = []
+        if fb_pages and use_images:
+            fb_imgs, _ = load_page_images(fb_pages, settings)
+        emit("reflect", {"n": i, "errors": codes, "pages": fb_pages, "images_attached": [p for p, _ in fb_imgs]})
+        fb = prompts.feedback_prompt(cmp_.feedback_text() if cmp_.status == "error" else "", chk.feedback_text())
+        if fb_pages:
+            fb += "\n\nRe-read datasheet " + ", ".join(f"p.{p}" for p in fb_pages) + (
+                " (page images attached)." if fb_imgs else ".")
+        msgs += [Message("assistant", text), Message("user", fb, [b for _, b in fb_imgs])]
     res.status = "failed"
     if not res.attempts:
         res.error = "model never produced code"

@@ -39,6 +39,7 @@ class GenerateReq(BaseModel):
     max_iters: int | None = None
     use_images: bool = True
     hint: bool = False
+    inject_fault: bool = False
 
 
 class CalcReq(BaseModel):
@@ -179,7 +180,7 @@ def create_app(settings: Settings | None = None, model_factory: Callable | None 
         except ValueError as e:
             raise HTTPException(400, str(e))
         res = run_agent(req.request, model, cur(), max_iters=_iters(req), use_images=req.use_images,
-                        hint=req.hint, compile_fn=compile_fn)
+                        hint=req.hint, compile_fn=compile_fn, inject_fault=req.inject_fault)
         return res.to_dict()
 
     @app.post("/api/generate/stream")
@@ -201,7 +202,8 @@ def create_app(settings: Settings | None = None, model_factory: Callable | None 
         def work():
             try:
                 res = run_agent(req.request, model, cur(), max_iters=_iters(req), use_images=req.use_images,
-                                hint=req.hint, compile_fn=compile_fn, on_event=on_event)
+                                hint=req.hint, compile_fn=compile_fn, on_event=on_event,
+                                inject_fault=req.inject_fault)
                 q.put({"event": "done", "data": res.to_dict()})
             except Exception as e:  # surface unexpected failures to the UI
                 q.put({"event": "done", "data": {"status": "error", "error": f"{type(e).__name__}: {e}", "attempts": []}})

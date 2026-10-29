@@ -101,10 +101,37 @@ _add(Register("CLKDIV", 0x0744, 125, (Field("ROI", 15, 1, "Recover on interrupt"
                                        Field("CPDIV", 6, 2, "32 MHz branch postscaler: 0=32 1=16 2=8 3=4 MHz")),
               reset=0x0100))
 
+
+# ---- UART1 (chapter 17: UxMODE p.202, UxSTA p.204, BRG equation p.200)
+_add(Register("U1MODE", 0x0220, 202, (Field("UARTEN", 15), Field("USIDL", 13), Field("IREN", 12), Field("RTSMD", 11),
+                                       Field("UEN", 8, 2), Field("WAKE", 7), Field("LPBACK", 6), Field("ABAUD", 5),
+                                       Field("RXINV", 4), Field("BRGH", 3, 1, "1 = high speed (4x), 0 = standard (16x)"),
+                                       Field("PDSEL", 1, 2), Field("STSEL", 0)), reset=0))
+_add(Register("U1STA", 0x0222, 204, (Field("UTXISEL1", 15), Field("UTXINV", 14), Field("UTXISEL0", 13),
+                                      Field("UTXBRK", 11), Field("UTXEN", 10), Field("UTXBF", 9), Field("TRMT", 8),
+                                      Field("URXISEL", 6, 2), Field("ADDEN", 5), Field("RIDLE", 4), Field("PERR", 3),
+                                      Field("FERR", 2), Field("OERR", 1), Field("URXDA", 0)), reset=0x0110))
+# ---- Peripheral Pin Select (section 10.4; RPINR18 p.147, RPORn pp.151-159, output function table 10-3 p.138)
+_add(Register("RPINR18", 0x06A4, 147, (Field("U1CTSR", 8, 6), Field("U1RXR", 0, 6)), reset=0x3F3F))
+_RPOR_PAGES = [151, 152, 152, 153, 153, 154, 154, 155, 155, 156, 156, 157, 157, 158, 158, 159]
+for _n in range(16):
+    _add(Register(f"RPOR{_n}", 0x06C0 + 2 * _n, _RPOR_PAGES[_n],
+                  (Field(f"RP{2*_n+1}R", 8, 6), Field(f"RP{2*_n}R", 0, 6)), reset=0))
+# ---- OSCCON (p.123): IOLOCK<6> gates PPS writes (unlock/lock with __builtin_write_OSCCONL)
+_add(Register("OSCCON", 0x0742, 123, (Field("COSC", 12, 3), Field("NOSC", 8, 3), Field("CLKLOCK", 7),
+                                       Field("IOLOCK", 6), Field("LOCK", 5), Field("CF", 3), Field("POSCEN", 2),
+                                       Field("SOSCEN", 1), Field("OSWEN", 0)), reset=0))
+# ---- A/D port configuration (p.273): PCFGn = 1 -> ANn pin is DIGITAL; reset 0 = analog
+_add(Register("AD1PCFGL", 0x032C, 273, tuple(Field(f"PCFG{i}", i) for i in range(16)), reset=0))
+# ---- TRIS registers (1 = input, reset all inputs)
+for _p, _a in zip("ABCDEFG", (0x02C0, 0x02C8, 0x02D0, 0x02D8, 0x02E0, 0x02E8, 0x02F0)):
+    _add(Register(f"TRIS{_p}", _a, 0, tuple(Field(f"TRIS{_p}{i}", i) for i in range(16)), reset=0xFFFF))
+REG_ALIASES = {"AD1PCFG": "AD1PCFGL"}
+
 # 16-bit data registers (no bit fields)
 DATA_REGS: dict[str, int] = {"TMR1": 0x0100, "PR1": 0x0102, "TMR2": 0x0106, "TMR3": 0x010A,
-                             "PR2": 0x010C, "PR3": 0x010E}
-DATA_RESET = {"PR1": 0xFFFF, "PR2": 0xFFFF, "PR3": 0xFFFF, "TMR1": 0, "TMR2": 0, "TMR3": 0}
+                             "PR2": 0x010C, "PR3": 0x010E, "U1BRG": 0x0228}
+DATA_RESET = {"PR1": 0xFFFF, "PR2": 0xFFFF, "PR3": 0xFFFF, "TMR1": 0, "TMR2": 0, "TMR3": 0, "U1BRG": 0}
 
 # Datasheet pages most useful as multimodal inputs per topic.
 PAGES = {

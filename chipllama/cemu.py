@@ -225,6 +225,7 @@ def _strip_control(stmt: str) -> str:
 
 
 # ---------------------------------------------------------------- register state
+_OSCCONL = re.compile(r"^__builtin_write_OSCCONL\s*\((.*)\)\s*$", re.S)
 _ALIAS = re.compile(r"^_(T[123])(IE|IF|IP)$")          # XC16 header aliases e.g. _T1IE
 _ASSIGN = re.compile(r"^(?P<lhs>[A-Za-z_]\w*(?:\s*\.\s*[A-Za-z_]\w*)?)\s*(?P<op><<=|>>=|\|=|&=|\^=|\+=|-=|=)(?!=)\s*(?P<rhs>.+)$", re.S)
 
@@ -281,6 +282,9 @@ def run_statement(emu: Emulation, stmt: str, func: str, line: int = 0, regs: dic
     stmt = _strip_control(stmt)
     if not stmt or stmt.startswith(("return", "break", "continue", "#")):
         return
+    b = _OSCCONL.match(stmt)
+    if b:   # XC16 builtin used for the PPS unlock/lock sequence: writes OSCCON<7:0>
+        stmt = f"OSCCON = (OSCCON & 0xFF00) | (({b.group(1)}) & 0xFF)"
     m = _ASSIGN.match(stmt)
     if not m:
         if re.match(r"^[A-Za-z_]\w*\s*\(", stmt) is None and "++" not in stmt and "--" not in stmt \
@@ -304,6 +308,7 @@ def run_statement(emu: Emulation, stmt: str, func: str, line: int = 0, regs: dic
         reg_name = base[:-4] if base.endswith("bits") else base
     else:
         reg_name = lhs
+    reg_name = chipdb.REG_ALIASES.get(reg_name, reg_name)
     if reg_name in chipdb.REGISTERS:
         reg = chipdb.REGISTERS[reg_name]
         if fld is None:
@@ -321,6 +326,7 @@ def run_statement(emu: Emulation, stmt: str, func: str, line: int = 0, regs: dic
         return
 
     def names(ident: str):
+        ident = chipdb.REG_ALIASES.get(ident, ident)
         if ident in regs and ident in chipdb.REGISTERS or ident in chipdb.DATA_REGS:
             return regs.get(ident, chipdb.DATA_RESET.get(ident, 0))
         if ident in emu.defines:

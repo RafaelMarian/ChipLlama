@@ -61,7 +61,43 @@ def cmd_pragmas(a, s: Settings) -> int:
     return 0
 
 
+def cmd_calc_uart(a, s) -> int:
+    from . import uart as u
+    fcy = (a.fosc * 1e6 if a.fosc else s.profile().fosc_hz) / 2
+    baud = a.baud or 9600
+    print(f"UART1 {baud} baud @ Fcy={fcy/1e6:g} MHz  (U1BRG = Fcy/(16|4 * baud) - 1, DS39897C p.200)")
+    best = u.solve_baud(fcy, baud)
+    for o in u.baud_options(fcy, baud):
+        print(f"  BRGH={o.brgh}: U1BRG={o.brg:<5d} -> {o.actual:.0f} baud ({o.error_pct:+.2f}%)" + ("  <- best" if o == best else ""))
+    for role, tok in (("TX", a.tx), ("RX", a.rx)):
+        if not tok:
+            continue
+        rp = u._pin_to_rp(tok)
+        if rp is None or rp not in u.RP_PIN:
+            print(f"  {role}: unknown pin '{tok}'")
+            continue
+        pin = u.port_pin(rp)
+        an = u.analog_channel(pin)
+        if role == "TX":
+            if rp > u.OUTPUT_RP_MAX:
+                print(f"  TX: {u.rp_name(rp)} is input-only (cannot carry U1TX)")
+                continue
+            reg, f = u.rpor_field(rp)
+            line = f"  TX RP{rp}={pin}: {reg}bits.{f} = 3; TRIS{pin[1]}bits.TRIS{pin[1]}{pin[2:]} = 0"
+        else:
+            line = f"  RX {u.rp_name(rp)}={pin}: RPINR18bits.U1RXR = {rp}; TRIS{pin[1]}bits.TRIS{pin[1]}{pin[2:]} = 1"
+        print(line + (f"; AD1PCFGLbits.PCFG{an} = 1" if an is not None else ""))
+    if a.tx or a.rx:
+        print("  PPS: __builtin_write_OSCCONL(OSCCON & 0xBF); ...map...; __builtin_write_OSCCONL(OSCCON | 0x40);")
+    if a.json:
+        print(json.dumps({"fcy": fcy, "baud": baud, "best": best.to_dict(),
+                          "options": [o.to_dict() for o in u.baud_options(fcy, baud)]}, indent=2))
+    return 0
+
+
 def cmd_calc(a, s) -> int:
+    if a.request.strip().lower() == "uart":
+        return cmd_calc_uart(a, s)
     spec = parse_request(a.request)
     if a.fosc:
         spec.fosc_hz = a.fosc * 1e6
@@ -81,7 +117,23 @@ def cmd_calc(a, s) -> int:
 def _print_attempt(ev: str, data: dict) -> None:
     if ev == "spec":
         sp = data["spec"]
-        print(f"[spec] Timer{sp['timer']} period={sp['period_s']*1e3:g} ms Fosc={sp['fosc_hz']/1e6:g} MHz irq={sp['interrupt']}")
+        if sp:
+            print(f"[spec] Timer{sp['timer']} period={sp['period_s']*1e3:g} ms Fosc={sp['fosc_hz']/1e6:g} MHz irq={sp['interrupt']}")
+        if data.get("uart"):
+            u = data["uart"]
+            b = u["solution"]
+            print(f"[spec] UART{u['uart']} {u['baud']} baud TX={u['tx_rp'] if u['tx_rp'] is not None else '-'} "
+                  f"RX={u['rx_rp'] if u['rx_rp'] is not None else '-'} -> BRGH={b['brgh']} U1BRG={b['brg']} ({b['error_pct']:+.2f}%)")
+        if data.get("demo_fault_injection"):
+            print("[demo] fault injection ON: attempt 1 will be corrupted on purpose")
+    elif ev == "fault":
+        print(f"[DEMO FAULT INJECTION] attempt {data['n']}: {data['description']}")
+        for line in (data.get("diff") or "").splitlines():
+            if line.startswith(("+", "-")) and not line.startswith(("+++", "---")):
+                print("    " + line)
+    elif ev == "reflect":
+        pg = ", ".join(f"p.{p}" for p in data["pages"]) or "-"
+        print(f"[reflect] feeding back {', '.join(data['errors']) or 'errors'}; datasheet {pg}")
     elif ev == "attempt" and "check" in data:
         errs = [f for f in data["check"]["findings"] if f["severity"] == "error"]
         print(f"[attempt {data['n']}] compile={data['compile']['status']} checker={'OK' if data['check']['ok'] else 'FAIL'} ({len(errs)} errors)")
@@ -94,7 +146,7 @@ def _print_attempt(ev: str, data: dict) -> None:
 def cmd_generate(a, s: Settings) -> int:
     model = make_model(s, a.backend)
     res = run_agent(a.request, model, s, max_iters=a.max_iters, use_images=not a.no_images, hint=a.hint,
-                    on_event=_print_attempt)
+                    on_event=_print_attempt, inject_fault=a.inject_fault)
     print(f"\n=== {res.status.upper()} ({res.to_dict()['verification_level']}) backend={res.backend} ===")
     for n in res.notes:
         print("note:", n)
@@ -116,6 +168,8 @@ def cmd_generate(a, s: Settings) -> int:
             else:
                 fr = flash(cr.hex_path, s, confirmed=a.yes)
                 print("flash:", fr.status, fr.reason, " ".join(fr.command))
+    tag = " (demo fault injected on attempt 1, fixed by the agent)" if res.fault and res.fault.get("kind") != "none" and res.status == "verified" else ""
+    print(f"{'VERIFIED' if res.status == 'verified' else 'FAILED'} after {len(res.attempts)} attempt(s){tag}")
     return 0 if res.status == "verified" else 1
 
 
@@ -190,8 +244,11 @@ def build_parser() -> argparse.ArgumentParser:
     pr.add_argument("--edc", help="explicit path to a <DEVICE>.PIC file")
     pr.add_argument("--generic", action="store_true", help="EDC safe defaults even for the built-in board profile")
     pr.set_defaults(fn=cmd_pragmas)
-    c = sub.add_parser("calc", help="deterministic timer calculator (no AI, no key)")
-    c.add_argument("request"); c.add_argument("--fosc", type=float, help="Fosc in MHz (overrides text)")
+    c = sub.add_parser("calc", help="deterministic timer / UART calculator (no AI, no key). `calc uart --baud 115200`")
+    c.add_argument("request", help="timer request text, or the word 'uart'")
+    c.add_argument("--fosc", type=float, help="Fosc in MHz (overrides text / board profile)")
+    c.add_argument("--baud", type=int, help="uart: baud rate"); c.add_argument("--tx", help="uart: TX pin, e.g. RP10 or RF4")
+    c.add_argument("--rx", help="uart: RX pin, e.g. RP17 or RPI37")
     c.add_argument("--json", action="store_true", help="also print JSON")
     c.set_defaults(fn=cmd_calc)
     g = sub.add_parser("generate", help="request -> verified C code")
@@ -201,6 +258,8 @@ def build_parser() -> argparse.ArgumentParser:
     g.add_argument("--out", help="write main.c here"); g.add_argument("--export", help="write MPLAB X-ready folder")
     g.add_argument("--flash", action="store_true", help="build + program via ipecmd (needs CHIPLLAMA_ENABLE_FLASH=1 and --yes)")
     g.add_argument("--yes", action="store_true", help="confirm flashing")
+    g.add_argument("--inject-fault", action="store_true",
+                   help="DEMO: deliberately corrupt the first attempt to show self-correction (clearly labelled)")
     g.set_defaults(fn=cmd_generate)
     d = sub.add_parser("debug", help="reverse-debug a register dump / screenshot")
     d.add_argument("--dump", help="text file with register values (or pipe on stdin)")
