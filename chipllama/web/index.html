@@ -27,7 +27,7 @@ pre{background:#0a0f1e;border:1px solid var(--line);border-radius:10px;padding:1
 .diff .a{color:#86efac}.diff .r{color:#fca5a5}.diff .h{color:#93c5fd}
 .steps{position:relative;margin-left:8px;border-left:2px solid var(--line);padding-left:18px}
 .step{position:relative;margin-bottom:14px;animation:fade .3s}.step:before{content:"";position:absolute;left:-25px;top:6px;width:12px;height:12px;border-radius:50%;background:var(--mut)}
-.step.ok:before{background:var(--ok)}.step.bad:before{background:var(--bad)}.step.run2:before{background:var(--acc)}.step.run:before{background:var(--acc);box-shadow:0 0 0 0 var(--acc);animation:pulse 1.2s infinite}
+.step.ok:before{background:var(--ok)}.step.bad:before{background:var(--bad)}.step.run2:before{background:var(--acc)}.step.warn:before{background:var(--warn,#d9a400)}.step.run:before{background:var(--acc);box-shadow:0 0 0 0 var(--acc);animation:pulse 1.2s infinite}
 .step{background:transparent;color:var(--tx)}
 @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(91,140,255,.6)}100%{box-shadow:0 0 0 10px rgba(91,140,255,0)}}@keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1}}
 .f{margin:4px 0;font-size:13px}.mut{color:var(--mut)}table{border-collapse:collapse;width:100%;font:12.5px var(--mono);margin-top:8px}td,th{border-bottom:1px solid var(--line);padding:5px 8px;text-align:left}th{color:var(--mut);font-weight:600}
@@ -75,6 +75,7 @@ dialog{background:var(--panel);color:var(--tx);border:1px solid var(--line);bord
    <div class="row"><div><label>Symptom</label><input id="sym" placeholder="the ISR never runs"></div><div><label>Expected period (ms)</label><input id="exp" type="number" step="any"></div></div></details>
   <div class="row" style="margin-top:12px"><button class="p" id="dbgb" onclick="dbg()" style="flex:0 0 auto">Diagnose</button>
    <div style="flex:0 0 150px"><input id="fosc" type="number" step="any" placeholder="Fosc MHz (profile)"></div>
+   <div style="flex:0 0 170px"><input id="ddev" list="devlist" placeholder="device (Settings)" title="PIC part in the image - port masks/registers come from its MPLAB device file"></div>
    <label style="flex:0 0 auto;margin:0"><input type="checkbox" id="usem" checked style="width:auto"> explain with Muse</label><span class="mut" id="dbgmeta" style="flex:2"></span></div></div>
  <div id="dsteps" class="card hide"><h3>Pipeline</h3><div class="steps" id="dsteplist"></div></div>
 </div><aside><div id="dout"></div></aside></div></section>
@@ -183,17 +184,17 @@ function renderDiff(t){const p=el('pre','diff');t.split('\n').forEach(l=>{p.appe
 const stc={ok:'ok',bad:'bad',warn:'warn',info:'info'};
 async function dbg(){const o=$('dout'),b=$('dbgb');
  if(!FILES.length){return legacyDbg()}
- const fd=new FormData();fd.append('intent',$('intent').value);fd.append('code',$('dcode').value);fd.append('explain',$('usem').checked);if($('fosc').value)fd.append('fosc_mhz',$('fosc').value);
+ const fd=new FormData();fd.append('intent',$('intent').value);fd.append('code',$('dcode').value);fd.append('explain',$('usem').checked);if($('fosc').value)fd.append('fosc_mhz',$('fosc').value);if($('ddev').value)fd.append('device',$('ddev').value.trim());
  FILES.forEach(f=>fd.append('images',f,f.name||'paste.png'));
  b.disabled=true;$('dsteps').classList.remove('hide');$('dsteplist').replaceChildren();o.replaceChildren();const t0=Date.now();
  const s1=dstep('run','1 · Muse Spark reads the image → strict JSON');
  try{const j=await api('/api/debug/vision',{method:'POST',body:fd});s1.className='step ok';
   const e=j.extraction;s1.append(el('div','f mut',`kind: ${e.kind} · confidence ${(e.confidence||0).toFixed(2)}`+(e.repaired&&e.repaired.length?' · repaired: '+e.repaired.join('; '):'')));
   const ex=el('details');ex.append(el('summary','','extracted JSON'),el('pre','',JSON.stringify({registers:e.registers,scope:e.scope,serial:e.serial},null,1)));s1.append(ex);
-  const s2=dstep(j.findings.some(r=>r.status=='bad')?'bad':'ok','2 · Deterministic decode (chipdb + timer/baud math)');s2.append(el('div','f mut',`${j.findings.length} rows · clock: ${j.clock.source||''}`));
+  const s2=dstep(j.findings.some(r=>r.status=='bad')?'bad':j.findings.some(r=>r.status=='warn')?'warn':'ok','2 · Deterministic decode (chipdb + timer/baud math)');s2.append(el('div','f mut',`${j.findings.length} rows · clock: ${j.clock.source||''}`));
   const s3=dstep(j.explanation?'ok':'run2','3 · Grounded explanation'+(j.explanation?' (Muse Spark)':' (rules only)'));
-  const bad=j.verdict.startsWith('BUG');const v=el('div','card');v.append(el('h3','',bad?'Bug found':'Verdict'));const vv=el('div','f');vv.append(pill(bad?'BUG':j.verdict.split(':')[0],bad?'bad':'ok'),el('span','',' '+j.root_cause));v.append(vv);
-  j.causes.slice(1).forEach(c=>v.append(el('div','f mut','also: '+c)));
+  const bad=j.verdict.startsWith('BUG'),unc=j.verdict.startsWith('UNCERTAIN'),okv=j.verdict.startsWith('OK');const v=el('div','card');v.append(el('h3','',bad?'Bug found':unc?'Uncertain - needs more evidence':'Verdict'));const vv=el('div','f');vv.append(pill(bad?'BUG':j.verdict.split(':')[0],bad?'bad':unc?'warn':okv?'ok':'info'),el('span','',' '+j.root_cause));v.append(vv);
+  [...j.causes,...(j.uncertain||[]),...(j.explained||[])].filter(c=>c!==j.root_cause).forEach(c=>v.append(el('div','f mut','also: '+c)));
   if(j.pages.length){const pg=el('div','f mut','datasheet: ');j.pages.forEach(p=>{const a=el('a','',' p.'+p+' ');a.href='/api/page/'+p+'.png';a.target='_blank';a.style.color='var(--acc)';pg.append(a)});v.append(pg)}
   o.append(v);
   const tc=el('div','card');tc.append(el('h3','','Findings'));const tb=el('table');const hr=el('tr');['Register','Value','Decoded','Expected',''].forEach(h=>hr.append(el('th','',h)));tb.append(hr);

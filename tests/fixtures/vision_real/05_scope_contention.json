@@ -1,0 +1,4 @@
+{"kind": "scope", "registers": {}, "scope": {"period_ms": null, "freq_hz": null, "duty": null, "voltage": 3.28,
+ "v_high": 3.28, "v_low": 1.92, "vdd": null, "channel": "CH1", "timebase": "200us/div"},
+ "serial": {"text": null, "baud_shown": null}, "confidence": 0.8,
+ "notes": "UART frame, idle high ~3.28 V, low level ~1.92 V (cursor dV 1.36 V)"}

@@ -207,7 +207,8 @@ def cmd_debug_vision(a, s: Settings) -> int:
     fosc = a.fosc * 1e6 if a.fosc else s.profile().fosc_hz
     try:
         rep = vision_debug(imgs, a.intent or "", code, model, fosc, COSC_FOR_PROFILE.get(s.clock_profile, 1), s.crystal_hz,
-                           extraction=ex)
+                           extraction=ex, device=a.device or s.device, clock_explicit=bool(a.fosc),
+                           packs_dir=s.mplab_packs_dir, cache_dir=s.cache_dir)
     except ModelError as e:
         print(f"vision debug failed: {e}", file=sys.stderr)
         return 2
@@ -293,6 +294,7 @@ def build_parser() -> argparse.ArgumentParser:
     d.add_argument("--image", action="append", help="photo/screenshot: MPLAB SFR/Watch window, register dump, scope or serial terminal")
     d.add_argument("--intent", help="what the firmware should do, e.g. 'Timer1 10 ms toggle RA0' or 'UART 115200' (enables the vision pipeline)")
     d.add_argument("--extraction", help="replay a saved vision extraction JSON instead of calling the model (offline demo)")
+    d.add_argument("--device", help="PIC part for the vision pipeline (default: Settings device); uses the MPLAB EDC file when found")
     d.add_argument("--symptom"); d.add_argument("--code", help="C file under suspicion")
     d.add_argument("--fosc", type=float, default=None, help="assumed Fosc in MHz (default: board profile / 32)")
     d.add_argument("--expected-ms", type=float); d.add_argument("--backend", choices=["meta", "baseten"])

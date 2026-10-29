@@ -34,17 +34,21 @@ Return ONLY one JSON object, no prose, no markdown fences, exactly this schema:
 {"kind": "registers"|"scope"|"serial"|"unknown",
  "registers": {"T1CON": "0x8010", "PR1": "0x4E1F"},
  "scope": {"period_ms": number|null, "freq_hz": number|null, "duty": number|null (0..1), "voltage": number|null (peak volts),
-           "channel": string|null, "timebase": string|null},
+           "v_high": number|null (logic-high level, volts), "v_low": number|null (logic-low level, volts),
+           "vdd": number|null, "channel": string|null, "timebase": string|null},
  "serial": {"text": string|null, "baud_shown": number|null},
  "confidence": number (0..1),
  "notes": string}
 Rules: copy register values exactly as shown, as hex strings; omit a register you cannot read; never guess.
 For a scope, read the measurement panel if present (Period/Freq/+Duty/Vpp), otherwise estimate from divisions and timebase and lower confidence.
-For serial text, copy it verbatim including garbage characters."""
+Always read the HIGH and LOW voltage levels of a digital trace (cursors, Max/Min/Top/Base readouts, or divisions x V/div from the ground marker).
+For serial text, copy it verbatim including garbage characters.
+Copy EVERY register/variable you can read (also LATx, PORTx, UxRXREG, RPORn, RPINRn), not only timer/UART ones."""
 
 REPAIR_PROMPT = "Your previous reply was not valid JSON for the schema. Reply again with ONLY the JSON object, nothing else."
 
 EXPLAIN_SYSTEM = """You are ChipLlama's reverse-debugging assistant for the PIC24FJ256GB110 (datasheet DS39897C), XC16 compiler.
+Rows marked INFO are unrelated context: do not present them as the bug. If the facts say UNCERTAIN or NOT a bug, say exactly that.
 You receive DETERMINISTIC findings computed by ChipLlama from registers/measurements read off the user's image. They are ground truth:
 never contradict a decoded value or a computed number. Write:
 ### Root cause
@@ -60,6 +64,7 @@ One ```diff block (unified diff against the user's code if given, otherwise a mi
 class Extraction:
     kind: str = "unknown"
     registers: dict[str, int] = field(default_factory=dict)
+    other: dict[str, int] = field(default_factory=dict)   # register-like names not in the built-in table (LATA, U1RXREG ...)
     scope: dict = field(default_factory=dict)
     serial: dict = field(default_factory=dict)
     confidence: float = 0.0
@@ -69,7 +74,8 @@ class Extraction:
 
     def to_dict(self):
         d = asdict(self)
-        d["registers"] = {k: f"0x{v:04X}" for k, v in self.registers.items()}
+        d["registers"] = {k: f"0x{v:04X}" for k, v in {**self.other, **self.registers}.items()}
+        d.pop("other", None)
         return d
 
 
@@ -154,6 +160,8 @@ def normalize(j: dict, fixes: list[str] | None = None) -> Extraction:
         val = _hex(v)
         if name in known and val is not None and 0 <= val <= 0xFFFF:
             ex.registers[name] = val
+        elif val is not None and 0 <= val <= 0xFFFFFFFF and re.fullmatch(r"(LAT|PORT|TRIS|ODC|CN)[A-K]|U\dRXREG|U\dTXREG|RPOR\d+|RPINR\d+|ANS[A-K]|AD1PCFG[LH]?", name):
+            ex.other[name] = val
         else:
             fixes.append(f"dropped {k}={v!r} (unknown register or bad value)")
     sc = j.get("scope") or {}
@@ -166,7 +174,16 @@ def normalize(j: dict, fixes: list[str] | None = None) -> Extraction:
         duty = _num(sc.get("duty"))
         if duty is not None and duty > 1:
             duty /= 100; fixes.append("duty given in % -> fraction")
+        def first(*keys):
+            for k in keys:
+                v = _num(sc.get(k))
+                if v is not None:
+                    return v
+            return None
+        vh = first("v_high", "high_v", "v_top", "vtop", "v_max", "vmax", "high")
+        vl = first("v_low", "low_v", "v_base", "vbase", "v_min", "vmin", "low")
         ex.scope = {k: v for k, v in {"period_ms": per, "freq_hz": fr, "duty": duty, "voltage": _num(sc.get("voltage")),
+                                      "v_high": vh, "v_low": vl, "vdd": first("vdd", "logic_v"),
                                       "channel": sc.get("channel"), "timebase": sc.get("timebase")}.items() if v is not None}
     se = j.get("serial") or {}
     if isinstance(se, str):
@@ -175,7 +192,7 @@ def normalize(j: dict, fixes: list[str] | None = None) -> Extraction:
         ex.serial = {"text": str(se["text"])[:4000], "baud_shown": _num(se.get("baud_shown"))}
     kind = str(j.get("kind", "")).lower().strip()
     if kind not in KINDS:
-        kind = "registers" if ex.registers else "scope" if ex.scope.get("period_ms") else "serial" if ex.serial else "unknown"
+        kind = "registers" if (ex.registers or ex.other) else "scope" if (ex.scope.get("period_ms") or "v_low" in ex.scope) else "serial" if ex.serial else "unknown"
         fixes.append(f"kind inferred as '{kind}'")
     ex.kind = kind
     c = _num(j.get("confidence"))
@@ -184,8 +201,9 @@ def normalize(j: dict, fixes: list[str] | None = None) -> Extraction:
     return ex
 
 
-def extract(model: ChatModel, images: list[bytes], intent: str = "") -> Extraction:
-    msgs = [Message("user", EXTRACT_PROMPT + (f"\nUser's intent (context only, do not let it bias readings): {intent}" if intent else ""), images)]
+def extract(model: ChatModel, images: list[bytes], intent: str = "", device: str = "") -> Extraction:
+    prompt = EXTRACT_PROMPT.replace("a PIC24FJ256GB110 debugging tool", f"a {device or 'PIC'} debugging tool")
+    msgs = [Message("user", prompt + (f"\nUser's intent (context only, do not let it bias readings): {intent}" if intent else ""), images)]
     last = None
     for attempt in range(2):
         txt = model.complete(msgs)
@@ -211,6 +229,14 @@ class Intent:
     baud: int | None = None
     timer: int = 1
     toggle: bool = False
+    fcy_hz: float | None = None         # clock stated by the user (Fcy, Fosc/2, or crystal)
+    clock_note: str = ""
+    vdd: float | None = None
+    topics: set = field(default_factory=set)   # timer / uart / clock / port
+    rx_pin: int | None = None           # "RX on RP4"
+    tx_pin: int | None = None
+    receive: bool = False
+    writes: dict = field(default_factory=dict)  # "LATA = 0xBBAA" in the intent
 
 
 def parse_intent(text: str) -> Intent:
@@ -221,7 +247,42 @@ def parse_intent(text: str) -> Intent:
     mb = re.search(r"(\d{3,7})\s*(?:baud|bps|bd)\b", t) or re.search(r"(?:uart|baud)\D{0,12}(\d{3,7})", t)
     if mb:
         it.baud = int(mb.group(1))
+    # ---- clock stated in the intent
+    def hz(num, unit):
+        return float(num) * {"m": 1e6, "k": 1e3, "": 1.0}[unit]
+    m = re.search(r"\bfcy\s*(?:=|of|is|at|:)?\s*(\d+(?:\.\d+)?)\s*(m|k)?hz", t)
+    if m:
+        it.fcy_hz, it.clock_note = hz(m.group(1), m.group(2) or ""), f"Fcy {m.group(1)} {(m.group(2) or '').upper()}Hz stated in the intent"
+    else:
+        m = re.search(r"\b(?:fosc|osc(?:illator)?|clock|sysclk)\s*(?:=|of|is|at|:)?\s*(\d+(?:\.\d+)?)\s*(m|k)?hz", t)
+        m2 = re.search(r"(\d+(?:\.\d+)?)\s*(m|k)?hz\s*(?:crystal|xtal|quartz)|(?:crystal|xtal)\s*(?:=|of|:)?\s*(\d+(?:\.\d+)?)\s*(m|k)?hz", t)
+        if m:
+            it.fcy_hz, it.clock_note = hz(m.group(1), m.group(2) or "") / 2, f"Fosc {m.group(1)} {(m.group(2) or '').upper()}Hz stated in the intent -> Fcy = Fosc/2"
+        elif m2:
+            n, u = (m2.group(1), m2.group(2)) if m2.group(1) else (m2.group(3), m2.group(4))
+            it.fcy_hz, it.clock_note = hz(n, u or "") / 2, f"{n} {(u or '').upper()}Hz crystal stated in the intent, assumed no PLL -> Fcy = Fosc/2"
+    mv = re.search(r"(\d(?:\.\d+)?)\s*v\b(?:\s*(?:logic|vdd|supply|cmos|ttl))?", t)
+    if mv and 1.0 <= float(mv.group(1)) <= 5.5:
+        it.vdd = float(mv.group(1))
+    mr = re.search(r"\brx\w*\s*(?:pin\s*)?(?:on|=|at|:)?\s*rp(\d+)", t)
+    if mr:
+        it.rx_pin = int(mr.group(1))
+    mt = re.search(r"\btx\w*\s*(?:pin\s*)?(?:on|=|at|:)?\s*rp(\d+)", t)
+    if mt:
+        it.tx_pin = int(mt.group(1))
+    it.receive = bool(re.search(r"\brx\b|receiv|read\s*back|loopback|echo|u\drxreg", t))
+    for m in re.finditer(r"\b((?:lat|port|tris)[a-k])\s*=\s*(0x[0-9a-f]+|\d+)", t):
+        it.writes[m.group(1).upper()] = int(m.group(2), 0)
+    if mb or re.search(r"\buart|\busart|baud|\bu\d(?:tx|rx|brg|mode|sta)|serial", t):
+        it.topics.add("uart")
+    if re.search(r"\btimer|\btmr|\bt\dcon|\bpr\d\b|interrupt every|toggl|blink|square|pwm|period|\d\s*(?:ms|us|µs)\b", t):
+        it.topics.add("timer")
+    if re.search(r"\bclock|\bosc|\bpll|\bfrc|\bfcy|\bfosc|crystal|mhz", t):
+        it.topics.add("clock")
+    if it.writes or re.search(r"\b(?:lat|port|tris)[a-k]\b|\br[a-k]\d+\b|\bpin\b|\bled\b|gpio", t):
+        it.topics.add("port")
     tt = re.sub(r"(\d{3,7})\s*(?:baud|bps|bd)\b", " ", t)
+    tt = re.sub(r"(\d+(?:\.\d+)?)\s*[mk]?hz", " ", tt) if not re.search(r"square|pwm|wave|signal", t) else tt
     if re.search(r"\d\s*(?:us|µs|ms|s|sec|hz|khz)\b", tt):
         try:
             sp = parse_request(tt)
@@ -321,6 +382,8 @@ class Analysis:
     clock: dict = field(default_factory=dict)
     computed: dict = field(default_factory=dict)
     pages: list[int] = field(default_factory=list)
+    uncertain: list[str] = field(default_factory=list)   # anomalies that need more evidence (-> UNCERTAIN, never OK)
+    explained: list[str] = field(default_factory=list)   # anomalies proven harmless (e.g. unimplemented port bits)
 
     def bad(self) -> bool:
         return any(r.status == "bad" for r in self.rows)
@@ -355,15 +418,66 @@ def _fmt_t(s: float) -> str:
     return f"{s*1e3:.4g} ms" if s >= 1e-3 else f"{s*1e6:.4g} us"
 
 
+def port_mask(device, port: str) -> int | None:
+    """Implemented-bit mask of PORTx/LATx from the device's EDC SFR fields (None if unknown)."""
+    name = getattr(device, "name", device) or ""
+    if hasattr(device, "sfr") and getattr(device, "source", "") != "built-in":
+        for rn in (f"PORT{port}", f"LAT{port}"):
+            r = device.sfr(rn)
+            if r is not None and r.fields:
+                return sum(((1 << f.width) - 1) << f.lsb for f in r.fields)
+    return BUILTIN_PORT_MASKS.get(str(name).upper(), {}).get(port)
+
+
+# from the PIC24FJ256GB110 EDC (Microchip pack): PORTA has RA0-7, RA9, RA10, RA14, RA15 on the 100-pin part
+BUILTIN_PORT_MASKS = {"PIC24FJ256GB110": {"A": 0xC6FF}}
+PPS_OUT = {0: "NULL (pin is a normal I/O)", 1: "C1OUT", 2: "C2OUT", 3: "U1TX", 4: "U1RTS", 5: "U2TX", 6: "U2RTS",
+           7: "SDO1", 8: "SCK1OUT", 9: "SS1OUT", 18: "OC1", 19: "OC2"}
+_LAT_WRITE = re.compile(r"\b((?:LAT|PORT)[A-K])\s*=\s*(0[xX][0-9A-Fa-f]+|\d+)\s*[uUlL]*\s*;")
+
+
+def _pps_map(regs: dict[str, int]) -> dict[int, int]:
+    """RPn -> output function code from RPORx values."""
+    out = {}
+    for k, v in regs.items():
+        m = re.fullmatch(r"RPOR(\d+)", k)
+        if m:
+            n = int(m.group(1))
+            out[2 * n] = v & 0x3F
+            out[2 * n + 1] = (v >> 8) & 0x3F
+    return out
+
+
 def analyze(ex: Extraction, intent: Intent, code: str = "", fosc_hz: float = 32e6, expected_cosc: int = 1,
-            crystal_hz: float = 8e6) -> Analysis:
+            crystal_hz: float = 8e6, clock_explicit: bool = False, device=None) -> Analysis:
     A = Analysis()
     regs = dict(ex.registers)
+    other = dict(ex.other)
     code_regs, code_pr = code_registers(code)
+    profile_fosc = fosc_hz
+    if intent.fcy_hz:
+        fosc_hz, clock_known, clock_src = intent.fcy_hz * 2, True, intent.clock_note
+    elif clock_explicit:
+        clock_known, clock_src = True, f"Fosc {fosc_hz/1e6:g} MHz given explicitly"
+    else:
+        clock_known, clock_src = False, f"ASSUMED board profile Fosc {fosc_hz/1e6:g} MHz (not stated in the intent or image)"
     clk = implied_clock(regs, fosc_hz, crystal_hz)
-    A.clock = {**clk, "expected_fosc_hz": fosc_hz, "fcy_hz": clk["fosc_hz"] / 2}
+    if "OSCCON" in regs:
+        clock_known = True
+    else:
+        clk["source"] = clock_src
+    A.clock = {**clk, "expected_fosc_hz": fosc_hz, "fcy_hz": clk["fosc_hz"] / 2, "clock_known": clock_known,
+               "assumption": clock_src}
     fcy = clk["fosc_hz"] / 2
     pg = A.pages
+    topics = intent.topics if intent.text else set()
+
+    def relevant(t: str) -> bool:
+        if not topics:
+            return True
+        if t == "clock":
+            return bool(topics & {"clock", "timer", "uart"})
+        return t in topics
 
     def row(*a, **k):
         r = Row(*a, **k); A.rows.append(r)
@@ -371,13 +485,28 @@ def analyze(ex: Extraction, intent: Intent, code: str = "", fosc_hz: float = 32e
             pg.append(r.page)
         return r
 
+    def mark(topic: str, n_rows: int, n_causes: int, n_fixes: int):
+        """Relevance filter: findings outside the intent become INFO, their causes/fixes are dropped."""
+        if relevant(topic):
+            return
+        for r in A.rows[n_rows:]:
+            if r.status != "info":
+                r.note = (r.note + "; " if r.note else "") + f"not related to the intent ({r.status} demoted to info)"
+                r.status = "info"
+        del A.causes[n_causes:]; del A.fixes[n_fixes:]
+
+    def snap():
+        return len(A.rows), len(A.causes), len(A.fixes)
+
+    s0 = snap()
+
     # ---- clock
     if "OSCCON" in regs:
         v = regs["OSCCON"]; cosc, nosc = (v >> 12) & 7, (v >> 8) & 7
-        ok = cosc == expected_cosc
+        ok = cosc == expected_cosc or bool(intent.fcy_hz)
         row("OSCCON", f"0x{v:04X}", f"COSC={cosc:03b} {COSC_NAMES[cosc]}; NOSC={nosc:03b}; LOCK={(v >> 5) & 1}",
             f"COSC={expected_cosc:03b} {COSC_NAMES[expected_cosc]}", "ok" if ok else "bad", 123)
-        if not ok:
+        if not ok and not intent.fcy_hz:
             A.causes.append(f"CPU is running from {COSC_NAMES[cosc]} instead of {COSC_NAMES[expected_cosc]}: Fosc = "
                             f"{clk['fosc_hz']/1e6:g} MHz, expected {fosc_hz/1e6:g} MHz (x{fosc_hz/clk['fosc_hz']:.3g} slower). "
                             "Usually the FNOSC config pragma is wrong (FRC/FRCDIV instead of FRCPLL) or the PLL never locked.")
@@ -403,6 +532,8 @@ def analyze(ex: Extraction, intent: Intent, code: str = "", fosc_hz: float = 32e
         row("Fcy (implied)", f"{fcy/1e6:g} MHz", clk["source"], f"{fosc_hz/2/1e6:g} MHz",
             "ok" if abs(fcy - fosc_hz / 2) < 1 else "bad", 123)
 
+    mark("clock", *s0)
+    s0 = snap()
     # ---- timers
     want = solve(TimerSpec(timer=intent.timer, period_s=intent.period_s, fosc_hz=fosc_hz)) if intent.period_s else None
     for n, (con, prn) in {1: ("T1CON", "PR1"), 2: ("T2CON", "PR2"), 3: ("T3CON", "PR3")}.items():
@@ -445,8 +576,10 @@ def analyze(ex: Extraction, intent: Intent, code: str = "", fosc_hz: float = 32e
                 A.causes.append(f"Timer{n} period is {_fmt_t(per)} instead of {_fmt_t(intent.period_s)} "
                                 f"(x{per/intent.period_s:.3g}).")
 
+    mark("timer", *s0)
+    s0 = snap()
     # ---- UART
-    if any(r in regs for r in ("U1MODE", "U1STA", "U1BRG")):
+    if any(r in regs for r in ("U1MODE", "U1STA", "U1BRG", "RPINR18")) or any(k.startswith("RPOR") for k in regs):
         mode = regs.get("U1MODE")
         brgh = (mode >> 3) & 1 if mode is not None else 0
         if mode is not None:
@@ -460,8 +593,24 @@ def analyze(ex: Extraction, intent: Intent, code: str = "", fosc_hz: float = 32e
                 A.causes.append("U1MODE.LPBACK=1: loopback mode, nothing leaves the TX pin.")
         if "U1STA" in regs:
             d = chipdb.REGISTERS["U1STA"].decode(regs["U1STA"])
-            row("U1STA", f"0x{regs['U1STA']:04X}", f"UTXEN={d['UTXEN']} TRMT={d['TRMT']} OERR={d['OERR']} FERR={d['FERR']}",
-                "UTXEN=1 OERR=0", "ok" if d["UTXEN"] and not d["OERR"] else "bad", 204)
+            no_rx = intent.receive and not d["URXDA"]
+            st = "bad" if (not d["UTXEN"] or d["OERR"] or d["FERR"] or no_rx) else "ok"
+            row("U1STA", f"0x{regs['U1STA']:04X}",
+                f"URXDA={d['URXDA']} ({'byte waiting' if d['URXDA'] else 'RX FIFO EMPTY'}) OERR={d['OERR']} FERR={d['FERR']} PERR={d['PERR']} "
+                f"RIDLE={d['RIDLE']} | UTXEN={d['UTXEN']} UTXBF={d['UTXBF']} TRMT={d['TRMT']} ({'TX shift reg empty' if d['TRMT'] else 'transmitting'})",
+                "UTXEN=1 OERR=0 FERR=0" + (" URXDA=1 before reading U1RXREG" if intent.receive else ""), st, 204)
+            if no_rx:
+                rxv = other.get("U1RXREG")
+                reads = bool(re.search(r"U1RXREG", code or ""))
+                polls = bool(re.search(r"URXDA|U1STA\s*&\s*(?:0x0*1|1)\b|_U1RXIF|U1RXIF", code or ""))
+                A.causes.append("U1STA.URXDA=0: the receive FIFO is EMPTY - no byte has arrived"
+                                + (f", so U1RXREG=0x{rxv:04X} is stale/zero, not received data" if rxv is not None else "")
+                                + ". The code must wait for URXDA=1 (and, in a loopback test, for the TX byte to finish: TRMT=1) "
+                                "before reading U1RXREG (DS39897C p.204).")
+                if reads and not polls:
+                    A.causes.append("Your code reads U1RXREG without polling U1STAbits.URXDA - it reads an empty FIFO.")
+                A.fixes.append(Fix("U1RXREG read", None, "poll URXDA", "while (!U1STAbits.URXDA) { }   /* then: c = U1RXREG; */",
+                                   "wait until a byte is received before reading U1RXREG (p.204)"))
             if not d["UTXEN"]:
                 A.causes.append("U1STA.UTXEN=0: transmitter disabled (set it AFTER UARTEN=1).")
                 A.fixes.append(Fix("U1STAbits.UTXEN", "0", "1", "U1STAbits.UTXEN = 1;", "enable TX after UARTEN (p.204)"))
@@ -472,10 +621,24 @@ def analyze(ex: Extraction, intent: Intent, code: str = "", fosc_hz: float = 32e
         if "U1BRG" in regs:
             brg = regs["U1BRG"]; baud = baud_from_brg(fcy, brg, brgh)
             A.computed["baud"] = baud
-            if intent.baud:
+            cands = {}
+            if intent.baud and not clock_known:
+                for f in sorted({2e6, 4e6, 8e6, 16e6, 20e6, 30e6, 40e6, fcy}):
+                    b = baud_from_brg(f, brg, brgh)
+                    cands[f] = b
+                A.computed["baud_candidates"] = {f"{f/1e6:g} MHz": round(b) for f, b in cands.items()}
+            match = [f for f, b in cands.items() if abs(b - intent.baud) / intent.baud <= 0.02]
+            if intent.baud and not clock_known and match and abs(baud - intent.baud) / intent.baud > 0.02:
+                row("U1BRG", f"0x{brg:04X}", f"{brg}, BRGH={brgh}: " + ", ".join(f"{b:,.0f} @ Fcy {f/1e6:g} MHz" for f, b in cands.items()),
+                    f"{intent.baud:,} baud", "warn", 200, "clock not stated - baud depends on Fcy")
+                A.uncertain.append(f"U1BRG={brg} (BRGH={brgh}) gives {intent.baud:,} baud only if Fcy = "
+                                   + " or ".join(f"{f/1e6:g} MHz" for f in match)
+                                   + f"; with the assumed profile Fcy {fcy/1e6:g} MHz it would be {baud:,.0f} baud. "
+                                   "State the clock in the intent (e.g. 'Fcy 4 MHz') to decide.")
+            elif intent.baud:
                 err = (baud - intent.baud) / intent.baud * 100
                 sol = solve_baud(fosc_hz / 2, intent.baud)
-                row("U1BRG", f"0x{brg:04X}", f"{brg} -> {baud:,.0f} baud @ Fcy {fcy/1e6:g} MHz, BRGH={brgh} ({err:+.2f}%)",
+                row("U1BRG", f"0x{brg:04X}", f"{brg} -> {baud:,.0f} baud @ Fcy {fcy/1e6:g} MHz [{A.clock['source']}], BRGH={brgh} ({err:+.2f}%)",
                     f"{sol.brg} with BRGH={sol.brgh} -> {sol.actual:,.0f} baud ({sol.error_pct:+.2f}%)",
                     "ok" if abs(err) <= 2 else "bad", 200)
                 if abs(err) > 2:
@@ -492,6 +655,97 @@ def analyze(ex: Extraction, intent: Intent, code: str = "", fosc_hz: float = 32e
                                            f"Fcy/({4 if sol.brgh else 16} x baud) - 1 at Fcy {fosc_hz/2/1e6:g} MHz"))
             else:
                 row("U1BRG", f"0x{brg:04X}", f"{brg} -> {baud:,.0f} baud (BRGH={brgh})", "-", "info", 200)
+        # ---- PPS routing
+        pps = _pps_map(regs)
+        for k in sorted((k for k in regs if k.startswith("RPOR")), key=lambda x: int(x[4:])):
+            n = int(k[4:]); lo, hi = regs[k] & 0x3F, (regs[k] >> 8) & 0x3F
+            bad_dir = intent.rx_pin in (2 * n, 2 * n + 1) and pps.get(intent.rx_pin) not in (None, 0)
+            row(k, f"0x{regs[k]:04X}", f"RP{2*n}R={lo} ({PPS_OUT.get(lo, f'fn {lo}')}), RP{2*n+1}R={hi} ({PPS_OUT.get(hi, f'fn {hi}')})",
+                (f"RP{intent.rx_pin}R=0 (RX pin must not be an output)" if bad_dir else "-"), "bad" if bad_dir else "info",
+                chipdb.REGISTERS[k].page)
+            if bad_dir:
+                A.causes.append(f"PPS direction mismatch: RPOR{n}.RP{intent.rx_pin}R={pps[intent.rx_pin]} drives RP{intent.rx_pin} as an "
+                                f"OUTPUT ({PPS_OUT.get(pps[intent.rx_pin], '?')}) although it is the UART RX pin (p.138/{chipdb.REGISTERS[k].page}).")
+                A.fixes.append(Fix(f"RPOR{n}bits.RP{intent.rx_pin}R", str(pps[intent.rx_pin]), "0", f"RPOR{n}bits.RP{intent.rx_pin}R = 0;",
+                                   "RX pin is an input - map it with RPINR18 only"))
+        if "RPINR18" in regs:
+            rx = regs["RPINR18"] & 0x3F
+            want_rx = intent.rx_pin
+            bad_rx = want_rx is not None and rx != want_rx
+            row("RPINR18", f"0x{regs['RPINR18']:04X}", f"U1RXR={rx} (U1RX <- RP{rx})" + (" (unmapped)" if rx == 0x3F else ""),
+                f"U1RXR={want_rx}" if want_rx is not None else "-", "bad" if bad_rx else "info", 147)
+            if bad_rx:
+                A.causes.append(f"RPINR18.U1RXR={rx}: UART1 RX listens on RP{rx}, not RP{want_rx}.")
+                A.fixes.append(Fix("RPINR18bits.U1RXR", str(rx), str(want_rx), f"RPINR18bits.U1RXR = {want_rx};", "route U1RX (p.147)"))
+            tx_pins = [p for p, f in pps.items() if f == 3]
+            if tx_pins and rx not in tx_pins and intent.receive and rx != 0x3F:
+                A.uncertain.append(f"Loopback check: U1TX is on RP{tx_pins[0]} but U1RX listens on RP{rx} - those two pins must be "
+                                   "wired together for a loopback test.")
+    mark("uart", *s0)
+    s0 = snap()
+
+    # ---- scope logic levels (always relevant: they are physical evidence)
+    vh, vl = ex.scope.get("v_high"), ex.scope.get("v_low")
+    if vh is not None or vl is not None:
+        vdd = ex.scope.get("vdd") or intent.vdd or 3.3
+        lo_bad = vl is not None and vl > 0.3 * vdd
+        hi_bad = vh is not None and vh < 0.7 * vdd
+        row("Logic levels", f"H {vh if vh is not None else '?'} V / L {vl if vl is not None else '?'} V",
+            f"VIL max {0.3*vdd:.2f} V, VIH min {0.7*vdd:.2f} V at VDD {vdd:g} V", f"L < {0.3*vdd:.2f} V, H > {0.7*vdd:.2f} V",
+            "bad" if (lo_bad or hi_bad) else "ok", None)
+        if lo_bad or hi_bad:
+            what = (f"logic LOW sits at {vl:g} V (should be ~0 V, max {0.3*vdd:.2f} V)" if lo_bad else
+                    f"logic HIGH only reaches {vh:g} V (needs > {0.7*vdd:.2f} V)")
+            A.causes.append(f"Invalid logic level: {what}. A mid-rail level means two drivers fight on the same wire (bus "
+                            "contention), or a missing pull-up/pull-down, or heavy loading / a series resistor divider.")
+            if "uart" in intent.topics or intent.baud:
+                pin = intent.rx_pin
+                pr = f"RP{pin}" if pin is not None else "the RX pin"
+                n = pin // 2 if pin is not None else None
+                ccode = _pps_map(code_regs).get(pin) if pin is not None else None
+                A.causes.append(f"For UART this is the classic PPS direction mismatch: {pr} configured as an OUTPUT "
+                                f"(RPOR{n if n is not None else 'x'}.RP{pin if pin is not None else 'n'}R = 3 = U1TX) instead of an input "
+                                f"mapped via RPINR18.U1RXR - the PIC's TX driver fights the other device's TX (DS39897C p.138, p.147)."
+                                + (f" Your code does exactly this: RP{pin}R = {ccode}." if ccode else
+                                   (" Your code does not write that RPOR field - check the other device / wiring." if code.strip() and pin is not None else "")))
+                if pin is not None:
+                    A.fixes.append(Fix(f"RPOR{n}bits.RP{pin}R", str(ccode) if ccode is not None else None, "0",
+                                       f"RPOR{n}bits.RP{pin}R = 0;", "RX pin must not drive U1TX"))
+                    A.fixes.append(Fix("RPINR18bits.U1RXR", None, str(pin), f"RPINR18bits.U1RXR = {pin};", "U1RX input on the RX pin"))
+
+    # ---- ports: written vs read, implemented-bit mask
+    s0 = snap()
+    port_written = dict(intent.writes)
+    clean = re.sub(r"//[^\n]*", "", re.sub(r"/\*.*?\*/", "", code or "", flags=re.S))
+    for m in _LAT_WRITE.finditer(clean):
+        port_written.setdefault(m.group(1), int(m.group(2), 0) & 0xFFFF)
+    for name in sorted(k for k in other if re.fullmatch(r"(LAT|PORT)[A-K]", k)):
+        val, port = other[name], name[-1]
+        w = port_written.get(f"LAT{port}", port_written.get(f"PORT{port}"))
+        mask = port_mask(device, port)
+        if w is None:
+            row(name, f"0x{val:04X}", "read value", "-", "info", None)
+            continue
+        if val == w:
+            row(name, f"0x{val:04X}", f"equals the written 0x{w:04X}", f"0x{w:04X}", "ok", None)
+        elif mask is not None and (w & mask) == val:
+            gone = w & ~mask
+            row(name, f"0x{val:04X}", f"written 0x{w:04X} & implemented mask 0x{mask:04X} = 0x{w & mask:04X}",
+                f"0x{w & mask:04X}", "ok", None, f"bits 0x{gone:04X} are unimplemented on this device and always read 0")
+            A.explained.append(f"Not a bug: {name} reads 0x{val:04X} because PORT{port} bits "
+                               + ", ".join(f"R{port}{b}" for b in range(16) if gone >> b & 1)
+                               + f" are not implemented on {getattr(device, 'name', device) or 'this device'} (implemented mask 0x{mask:04X}, "
+                               "from the Microchip device file). Unimplemented bits read as 0; the write worked.")
+        elif mask is None and (val & ~w) == 0:
+            row(name, f"0x{val:04X}", f"written 0x{w:04X}; missing bits 0x{w & ~val:04X}", f"0x{w:04X}", "warn", None,
+                "device pin map unknown")
+            A.uncertain.append(f"{name} reads 0x{val:04X} after writing 0x{w:04X}: the missing bits (0x{w & ~val:04X}) are most likely "
+                               "unimplemented pins on this package (they read as 0). Pick the device (--device) to confirm from its EDC file.")
+        else:
+            row(name, f"0x{val:04X}", f"written 0x{w:04X}", f"0x{(w & mask) if mask is not None else w:04X}", "bad", None)
+            A.causes.append(f"{name} reads 0x{val:04X} but 0x{w:04X} was written: implemented pins differ - check analog mode "
+                            "(AD1PCFG/ANSx), TRIS, a peripheral owning the pin, or read-modify-write on PORTx instead of LATx.")
+    mark("port", *s0)
 
     # ---- scope measurement
     if ex.scope.get("period_ms"):
@@ -666,7 +920,7 @@ class VisionReport:
         return {"extraction": self.extraction.to_dict(), "intent": asdict(self.intent),
                 "findings": [r.to_dict() for r in self.analysis.rows], "causes": self.analysis.causes,
                 "fixes": [f.to_dict() for f in self.analysis.fixes], "clock": self.analysis.clock,
-                "computed": self.analysis.computed, "pages": self.analysis.pages, "root_cause": self.root_cause,
+                "computed": self.analysis.computed, "uncertain": self.analysis.uncertain, "explained": self.analysis.explained, "pages": self.analysis.pages, "root_cause": self.root_cause,
                 "fix_diff": self.fix_diff, "explanation": self.explanation, "verdict": self.verdict,
                 "regenerate_request": self.regenerate_request, "regenerate_context": self.regenerate_context, "notes": self.notes}
 
@@ -674,34 +928,70 @@ class VisionReport:
 def facts_text(ex: Extraction, A: Analysis, intent: Intent) -> str:
     L = [f"Image kind: {ex.kind} (vision confidence {ex.confidence:.2f})", f"Intent: {intent.text or '(none)'}",
          f"Clock: {A.clock.get('source')} -> Fcy {A.clock.get('fcy_hz', 0)/1e6:g} MHz"]
+    if A.clock.get("assumption"):
+        L.append(f"Clock basis: {A.clock['assumption']}")
     L.append("Findings table (register | value | decoded | expected | status | page):")
     L += [f"- {r.register} | {r.value} | {r.decoded} | {r.expected} | {r.status.upper()} | p.{r.page or '-'}" for r in A.rows]
     if A.causes:
         L.append("Deterministic causes:"); L += [f"- {c}" for c in A.causes]
+    if A.uncertain:
+        L.append("UNCERTAIN (say so, do not claim a bug or OK):"); L += [f"- {c}" for c in A.uncertain]
+    if A.explained:
+        L.append("Explained, NOT a bug:"); L += [f"- {c}" for c in A.explained]
     if A.fixes:
         L.append("Computed fix lines:"); L += [f"- {f.c_line}   ({f.reason})" for f in A.fixes]
     return "\n".join(L)
 
 
+def resolve_device(device, packs_dir: str = "", cache_dir: str = ".cache"):
+    if device is None or hasattr(device, "sfr"):
+        return device
+    try:
+        dev = chipdb.get_device(str(device), packs_dir, cache_dir)
+    except Exception:
+        dev = None
+    return dev if dev is not None else str(device).upper()
+
+
 def vision_debug(images: list[bytes], intent: str = "", code: str = "", model: ChatModel | None = None,
                  fosc_hz: float = 32e6, expected_cosc: int = 1, crystal_hz: float = 8e6,
-                 extraction: Extraction | None = None, explain: bool = True) -> VisionReport:
+                 extraction: Extraction | None = None, explain: bool = True, device=None,
+                 clock_explicit: bool = False, packs_dir: str = "", cache_dir: str = ".cache") -> VisionReport:
     notes: list[str] = []
     it = parse_intent(intent)
+    device = resolve_device(device, packs_dir, cache_dir)
     ex = extraction
     if ex is None:
         if model is None:
             raise ModelError("a vision model is needed to read the image (set MODEL_API_KEY) - or pass a register dump")
-        ex = extract(model, images, intent)
+        ex = extract(model, images, intent, getattr(device, "name", device) or "")
         notes.append(f"Muse vision read the image as '{ex.kind}' (confidence {ex.confidence:.2f}); every number below is "
                      "recomputed by ChipLlama")
     if ex.repaired:
         notes.append("JSON repair: " + "; ".join(ex.repaired))
     if ex.confidence and ex.confidence < 0.5:
         notes.append("low vision confidence - double-check the extracted values against the image")
-    A = analyze(ex, it, code, fosc_hz, expected_cosc, crystal_hz)
-    root = A.causes[0] if A.causes else ("No fault found: the image matches the intent." if not A.bad() and it.text
-                                          else "No rule-based fault found; give an intent (e.g. 'Timer1 10 ms toggle', 'UART 115200').")
+    A = analyze(ex, it, code, fosc_hz, expected_cosc, crystal_hz, clock_explicit, device)
+    if not A.clock.get("clock_known") and any(r.register.startswith(("U1BRG", "Timer", "Fcy")) and r.status != "info" for r in A.rows):
+        notes.append("clock assumption: " + A.clock.get("assumption", "") + " - add e.g. 'Fcy 4 MHz' to the intent if different")
+    elif it.fcy_hz:
+        notes.append("clock: " + it.clock_note + " (preferred over the board profile)")
+    nbad = sum(r.status == "bad" for r in A.rows)
+    warns = [r for r in A.rows if r.status == "warn"]
+    if nbad and A.causes:
+        root = A.causes[0]
+    elif nbad:
+        root = next(f"{r.register} = {r.value}: {r.decoded} (expected {r.expected})" for r in A.rows if r.status == "bad")
+    elif A.uncertain:
+        root = A.uncertain[0]
+    elif warns:
+        root = f"{warns[0].register} = {warns[0].value}: {warns[0].decoded}" + (f" ({warns[0].note})" if warns[0].note else "")
+    elif A.explained:
+        root = A.explained[0]
+    elif it.text and any(r.status == "ok" for r in A.rows):
+        root = "No fault found: the image matches the intent."
+    else:
+        root = "No rule-based fault found; give an intent (e.g. 'Timer1 10 ms toggle', 'UART 115200')."
     rep = VisionReport(ex, it, A, root, fix_diff(code, A.fixes), notes=notes)
     if A.fixes and code.strip() and not rep.fix_diff:
         rep.fix_diff = fix_diff("", A.fixes)
@@ -713,8 +1003,16 @@ def vision_debug(images: list[bytes], intent: str = "", code: str = "", model: C
             rep.explanation = model.complete([Message("system", EXPLAIN_SYSTEM), Message("user", user)])
         except ModelError as e:
             notes.append(f"model explanation unavailable: {e}")
-    nbad = sum(r.status == "bad" for r in A.rows)
-    rep.verdict = (f"BUG FOUND: {root}" if nbad else ("OK: matches intent" if it.text and A.rows else "INCONCLUSIVE: " + root))
+    if nbad:
+        rep.verdict = f"BUG FOUND: {root}"
+    elif A.uncertain or warns:
+        rep.verdict = f"UNCERTAIN: {root}"
+    elif A.explained:
+        rep.verdict = f"OK: {root}"
+    elif it.text and any(r.status == "ok" for r in A.rows):
+        rep.verdict = "OK: matches intent"
+    else:
+        rep.verdict = "INCONCLUSIVE: " + root
     if A.fixes or nbad:
         rep.regenerate_request = it.text or "Fix the firmware"
         rep.regenerate_context = ("Reverse-debug of the running board found:\n" + "\n".join(f"- {c}" for c in A.causes)
@@ -731,7 +1029,7 @@ def format_report(rep: VisionReport) -> str:
         out.append(f"{r.register:<{w[0]}}  {r.value:<{w[1]}}  {r.status.upper():<6}  {r.decoded}  ->  {r.expected}"
                    + (f"  [p.{r.page}]" if r.page else ""))
     out += ["", "Root cause:", "  " + rep.root_cause]
-    out += [f"  also: {c}" for c in A.causes[1:]]
+    out += [f"  also: {c}" for c in A.causes[1:] + A.uncertain + A.explained if c != rep.root_cause]
     if rep.fix_diff:
         out += ["", "Fix:", rep.fix_diff.rstrip()]
     if rep.explanation:

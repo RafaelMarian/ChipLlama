@@ -47,7 +47,7 @@ def test_normalize_list_units_duty_and_unknown_regs():
                     "scope": {"freq_hz": "50 Hz", "duty": 50}, "confidence": 97})
     assert ex.registers == {"PR1": 0x4E1F} and ex.kind == "registers"
     assert abs(ex.scope["period_ms"] - 20) < 1e-9 and ex.scope["duty"] == 0.5 and ex.confidence == 0.97
-    assert any("dropped FOO" in f for f in ex.repaired)
+    assert any("dropped FOO" in f for f in ex.repaired) and not ex.other
     sc = normalize({"scope": {"period_ms": "20ms"}})
     assert sc.kind == "scope" and sc.scope["freq_hz"] == 50
 

@@ -239,6 +239,7 @@ def create_app(settings: Settings | None = None, model_factory: Callable | None 
     @app.post("/api/debug/vision")
     async def debug_vision(intent: str = Form(""), code: str = Form(""), backend: str | None = Form(None),
                            fosc_mhz: float | None = Form(None), extraction: str = Form(""), explain: bool = Form(True),
+                           device: str = Form(""),
                            images: list[UploadFile] = File(default=[])):
         from .vision_debug import COSC_FOR_PROFILE, normalize, vision_debug
         imgs = [await f.read() for f in images if f.filename]
@@ -258,7 +259,8 @@ def create_app(settings: Settings | None = None, model_factory: Callable | None 
         fosc = fosc_mhz * 1e6 if fosc_mhz else s.profile().fosc_hz
         try:
             rep = vision_debug(imgs, intent, code, model, fosc, COSC_FOR_PROFILE.get(s.clock_profile, 1), s.crystal_hz,
-                               extraction=ex, explain=explain)
+                               extraction=ex, explain=explain, device=device.strip() or s.device,
+                               clock_explicit=bool(fosc_mhz), packs_dir=s.mplab_packs_dir, cache_dir=s.cache_dir)
         except ModelError as e:
             raise HTTPException(502, str(e))
         return rep.to_dict()
