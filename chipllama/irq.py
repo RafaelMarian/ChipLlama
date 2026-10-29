@@ -52,6 +52,13 @@ def vector(name: str) -> Vector:
 
 
 def suggest(name: str) -> str | None:
+    up = {k.upper(): k for k in chipdb.VECTORS}
+    n = name.lstrip("_").upper()
+    if n in up:
+        return "_" + up[n]
+    m = difflib.get_close_matches(n, list(up), n=1, cutoff=0.6)
+    if m:
+        return "_" + up[m[0]]
     m = difflib.get_close_matches(name.lstrip("_"), list(chipdb.VECTORS), n=1, cutoff=0.6)
     return "_" + m[0] if m else None
 

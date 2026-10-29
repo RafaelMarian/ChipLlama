@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import importlib
 
-MODULES = {"gpio": "gpio"}        # kind -> module name
+MODULES = {"gpio": "gpio", "irq": "interrupts"}        # kind -> module name
 
 
 def _mod(kind: str):
@@ -42,9 +42,12 @@ def parse_all(text: str, fcy: float) -> dict:
     return out
 
 
-def check_all(code: str, specs: dict, rep, emu) -> None:
+def check_all(code: str, specs: dict, rep, emu, *, audit: bool = True) -> None:
     for kind, sp in specs.items():
         _mod(kind).check(code, sp, rep, emu)
+    if audit:
+        from .interrupts import audit as _audit
+        _audit(code, rep, emu)
 
 
 def prompt_all(specs: dict) -> str:

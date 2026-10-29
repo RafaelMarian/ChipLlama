@@ -251,12 +251,10 @@ def run_agent(request: str, model: ChatModel, settings: Settings, *, max_iters: 
                 chk = check_timer(code, res.spec, profile=settings.profile(), ics=settings.ics)
                 if uspec:
                     uartmod.check_uart(code, uspec, chk)
-                if pspecs:
-                    peripherals.check_all(code, pspecs, chk, emulate(code))
+                peripherals.check_all(code, pspecs, chk, emulate(code))
             elif uspec:
                 chk = uartmod.check_uart_full(code, uspec, profile=settings.profile(), ics=settings.ics)
-                if pspecs:
-                    peripherals.check_all(code, pspecs, chk, emulate(code))
+                peripherals.check_all(code, pspecs, chk, emulate(code))
             else:
                 chk = peripherals.check_full(code, pspecs, fcy=fcy0, profile=settings.profile(), ics=settings.ics)
             if dev is not None and dev.source != "built-in":
