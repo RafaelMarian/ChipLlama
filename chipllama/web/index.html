@@ -42,6 +42,7 @@ pre{background:#0a0f1e;border:1px solid var(--line);border-radius:10px;padding:1
 .toast{position:fixed;bottom:20px;right:20px;background:var(--panel2);border:1px solid var(--line);padding:10px 16px;border-radius:10px;opacity:0;transition:.3s;z-index:20}.toast.on{opacity:1}
 dialog{background:var(--panel);color:var(--tx);border:1px solid var(--line);border-radius:14px;max-width:460px}dialog::backdrop{background:rgba(0,0,0,.6)}
 .ex{font-size:12px;color:var(--acc);cursor:pointer;margin-right:12px}
+#dout table{width:100%;border-collapse:collapse;font-size:12px}#dout th{text-align:left;color:var(--mut,#888);font-weight:500;padding:4px 6px;border-bottom:1px solid #3334}#dout td{padding:4px 6px;border-bottom:1px solid #2222;vertical-align:top;font-family:ui-monospace,monospace}#dout button.p{margin-top:10px}
 </style></head><body>
 <header><div><div class="logo">🦙 <span>ChipLlama</span></div><div class="sub">PIC24FJ256GB110 copilot · Muse Spark · verified register code</div></div>
 <nav><button id="t-gen" class="on" onclick="tab('gen')">Generate</button><button id="t-dbg" onclick="tab('dbg')">Reverse debug</button><button id="t-set" onclick="tab('set')">Settings</button></nav>
@@ -64,16 +65,18 @@ dialog{background:var(--panel);color:var(--tx);border:1px solid var(--line);bord
 </aside></div></section>
 <!-- ================= DEBUG ================= -->
 <section id="p-dbg" class="hide"><div class="grid"><div>
- <div class="card"><h3>Register dump</h3>
-  <textarea id="dump" rows="7" placeholder="T1CON = 0x8000&#10;PR1 = 0x4E1F&#10;IEC0 = 0x0000&#10;IPC0 = 0x0444  (paste from MPLAB X SFR / Watch window)"></textarea>
-  <label>…or screenshots of the SFR view (drop, click or paste Ctrl+V)</label>
-  <div id="drop" class="drop">Drop images here · click to choose · paste from clipboard</div><input type="file" id="shots" accept="image/*" multiple class="hide"><div class="thumbs" id="thumbs"></div>
-  <label>Symptom</label><input id="sym" placeholder="the ISR never runs / LED blinks at the wrong rate">
-  <div class="row"><div><label>Expected period (ms, optional)</label><input id="exp" type="number" step="any"></div>
-   <div><label>Fosc MHz (blank = board profile)</label><input id="fosc" type="number" step="any"></div>
-   <div><label>Explain with Muse</label><select id="usem"><option value="true">yes</option><option value="false">rules only</option></select></div></div>
-  <label>Your C code (optional)</label><textarea id="dcode" rows="4"></textarea>
-  <div style="margin-top:12px"><button class="p" id="dbgb" onclick="dbg()">Analyse</button></div></div>
+ <div class="card"><h3><span>Image → diagnosis <span class="sum">Muse Spark vision + deterministic decode</span></span><button class="s" style="padding:3px 10px;font-size:11px;text-transform:none;letter-spacing:0" onclick="clearShots()">clear</button></h3>
+  <div id="drop" class="drop"><b>Drop, paste (Ctrl+V) or click</b><br><span class="mut">MPLAB X SFR / Watch window · register dump · oscilloscope / logic analyzer · serial terminal</span></div><input type="file" id="shots" accept="image/*" multiple class="hide">
+  <div class="thumbs" id="thumbs"></div>
+  <div style="margin:8px 0" class="mut f">Demo images: <span class="ex" onclick="loadEx('sfr_timer1_prescaler_bug')">SFR: Timer1 prescaler bug</span><span class="ex" onclick="loadEx('sfr_pll_off')">SFR: PLL off</span><span class="ex" onclick="loadEx('scope_20ms_instead_of_10ms')">Scope: 20 ms instead of 10 ms</span></div>
+  <label>Intent – what should the chip do?</label><input id="intent" placeholder="Timer1 interrupt every 10 ms, toggle RA0  ·  UART1 115200 baud  ·  RA0 square wave 10 ms period">
+  <details><summary>Your C code (optional – enables a real fix diff)</summary><textarea id="dcode" rows="8" placeholder="paste main.c"></textarea></details>
+  <details><summary>…or paste a text register dump instead of an image</summary><textarea id="dump" rows="6" placeholder="T1CON = 0x8000&#10;PR1 = 0x4E1F&#10;IEC0 = 0x0000"></textarea>
+   <div class="row"><div><label>Symptom</label><input id="sym" placeholder="the ISR never runs"></div><div><label>Expected period (ms)</label><input id="exp" type="number" step="any"></div></div></details>
+  <div class="row" style="margin-top:12px"><button class="p" id="dbgb" onclick="dbg()" style="flex:0 0 auto">Diagnose</button>
+   <div style="flex:0 0 150px"><input id="fosc" type="number" step="any" placeholder="Fosc MHz (profile)"></div>
+   <label style="flex:0 0 auto;margin:0"><input type="checkbox" id="usem" checked style="width:auto"> explain with Muse</label><span class="mut" id="dbgmeta" style="flex:2"></span></div></div>
+ <div id="dsteps" class="card hide"><h3>Pipeline</h3><div class="steps" id="dsteplist"></div></div>
 </div><aside><div id="dout"></div></aside></div></section>
 <!-- ================= SETTINGS ================= -->
 <section id="p-set" class="hide"><div class="grid"><div>
@@ -104,7 +107,7 @@ dialog{background:var(--panel);color:var(--tx);border:1px solid var(--line);bord
 <dialog id="dlg"><h3 style="margin-top:0">Flash to board?</h3><p id="dlgtxt"></p><div class="row"><button class="s" onclick="dlg.close('no')">Cancel</button><button class="d" onclick="dlg.close('yes')">Yes, program the PIC</button></div></dialog>
 <div class="toast" id="toast"></div>
 <script>
-const $=id=>document.getElementById(id);let SET=null,LAST=null,FILES=[];
+const $=id=>document.getElementById(id);let SET=null,LAST=null,FILES=[],FIX_CONTEXT='';
 function el(t,c,x){const e=document.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e}
 function pill(t,c){return el('span','pill '+c,t)}const sevc={error:'bad',warning:'warn',info:'info'};
 function toast(m){const t=$('toast');t.textContent=m;t.classList.add('on');setTimeout(()=>t.classList.remove('on'),2600)}
@@ -123,8 +126,8 @@ x.append(dot,el('span','k',r.label),v);return x}));$('docsum').textContent=n.err
 // ---------- generate (streamed)
 function step(cls,title){const s=el('div','step '+cls);s.append(el('b','',title));$('steps').append(s);s.scrollIntoView({block:'nearest',behavior:'smooth'});return s}
 function diffPre(t){const p=el('pre','diff');t.split('\n').forEach(l=>{p.append(el('span',l.startsWith('+')&&!l.startsWith('+++')?'a':l.startsWith('-')&&!l.startsWith('---')?'r':l.startsWith('@@')?'h':'',l+'\n'))});return p}
-async function generate(){const b=$('gen');b.disabled=true;b.textContent='Working…';$('prog').classList.remove('hide');$('final').classList.add('hide');$('steps').replaceChildren();let running=null;const t0=Date.now();
- try{const r=await fetch('/api/generate/stream',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({request:$('req').value,use_images:$('imgs').checked,inject_fault:$('fault').checked})});
+async function generate(){const ctx=FIX_CONTEXT;FIX_CONTEXT='';const b=$('gen');b.disabled=true;b.textContent='Working…';$('prog').classList.remove('hide');$('final').classList.add('hide');$('steps').replaceChildren();let running=null;const t0=Date.now();
+ try{const r=await fetch('/api/generate/stream',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({request:$('req').value,use_images:$('imgs').checked,inject_fault:$('fault').checked,context:ctx})});
   if(!r.ok){const j=await r.json().catch(()=>({}));throw new Error(j.detail||r.statusText)}
   const rd=r.body.getReader(),dec=new TextDecoder();let buf='';
   for(;;){const{value,done}=await rd.read();if(done)break;buf+=dec.decode(value,{stream:true});let i;while((i=buf.indexOf('\n'))>=0){const line=buf.slice(0,i);buf=buf.slice(i+1);if(line.trim())running=onEvent(JSON.parse(line),running)}}
@@ -169,15 +172,47 @@ async function flashIt(){const s=SET&&SET.settings;if(!s||!s.enable_flash){toast
 // ---------- debug
 const drop=$('drop');drop.onclick=()=>$('shots').click();$('shots').onchange=e=>addFiles(e.target.files);
 drop.ondragover=e=>{e.preventDefault();drop.classList.add('over')};drop.ondragleave=()=>drop.classList.remove('over');drop.ondrop=e=>{e.preventDefault();drop.classList.remove('over');addFiles(e.dataTransfer.files)};
-document.addEventListener('paste',e=>{if($('p-dbg').classList.contains('hide'))return;const fs=[...e.clipboardData.items].filter(i=>i.type.startsWith('image/')).map(i=>i.getAsFile());if(fs.length){addFiles(fs);e.preventDefault()}});
-function addFiles(fs){for(const f of fs){if(!f.type.startsWith('image/'))continue;FILES.push(f);const i=el('img');i.src=URL.createObjectURL(f);$('thumbs').append(i)}}
-async function dbg(){const fd=new FormData();fd.append('dump',$('dump').value);fd.append('symptom',$('sym').value);fd.append('code',$('dcode').value);
- if($('fosc').value)fd.append('fosc_mhz',$('fosc').value);if($('exp').value)fd.append('expected_period_ms',$('exp').value);fd.append('use_model',$('usem').value);FILES.forEach(f=>fd.append('images',f,f.name||'paste.png'));
+document.addEventListener('paste',e=>{if($('p-dbg').classList.contains('hide'))return;const fs=[...e.clipboardData.items].filter(i=>i.type.startsWith('image/')).map(i=>i.getAsFile());if(fs.length){addFiles(fs);e.preventDefault();toast('image pasted')}});
+let EXTRACTION='';
+function addFiles(fs){for(const f of fs){if(!f.type.startsWith('image/'))continue;FILES.push(f);const i=el('img');i.src=URL.createObjectURL(f);i.title=f.name||'pasted';i.onclick=()=>window.open(i.src);$('thumbs').append(i)}EXTRACTION='';$('dbgmeta').textContent=FILES.length+' image(s)'}
+function clearShots(){FILES=[];EXTRACTION='';$('thumbs').replaceChildren();$('dbgmeta').textContent=''}
+async function loadEx(n){clearShots();const b=await (await fetch('/api/examples/debug/'+n+'.png')).blob();addFiles([new File([b],n+'.png',{type:'image/png'})]);
+ const m=await (await fetch('/api/examples/debug/'+n+'.json')).json();$('intent').value=m.intent||'';$('dcode').value=m.code||'';EXTRACTION='';$('dbgmeta').textContent='demo image loaded – Muse will read it'}
+function dstep(cls,title){const x=el('div','step '+cls);x.append(el('b','',title));$('dsteplist').append(x);return x}
+function renderDiff(t){const p=el('pre','diff');t.split('\n').forEach(l=>{p.append(el('span',l.startsWith('+')&&!l.startsWith('+++')?'a':l.startsWith('-')&&!l.startsWith('---')?'r':l.startsWith('@@')?'h':'',l+'\n'))});return p}
+const stc={ok:'ok',bad:'bad',warn:'warn',info:'info'};
+async function dbg(){const o=$('dout'),b=$('dbgb');
+ if(!FILES.length){return legacyDbg()}
+ const fd=new FormData();fd.append('intent',$('intent').value);fd.append('code',$('dcode').value);fd.append('explain',$('usem').checked);if($('fosc').value)fd.append('fosc_mhz',$('fosc').value);
+ FILES.forEach(f=>fd.append('images',f,f.name||'paste.png'));
+ b.disabled=true;$('dsteps').classList.remove('hide');$('dsteplist').replaceChildren();o.replaceChildren();const t0=Date.now();
+ const s1=dstep('run','1 · Muse Spark reads the image → strict JSON');
+ try{const j=await api('/api/debug/vision',{method:'POST',body:fd});s1.className='step ok';
+  const e=j.extraction;s1.append(el('div','f mut',`kind: ${e.kind} · confidence ${(e.confidence||0).toFixed(2)}`+(e.repaired&&e.repaired.length?' · repaired: '+e.repaired.join('; '):'')));
+  const ex=el('details');ex.append(el('summary','','extracted JSON'),el('pre','',JSON.stringify({registers:e.registers,scope:e.scope,serial:e.serial},null,1)));s1.append(ex);
+  const s2=dstep(j.findings.some(r=>r.status=='bad')?'bad':'ok','2 · Deterministic decode (chipdb + timer/baud math)');s2.append(el('div','f mut',`${j.findings.length} rows · clock: ${j.clock.source||''}`));
+  const s3=dstep(j.explanation?'ok':'run2','3 · Grounded explanation'+(j.explanation?' (Muse Spark)':' (rules only)'));
+  const bad=j.verdict.startsWith('BUG');const v=el('div','card');v.append(el('h3','',bad?'Bug found':'Verdict'));const vv=el('div','f');vv.append(pill(bad?'BUG':j.verdict.split(':')[0],bad?'bad':'ok'),el('span','',' '+j.root_cause));v.append(vv);
+  j.causes.slice(1).forEach(c=>v.append(el('div','f mut','also: '+c)));
+  if(j.pages.length){const pg=el('div','f mut','datasheet: ');j.pages.forEach(p=>{const a=el('a','',' p.'+p+' ');a.href='/api/page/'+p+'.png';a.target='_blank';a.style.color='var(--acc)';pg.append(a)});v.append(pg)}
+  o.append(v);
+  const tc=el('div','card');tc.append(el('h3','','Findings'));const tb=el('table');const hr=el('tr');['Register','Value','Decoded','Expected',''].forEach(h=>hr.append(el('th','',h)));tb.append(hr);
+  j.findings.forEach(r=>{const tr=el('tr');tr.append(el('td','',r.register),el('td','',r.value),el('td','',r.decoded),el('td','',r.expected));const td=el('td');td.append(pill(r.status.toUpperCase(),stc[r.status]||'info'));tr.append(td);if(r.note)tr.title=r.note;tb.append(tr)});tc.append(tb);o.append(tc);
+  if(j.fix_diff){const fc=el('div','card');fc.append(el('h3','','Fix'),renderDiff(j.fix_diff));
+   if(j.regenerate_context){const bt=el('button','p','Apply fix → regenerate & verify');bt.onclick=()=>applyFix(j);fc.append(bt)}o.append(fc)}
+  else if(j.regenerate_context){const fc=el('div','card');fc.append(el('h3','','Fix'));const bt=el('button','p','Apply fix → regenerate & verify');bt.onclick=()=>applyFix(j);fc.append(bt);o.append(fc)}
+  if(j.explanation){const ec=el('div','card');ec.append(el('h3','','Muse Spark explanation'),el('pre','',j.explanation));o.append(ec)}
+  (j.notes||[]).forEach(n=>o.append(el('div','f mut','note: '+n)));
+  $('dbgmeta').textContent=`done in ${((Date.now()-t0)/1000).toFixed(1)} s`}
+ catch(e){s1.className='step bad';s1.append(el('div','f',e.message));o.replaceChildren(el('div','card','Error: '+e.message))}b.disabled=false}
+function applyFix(j){tab('gen');$('req').value=j.regenerate_request||$('intent').value;FIX_CONTEXT=j.regenerate_context;$('fault').checked=false;toast('Regenerating with the reverse-debug fix…');generate()}
+async function legacyDbg(){const fd=new FormData();fd.append('dump',$('dump').value);fd.append('symptom',$('sym').value||$('intent').value);fd.append('code',$('dcode').value);
+ if($('fosc').value)fd.append('fosc_mhz',$('fosc').value);if($('exp').value)fd.append('expected_period_ms',$('exp').value);fd.append('use_model',$('usem').checked);
  const o=$('dout'),b=$('dbgb');b.disabled=true;o.replaceChildren(el('div','card','Analysing…'));
  try{const j=await api('/api/debug',{method:'POST',body:fd});o.replaceChildren();
   const f=el('div','card');f.append(el('h3','','Findings'));j.findings.forEach(x=>{const d=el('div','f');d.append(pill(x.severity,sevc[x.severity]||'info'),el('span','',' '+x.message));f.append(d)});if(!j.findings.length)f.append(el('div','f mut','no rule findings'));o.append(f);
   if(j.explanation){const e=el('div','card');e.append(el('h3','','Muse explanation'),el('pre','',j.explanation));o.append(e)}
-  const c=el('div','card');c.append(el('h3','','Decoded registers'+(j.transcribed_from_image?' (read from image)':'')));j.decoded.forEach(d=>c.append(el('div','f',`${d.register} = ${d.value}  `+Object.entries(d.fields).map(([k,v])=>k+'='+v).join(' '))));o.append(c);
+  const c=el('div','card');c.append(el('h3','','Decoded registers'));j.decoded.forEach(d=>c.append(el('div','f',`${d.register} = ${d.value}  `+Object.entries(d.fields).map(([k,v])=>k+'='+v).join(' '))));o.append(c);
   (j.notes||[]).forEach(n=>o.append(el('div','f mut','note: '+n)))}catch(e){o.replaceChildren(el('div','card','Error: '+e.message))}b.disabled=false}
 // ---------- settings
 const FIELDS=['device','ics','clock_profile','crystal_hz','backend','max_iters','max_tokens','meta_model','meta_reasoning_effort','baseten_model','baseten_reasoning_effort','xc16_gcc','xc8_cc','xc32_gcc','mplab_packs_dir','ipecmd_path','ipecmd_tool','ipecmd_serial','ipecmd_power_target','enable_flash','datasheet_pdf'];

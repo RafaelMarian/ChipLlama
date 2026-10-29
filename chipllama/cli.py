@@ -174,6 +174,8 @@ def cmd_generate(a, s: Settings) -> int:
 
 
 def cmd_debug(a, s: Settings) -> int:
+    if a.image and (a.intent is not None or a.extraction):
+        return cmd_debug_vision(a, s)
     text = Path(a.dump).read_text(encoding="utf-8") if a.dump else (sys.stdin.read() if not sys.stdin.isatty() and not a.image else "")
     imgs = [Path(p).read_bytes() for p in (a.image or [])]
     model = None
@@ -183,8 +185,33 @@ def cmd_debug(a, s: Settings) -> int:
         except ValueError as e:
             print(e, file=sys.stderr)
     r = debug_session(text, imgs, a.symptom or "", Path(a.code).read_text(encoding="utf-8") if a.code else "", model,
-                      a.fosc * 1e6, a.expected_ms / 1e3 if a.expected_ms else None)
+                      (a.fosc or 32.0) * 1e6, a.expected_ms / 1e3 if a.expected_ms else None)
     print(json.dumps(r.to_dict(), indent=2) if a.json else _fmt_debug(r))
+    return 0
+
+
+def cmd_debug_vision(a, s: Settings) -> int:
+    from .vision_debug import COSC_FOR_PROFILE, format_report, normalize, vision_debug
+    imgs = [Path(p).read_bytes() for p in a.image]
+    code = Path(a.code).read_text(encoding="utf-8") if a.code else ""
+    ex = normalize(json.loads(Path(a.extraction).read_text(encoding="utf-8"))) if a.extraction else None
+    model = None
+    if not a.no_model:
+        try:
+            model = make_model(s, a.backend)
+        except ValueError as e:
+            print(e, file=sys.stderr)
+    if ex is None and model is None:
+        print("reading an image needs the Muse model (MODEL_API_KEY in .env), or pass --extraction file.json", file=sys.stderr)
+        return 2
+    fosc = a.fosc * 1e6 if a.fosc else s.profile().fosc_hz
+    try:
+        rep = vision_debug(imgs, a.intent or "", code, model, fosc, COSC_FOR_PROFILE.get(s.clock_profile, 1), s.crystal_hz,
+                           extraction=ex)
+    except ModelError as e:
+        print(f"vision debug failed: {e}", file=sys.stderr)
+        return 2
+    print(json.dumps(rep.to_dict(), indent=2, default=str) if a.json else format_report(rep))
     return 0
 
 
@@ -263,9 +290,11 @@ def build_parser() -> argparse.ArgumentParser:
     g.set_defaults(fn=cmd_generate)
     d = sub.add_parser("debug", help="reverse-debug a register dump / screenshot")
     d.add_argument("--dump", help="text file with register values (or pipe on stdin)")
-    d.add_argument("--image", action="append", help="screenshot(s) of a debugger register view")
+    d.add_argument("--image", action="append", help="photo/screenshot: MPLAB SFR/Watch window, register dump, scope or serial terminal")
+    d.add_argument("--intent", help="what the firmware should do, e.g. 'Timer1 10 ms toggle RA0' or 'UART 115200' (enables the vision pipeline)")
+    d.add_argument("--extraction", help="replay a saved vision extraction JSON instead of calling the model (offline demo)")
     d.add_argument("--symptom"); d.add_argument("--code", help="C file under suspicion")
-    d.add_argument("--fosc", type=float, default=32.0, help="assumed Fosc in MHz")
+    d.add_argument("--fosc", type=float, default=None, help="assumed Fosc in MHz (default: board profile / 32)")
     d.add_argument("--expected-ms", type=float); d.add_argument("--backend", choices=["meta", "baseten"])
     d.add_argument("--no-model", action="store_true", help="deterministic analysis only"); d.add_argument("--json", action="store_true")
     d.set_defaults(fn=cmd_debug)

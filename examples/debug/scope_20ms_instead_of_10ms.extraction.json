@@ -1,0 +1,15 @@
+{
+  "kind": "scope",
+  "registers": {},
+  "scope": {
+    "period_ms": 20.0,
+    "freq_hz": 50.0,
+    "duty": 0.5,
+    "voltage": 3.28,
+    "channel": "CH1",
+    "timebase": "10ms/div"
+  },
+  "serial": {},
+  "confidence": 0.95,
+  "notes": "synthetic demo image"
+}

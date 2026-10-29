@@ -121,6 +121,25 @@ Settings are saved to **`settings.json`** in the project folder (or wherever `CH
 overrides `.env` and is gitignored. `.env` is never written. The page only shows whether an API key is set, never
 the key itself. Keys you type there are stored in plain text in settings.json on your PC, so keep that file private.
 
+## Photo debugging (multimodal reverse debug)
+
+Show ChipLlama what the real board is doing and it tells you why it differs from what you wanted:
+
+1. **Muse Spark vision** reads a screenshot (MPLAB X SFR/Watch window, register dump, oscilloscope/logic analyzer, serial terminal) into strict JSON with a confidence score; malformed JSON is repaired locally, and the model is re-asked once if needed.
+2. **Deterministic decode** (no model): OSCCON/CLKDIV → implied Fcy, TxCON/PRx → timer period, U1MODE/U1BRG → baud (incl. BRGH mismatch), scope period ratio → cause (×2 toggle, ×4 PLL off, ×8 prescaler…), serial garbage ratio.
+3. **Muse Spark explanation** grounded in those facts, citing DS39897C pages, plus a unified fix diff against your code.
+
+Dashboard: *Reverse debug* tab → drop/paste an image (or click a demo image), type the intent, optionally paste your C code → **Diagnose**. **Apply fix → regenerate & verify** sends the findings to *Generate* so the fixed firmware is regenerated, compiled and checked.
+
+CLI:
+```powershell
+.venv\Scripts\chipllama.exe debug --image examples\debug\sfr_timer1_prescaler_bug.png --intent "Timer1 interrupt every 10 ms, toggle RA0"
+.venv\Scripts\chipllama.exe debug --image examples\debug\scope_20ms_instead_of_10ms.png --intent "RA0 square wave with 10 ms period (100 Hz)" --code examples\debug\toggle_10ms.c
+# offline (no API call): use the saved extraction
+.venv\Scripts\chipllama.exe debug --image examples\debug\sfr_pll_off.png --extraction examples\debug\sfr_pll_off.extraction.json --intent "Timer1 interrupt every 10 ms, toggle RA0" --no-model
+```
+Demo images are synthetic (`scripts/make_debug_examples.py`); `*.expected.txt` hold the offline outputs. Every number in the report is recomputed by ChipLlama - the vision model only transcribes.
+
 ## MPLAB X IDE + PICkit 5 + XC16 workflow
 
 ChipLlama does not replace MPLAB X — it feeds it.

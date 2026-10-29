@@ -1,0 +1,24 @@
+Image: scope (confidence 0.95)
+Intent: RA0 square wave with 10 ms period (100 Hz)
+
+REGISTER      VALUE  STATUS  DECODED  ->  EXPECTED
+Scope period  20 ms  BAD     50 Hz, duty 50%, 3.28 V  ->  10 ms  [p.161]
+Code Timer1   10 ms  BAD     PR1=19999, 1:8 @ Fcy 16 MHz -> toggle gives 20 ms on the pin  ->  10 ms  [p.162]
+
+Root cause:
+  The firmware does exactly what the code says: Timer1 fires every 10 ms and the ISR toggles the pin, so one full period = 2 x 10 ms = 20 ms - matching the scope. Clock and prescaler are fine; the timer must fire every 5 ms.
+
+Fix:
+--- a/main.c
++++ b/main.c
+@@ -32,7 +32,7 @@
+ {
+     T1CON = 0;                       /* stop, internal clock */
+     TMR1 = 0;
+-    PR1 = (FCY / 1000UL * PERIOD_MS / PRESCALE) - 1UL;
++    PR1 = 9999;
+     T1CONbits.TCKPS = 1;             /* 1:8 */
+     IPC0bits.T1IP = 5;
+     IFS0bits.T1IF = 0;
+
+VERDICT: BUG FOUND: The firmware does exactly what the code says: Timer1 fires every 10 ms and the ISR toggles the pin, so one full period = 2 x 10 ms = 20 ms - matching the scope. Clock and prescaler are fine; the timer must fire every 5 ms.

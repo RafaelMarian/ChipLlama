@@ -1,0 +1,17 @@
+{
+  "kind": "registers",
+  "registers": {
+    "OSCCON": "0x1120",
+    "CLKDIV": "0x0100",
+    "T1CON": "0x8000",
+    "PR1": "0x4E1F",
+    "TMR1": "0x1A2B",
+    "IFS0": "0x0000",
+    "IEC0": "0x0008",
+    "IPC0": "0x5444"
+  },
+  "scope": {},
+  "serial": {},
+  "confidence": 0.97,
+  "notes": "synthetic demo image"
+}

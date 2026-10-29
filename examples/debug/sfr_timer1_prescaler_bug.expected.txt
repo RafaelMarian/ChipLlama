@@ -1,0 +1,21 @@
+Image: registers (confidence 0.97)
+Intent: Timer1 interrupt every 10 ms, toggle RA0
+
+REGISTER       VALUE    STATUS  DECODED  ->  EXPECTED
+OSCCON         0x1120   OK      COSC=001 FRCPLL (FRC + 96 MHz PLL); NOSC=001; LOCK=1  ->  COSC=001 FRCPLL (FRC + 96 MHz PLL)  [p.123]
+CLKDIV         0x0100   OK      RCDIV=001 (4 MHz) CPDIV=00 DOZEN=0  ->  CPDIV=00 (32 MHz)  [p.125]
+Fcy (implied)  16 MHz   OK      OSCCON.COSC=1 (FRCPLL (FRC + 96 MHz PLL)), CLKDIV.CPDIV=0  ->  16 MHz  [p.123]
+T1CON          0x8000   BAD     TON=1 TCS=0 TGATE=0 TCKPS=00 (1:1)  ->  TON=1 TCS=0 TCKPS=01 (1:8)  [p.162]
+PR1            0x4E1F   OK      19999 decimal  ->  19999 (0x4E1F)  [p.162]
+Timer1 period  1.25 ms  BAD     (PR+1) x 1:1 / Fcy 16 MHz  ->  10 ms  [p.162]
+
+Root cause:
+  T1CON.TCKPS=00 gives prescale 1:1 but 1:8 is needed (timer runs 8x fast).
+  also: Timer1 period is 1.25 ms instead of 10 ms (x0.125).
+
+Fix:
+--- (no code given)
++++ suggested lines
++T1CONbits.TCKPS = 1;    // prescale 1:8 (DS39897C p.162)
+
+VERDICT: BUG FOUND: T1CON.TCKPS=00 gives prescale 1:1 but 1:8 is needed (timer runs 8x fast).

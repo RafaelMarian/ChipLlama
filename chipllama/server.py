@@ -27,7 +27,7 @@ from .debug import debug_session
 from .doctor import doctor
 from .export import export_project
 from .flash import find_ipecmd, flash, part_name
-from .models import make_model
+from .models import ModelError, make_model
 from .timers import parse_request, solve
 
 WEB = Path(__file__).parent / "web"
@@ -40,6 +40,7 @@ class GenerateReq(BaseModel):
     use_images: bool = True
     hint: bool = False
     inject_fault: bool = False
+    context: str = ""
 
 
 class CalcReq(BaseModel):
@@ -180,7 +181,7 @@ def create_app(settings: Settings | None = None, model_factory: Callable | None 
         except ValueError as e:
             raise HTTPException(400, str(e))
         res = run_agent(req.request, model, cur(), max_iters=_iters(req), use_images=req.use_images,
-                        hint=req.hint, compile_fn=compile_fn, inject_fault=req.inject_fault)
+                        hint=req.hint, compile_fn=compile_fn, inject_fault=req.inject_fault, context=req.context)
         return res.to_dict()
 
     @app.post("/api/generate/stream")
@@ -203,7 +204,7 @@ def create_app(settings: Settings | None = None, model_factory: Callable | None 
             try:
                 res = run_agent(req.request, model, cur(), max_iters=_iters(req), use_images=req.use_images,
                                 hint=req.hint, compile_fn=compile_fn, on_event=on_event,
-                                inject_fault=req.inject_fault)
+                                inject_fault=req.inject_fault, context=req.context)
                 q.put({"event": "done", "data": res.to_dict()})
             except Exception as e:  # surface unexpected failures to the UI
                 q.put({"event": "done", "data": {"status": "error", "error": f"{type(e).__name__}: {e}", "attempts": []}})
@@ -234,6 +235,51 @@ def create_app(settings: Settings | None = None, model_factory: Callable | None 
         res = debug_session(dump, imgs, symptom, code, model, fosc,
                             expected_period_ms / 1e3 if expected_period_ms else None)
         return res.to_dict()
+
+    @app.post("/api/debug/vision")
+    async def debug_vision(intent: str = Form(""), code: str = Form(""), backend: str | None = Form(None),
+                           fosc_mhz: float | None = Form(None), extraction: str = Form(""), explain: bool = Form(True),
+                           images: list[UploadFile] = File(default=[])):
+        from .vision_debug import COSC_FOR_PROFILE, normalize, vision_debug
+        imgs = [await f.read() for f in images if f.filename]
+        ex = None
+        if extraction.strip():
+            try:
+                ex = normalize(json.loads(extraction))
+            except (ValueError, TypeError) as e:
+                raise HTTPException(422, f"bad extraction JSON: {e}")
+        if not imgs and ex is None:
+            raise HTTPException(422, "drop, paste or choose an image first")
+        try:
+            model = mk(backend)
+        except ValueError as e:
+            raise HTTPException(400, str(e))
+        s = cur()
+        fosc = fosc_mhz * 1e6 if fosc_mhz else s.profile().fosc_hz
+        try:
+            rep = vision_debug(imgs, intent, code, model, fosc, COSC_FOR_PROFILE.get(s.clock_profile, 1), s.crystal_hz,
+                               extraction=ex, explain=explain)
+        except ModelError as e:
+            raise HTTPException(502, str(e))
+        return rep.to_dict()
+
+    ex_dir = Path(__file__).resolve().parent.parent / "examples" / "debug"
+
+    @app.get("/api/examples/debug/{name}.png")
+    def debug_example_png(name: str):
+        f = ex_dir / f"{name}.png"
+        if not name.replace("_", "").isalnum() or not f.is_file():
+            raise HTTPException(404, "no such example")
+        return FileResponse(f, media_type="image/png")
+
+    @app.get("/api/examples/debug/{name}.json")
+    def debug_example_meta(name: str):
+        if not name.replace("_", "").isalnum() or not (ex_dir / f"{name}.png").is_file():
+            raise HTTPException(404, "no such example")
+        it = ex_dir / f"{name}.intent.txt"
+        code = ex_dir / "toggle_10ms.c" if name.startswith("scope") else None
+        return {"intent": it.read_text(encoding="utf-8").strip() if it.is_file() else "",
+                "code": code.read_text(encoding="utf-8") if code and code.is_file() else ""}
 
     @app.get("/api/page/{page}.png")
     def page(page: int):
