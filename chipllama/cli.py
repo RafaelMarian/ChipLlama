@@ -283,6 +283,46 @@ def cmd_flash(a, s: Settings) -> int:
     return 0 if fr.status == "ok" else 1
 
 
+def cmd_audit(a, s: Settings) -> int:
+    from . import audit as au
+    if not Path(a.path).exists():
+        print(f"no such file or folder: {a.path}", file=sys.stderr)
+        return 2
+    rep = au.audit_path(a.path, ics=a.ics or s.ics, crystal_hz=s.crystal_hz)
+    model = None
+    if a.explain:
+        try:
+            model = make_model(s, a.backend)
+        except ValueError as e:
+            print(e, file=sys.stderr)
+    au.enrich(rep, model, s, explain=a.explain, compile=a.compile)
+    if a.json:
+        print(json.dumps(rep.to_dict(), indent=2))
+    else:
+        print(au.report_markdown(rep))
+        if rep.diff():
+            print("Proposed fixes (apply with --fix DIR or --fix out.zip):\n" + rep.diff())
+        for n in rep.notes:
+            print("note:", n)
+        if rep.compile:
+            print("compile:", rep.compile["status"], *[f"{r['file']}={r['status']}" for r in rep.compile["files"]])
+    if a.fix:
+        out = Path(a.fix)
+        if out.suffix.lower() == ".zip":
+            out.write_bytes(au.fixes_zip(rep))
+        else:
+            if out.resolve() == Path(a.path).resolve():
+                print("--fix must point to a NEW folder; ChipLlama never overwrites your project", file=sys.stderr)
+                return 2
+            for name, txt in rep.patched().items():
+                dst = out / name
+                dst.parent.mkdir(parents=True, exist_ok=True)
+                dst.write_text(txt, encoding="utf-8")
+            (out / "CHIPLLAMA_AUDIT.md").write_text(au.report_markdown(rep), encoding="utf-8")
+        print(f"patched copy written to {out}", file=sys.stderr)
+    return 1 if rep.counts()["error"] else 0
+
+
 def cmd_serve(a, s: Settings) -> int:
     import uvicorn
     url = f"http://{a.host}:{a.port}"
@@ -344,6 +384,15 @@ def build_parser() -> argparse.ArgumentParser:
     pg.add_argument("pages", nargs="*"); pg.add_argument("--out", default=".cache/pages_out"); pg.set_defaults(fn=cmd_pages)
     f = sub.add_parser("flash", help="OPTIONAL: program a .hex with ipecmd (PICkit 5 default)")
     f.add_argument("hex"); f.add_argument("--yes", action="store_true"); f.set_defaults(fn=cmd_flash)
+    au = sub.add_parser("audit", help="static audit of a .c file, folder or MPLAB X project (no AI needed)")
+    au.add_argument("path", help="file, folder or MyProject.X")
+    au.add_argument("--json", action="store_true")
+    au.add_argument("--fix", metavar="DIR|out.zip", help="write a patched COPY (never edits in place)")
+    au.add_argument("--explain", action="store_true", help="add a Muse review (needs MODEL_API_KEY)")
+    au.add_argument("--compile", action="store_true", help="compile the patched files with XC16 if installed")
+    au.add_argument("--ics", choices=["PGx1", "PGx2", "PGx3"], help="debug pin pair of your board")
+    au.add_argument("--backend")
+    au.set_defaults(fn=cmd_audit)
     sv = sub.add_parser("serve", help="start the web UI")
     sv.add_argument("--host", default="127.0.0.1"); sv.add_argument("--port", type=int, default=8000)
     sv.add_argument("--no-browser", action="store_true"); sv.set_defaults(fn=cmd_serve)

@@ -44,10 +44,14 @@ dialog{background:var(--panel);color:var(--tx);border:1px solid var(--line);bord
 .ex{font-size:12px;color:var(--acc);cursor:pointer;margin-right:12px}
 #dout table{width:100%;border-collapse:collapse;font-size:12px}#dout th{text-align:left;color:var(--mut,#888);font-weight:500;padding:4px 6px;border-bottom:1px solid #3334}#dout td{padding:4px 6px;border-bottom:1px solid #2222;vertical-align:top;font-family:ui-monospace,monospace}#dout button.p{margin-top:10px}
 .bgrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(380px,40%);gap:18px}@media(max-width:1100px){.bgrid{grid-template-columns:1fr}}
+.ascore{display:flex;gap:16px;align-items:center}.score{font-weight:800;border-radius:14px;padding:10px 14px;min-width:86px;text-align:center}.score b{font-size:30px}.score span{font-size:12px;opacity:.7}
+.ameta{flex:1}.ameta .ttl{font-weight:700}.afind{padding:10px 0;border-bottom:1px solid var(--line)}.afind:last-child{border:0}.afind .row{justify-content:flex-start;gap:8px}.afind .row>*{flex:0 0 auto}
+.rule{font:12px var(--mono);color:#c7d2fe}.loc{font:12px var(--mono);color:var(--mut)}.pages .ex{margin-right:6px}.empty{color:var(--mut);text-align:center;padding:28px 10px}
+a.btn{text-decoration:none;display:inline-block}a.btn.p{background:linear-gradient(90deg,var(--acc),var(--acc2));color:#fff;border-radius:10px;padding:9px 16px;font-weight:700}.prose{white-space:pre-wrap;font-size:13px}
 </style>
-<script src="/vendor/blockly.min.js"></script><script src="/vendor/blockly.en.js"></script><script src="/static/blocks.js"></script></head><body>
+<script src="/vendor/blockly.min.js"></script><script src="/vendor/blockly.en.js"></script><script src="/static/blocks.js"></script><script src="/static/audit.js"></script></head><body>
 <header><div><div class="logo">🦙 <span>ChipLlama</span></div><div class="sub">PIC24FJ256GB110 copilot · Muse Spark · verified register code</div></div>
-<nav><button id="t-gen" class="on" onclick="tab('gen')">Generate</button><button id="t-blk" onclick="tab('blk')">Blocks</button><button id="t-dbg" onclick="tab('dbg')">Reverse debug</button><button id="t-set" onclick="tab('set')">Settings</button></nav>
+<nav><button id="t-gen" class="on" onclick="tab('gen')">Generate</button><button id="t-blk" onclick="tab('blk')">Blocks</button><button id="t-aud" onclick="tab('aud')">Audit</button><button id="t-dbg" onclick="tab('dbg')">Reverse debug</button><button id="t-set" onclick="tab('set')">Settings</button></nav>
 <div id="chips"></div></header>
 <main>
 <!-- ================= GENERATE ================= -->
@@ -76,6 +80,17 @@ dialog{background:var(--panel);color:var(--tx);border:1px solid var(--line);bord
   <pre id="bcode" style="max-height:calc(100vh - 360px)"></pre>
   <div class="row"><button class="s" onclick="Blocks.copy()">Copy C</button><button class="p" onclick="Blocks.polish()" title="Sends the verified code to Muse Spark as a starting point; the result is verified again.">Polish with Muse</button></div></div></div>
 </div></section>
+<!-- ================= AUDIT ================= -->
+<section id="p-aud" class="hide"><div class="grid"><div>
+ <div class="card"><h3><span>Audit existing code <span class="sum">static rules · datasheet pages · fix diff</span></span><select id="aex" onchange="Audit.loadEx(this.value);this.value=''" style="width:auto;padding:5px 8px;text-transform:none;letter-spacing:0"></select></h3>
+  <div id="adrop" class="drop"><b>Drop .c / .h files, an MPLAB X project .zip, or a screenshot of code</b><br><span class="mut">click to choose · Ctrl+V pastes a screenshot (transcribed by Muse)</span></div><input type="file" id="ainput" multiple accept=".c,.h,.zip,.xml,image/*" class="hide">
+  <div id="afiles" class="row" style="justify-content:flex-start;gap:6px;margin-top:8px"></div>
+  <label>…or paste main.c</label><textarea id="acode" rows="12" placeholder="#include &lt;xc.h&gt;&#10;#pragma config FWDTEN = OFF&#10;…"></textarea>
+  <div class="row" style="margin-top:12px"><button class="p" id="arun" onclick="Audit.run()" style="flex:0 0 auto">Run audit</button>
+   <label style="flex:0 0 auto;margin:0"><input type="checkbox" id="aexplain" style="width:auto"> Muse review</label>
+   <label style="flex:0 0 auto;margin:0"><input type="checkbox" id="acompile" style="width:auto"> compile patched files</label><span class="mut" id="ameta" style="flex:2"></span></div></div>
+ <div class="card"><h3>What the rules check</h3><div class="f mut">Config words (WDT/ClrWdt, JTAG on RA0/1/4/5, ICS pair, clock source) · FCY vs the real clock · PPS mapping for UART/SPI · AD1PCFG analog pins · TRIS vs LAT/PORT · interrupt vector names, flag clearing, auto_psv · enabled IRQs without an ISR · volatile ISR variables. Every finding cites DS39897C pages. Fixes are a patched <b>copy</b>; your files are never edited.</div></div>
+</div><aside id="aout"><div class="card"><div class="empty">Load a buggy example from the menu above, or drop your project, to get a score and fixes.</div></div></aside></div></section>
 <!-- ================= DEBUG ================= -->
 <section id="p-dbg" class="hide"><div class="grid"><div>
  <div class="card"><h3><span>Image → diagnosis <span class="sum">Muse Spark vision + deterministic decode</span></span><button class="s" style="padding:3px 10px;font-size:11px;text-transform:none;letter-spacing:0" onclick="clearShots()">clear</button></h3>
@@ -127,7 +142,7 @@ const $=id=>document.getElementById(id);let SET=null,LAST=null,FILES=[],FIX_CONT
 function el(t,c,x){const e=document.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e}
 function pill(t,c){return el('span','pill '+c,t)}const sevc={error:'bad',warning:'warn',info:'info'};
 function toast(m){const t=$('toast');t.textContent=m;t.classList.add('on');setTimeout(()=>t.classList.remove('on'),2600)}
-function tab(n){for(const k of['gen','blk','dbg','set']){$('p-'+k).classList.toggle('hide',k!=n);$('t-'+k).classList.toggle('on',k==n)}if(n==='blk'&&window.Blocks){Blocks.init().then(()=>Blocks.resize())}}
+function tab(n){for(const k of['gen','blk','aud','dbg','set']){$('p-'+k).classList.toggle('hide',k!=n);$('t-'+k).classList.toggle('on',k==n)}if(n==='aud'&&window.Audit&&!window.AUDIT_INIT){window.AUDIT_INIT=1;Audit.init()}if(n==='blk'&&window.Blocks){Blocks.init().then(()=>Blocks.resize())}}
 function ex(e){$('req').value=e.textContent}
 async function api(u,o){const r=await fetch(u,o);const ct=r.headers.get('content-type')||'';const j=ct.includes('json')?await r.json():null;if(!r.ok)throw new Error((j&&j.detail)||r.statusText);return j}
 const post=(u,b)=>api(u,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)});

@@ -1,0 +1,50 @@
+{
+  "project": "folder",
+  "device": "PIC24FJ256GB110",
+  "score": 15,
+  "findings": [
+    {
+      "rule": "WDT_RESET",
+      "severity": "error",
+      "file": "main.c",
+      "line": 5
+    },
+    {
+      "rule": "JTAG_PINS",
+      "severity": "error",
+      "file": "main.c",
+      "line": 6
+    },
+    {
+      "rule": "FCY_WRONG",
+      "severity": "error",
+      "file": "main.c",
+      "line": 13
+    },
+    {
+      "rule": "ISR_NAME",
+      "severity": "error",
+      "file": "main.c",
+      "line": 18
+    },
+    {
+      "rule": "TRIS_INPUT",
+      "severity": "error",
+      "file": "main.c",
+      "line": 39
+    },
+    {
+      "rule": "VOLATILE",
+      "severity": "warning",
+      "file": "main.c",
+      "line": 16
+    },
+    {
+      "rule": "RMW_PORT",
+      "severity": "warning",
+      "file": "main.c",
+      "line": 21
+    }
+  ],
+  "score_after_fixes": 100
+}

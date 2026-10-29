@@ -6,6 +6,7 @@ import difflib
 import io
 import json
 import queue
+import re
 import tempfile
 import threading
 import zipfile
@@ -307,6 +308,91 @@ def create_app(settings: Settings | None = None, model_factory: Callable | None 
         except ModelError as e:
             raise HTTPException(502, str(e))
         return rep.to_dict()
+
+    audit_cache: dict[str, object] = {}
+
+    @app.post("/api/audit")
+    async def audit_ep(code: str = Form(""), filename: str = Form("main.c"), explain: bool = Form(False),
+                       compile: bool = Form(False), backend: str | None = Form(None), ics: str = Form(""),
+                       device: str = Form(""), project: str = Form(""),
+                       files: list[UploadFile] = File(default=[]), images: list[UploadFile] = File(default=[])):
+        from . import audit as au
+        s = cur()
+        src: dict[str, str] = {}
+        kind = "files"
+        for f in files:
+            if not f.filename:
+                continue
+            data = await f.read()
+            if f.filename.lower().endswith(".zip"):
+                try:
+                    src.update(au.load_zip(data))
+                except Exception as e:
+                    raise HTTPException(422, f"bad zip: {e}")
+                kind = "zip"
+            elif f.filename.lower().endswith((".c", ".h", ".xml")):
+                src[Path(f.filename).name] = data.decode("utf-8", "replace")
+        if code.strip():
+            src[Path(filename or "main.c").name] = code
+        model = None
+        imgs = [await f.read() for f in images if f.filename]
+        notes = []
+        if imgs:
+            try:
+                model = mk(backend)
+                src["screenshot.c"] = au.transcribe(imgs, model)
+                notes.append("screenshot.c was transcribed from your image by Muse - check it before trusting line numbers.")
+            except (ValueError, ModelError) as e:
+                raise HTTPException(400, f"reading a screenshot needs the Muse model: {e}")
+        device = device.strip() or s.device
+        kind = project or kind
+        if src.get("__device__"):
+            device, kind = src.pop("__device__"), "mplabx"
+        src.pop("__device__", None)
+        for n, t in list(src.items()):
+            if n.endswith("configurations.xml"):
+                m = re.search(r"<targetDevice>([^<]+)</targetDevice>", t)
+                device, kind = (m.group(1).strip() if m else device), "mplabx"
+                src.pop(n)
+        src = {k: v for k, v in src.items() if k.lower().endswith((".c", ".h"))}
+        if not src:
+            raise HTTPException(422, "paste code, or drop .c/.h files, a project .zip or a screenshot")
+        rep = au.audit_files(src, ics=ics or s.ics, crystal_hz=s.crystal_hz, device=device, project=kind)
+        rep.notes += notes
+        if explain and model is None:
+            try:
+                model = mk(backend)
+            except ValueError as e:
+                rep.notes.append(f"Muse explanation skipped: {e}")
+        au.enrich(rep, model, s, explain=explain and model is not None, compile=compile)
+        import uuid
+        rid = uuid.uuid4().hex[:12]
+        audit_cache[rid] = rep
+        while len(audit_cache) > 20:
+            audit_cache.pop(next(iter(audit_cache)))
+        d = rep.to_dict()
+        d["id"] = rid
+        d["markdown"] = au.report_markdown(rep)
+        return d
+
+    @app.get("/api/audit/{rid}/fixes.zip")
+    def audit_fixes(rid: str):
+        from . import audit as au
+        rep = audit_cache.get(rid)
+        if rep is None:
+            raise HTTPException(404, "audit expired - run it again")
+        return Response(au.fixes_zip(rep), media_type="application/zip",
+                        headers={"Content-Disposition": 'attachment; filename="chipllama_audit_fixes.zip"'})
+
+    @app.get("/api/audit/examples")
+    def audit_examples():
+        from . import audit as au
+        out = []
+        for d in sorted((EXAMPLES / "audit").iterdir()) if (EXAMPLES / "audit").is_dir() else []:
+            if d.is_dir():
+                files, kind, dev = au.load_path(d)
+                out.append({"name": d.name, "kind": kind, "device": dev, "files": files})
+        return out
 
     ex_dir = Path(__file__).resolve().parent.parent / "examples" / "debug"
 

@@ -156,6 +156,26 @@ You can also:
 
 Blockly 11.2.2 is vendored in `chipllama/web/vendor/`, so no CDN is needed (Apache-2.0, see `NOTICE.md`).
 
+## 🔍 Audit existing code
+
+Point ChipLlama at code you already have — a single `.c`, a folder, or an MPLAB X `MyProject.X` folder
+(the device is read from `nbproject/configurations.xml`) — and get a score, findings with `file:line`
+and DS39897C pages, and a patched **copy** of the project. No API key needed; the rules are deterministic.
+
+```powershell
+chipllama audit examples\audit\blinky_buggy             # report + diff, exit code 1 if errors
+chipllama audit examples\audit\uart_sensor.X --json
+chipllama audit MyProject.X --fix fixed_copy           # or --fix fixes.zip (never edits in place)
+chipllama audit MyProject.X --explain --compile        # + Muse review, + XC16 compile of the patched files
+```
+
+Rules: missing/legacy config words, WDT on without `ClrWdt()`, JTAG on while RA0/RA1/RA4/RA5 are used, ICS pair vs your
+board, default clock, `FCY` missing or not matching the real clock, UART/SPI used without PPS mapping, digital reads of
+analog pins (AD1PCFGL), LAT writes without TRIS, misspelt ISR names, ISRs that never clear their flag, missing
+`auto_psv`, enabled interrupts with no ISR, non-`volatile` ISR variables. In the dashboard's **Audit** tab you can
+also drop a project `.zip` or paste a screenshot of code (transcribed by Muse, marked as such).
+`examples/audit/` holds two deliberately buggy projects and their `expected.json`; `tests/test_audit.py` checks them.
+
 ## Local dashboard
 
 `chipllama serve` starts the server on 127.0.0.1:8000 and opens your browser (`--no-browser` stops it opening).
