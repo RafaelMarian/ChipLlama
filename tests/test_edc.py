@@ -207,7 +207,7 @@ def test_compiler_selection(monkeypatch, tmp_path):
     for devn, drv, flag in (("PIC18F45K22", "xc8-cc", "-mcpu=18F45K22"),
                             ("PIC32MX795F512L", "xc32-gcc", "-mprocessor=32MX795F512L"),
                             ("DSPIC33CK256MP506", "xc16-gcc", "-mcpu=33CK256MP506")):
-        s = Settings(device=devn, mplab_packs_dir=str(tmp_path))
+        s = Settings(device=devn, mplab_packs_dir=str(tmp_path), dspic_compiler="xc16")
         assert find_compiler(s)[0] == {"xc8-cc": "xc8", "xc32-gcc": "xc32", "xc16-gcc": "xc16"}[drv]
         r = compile_c("int main(void){return 0;}", s, runner=runner, workdir=str(tmp_path))
         assert r.status == "ok" and calls[-1][0] == f"/x/{drv}" and flag in calls[-1]

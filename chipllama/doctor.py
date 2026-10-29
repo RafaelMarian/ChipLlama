@@ -35,6 +35,11 @@ def doctor(s: Settings) -> list[dict]:
     sp = settings_path()
     meta_need, bt_need = s.backend == "meta", s.backend == "baseten"
     # (label, value, ok, level, path)  level: ok | warn | info | error
+    try:
+        from . import dfp
+        dfp_val, dfp_warn = dfp.select(comp, s.device, gcc, s.mplab_packs_dir) if gcc else (None, "")
+    except Exception:
+        dfp_val, dfp_warn = None, ""
     rows = [
         ("device", f"{s.device}  (ipecmd -P{part_name(s.device)})", True, "ok", None),
         dev_row,
@@ -47,6 +52,7 @@ def doctor(s: Settings) -> list[dict]:
          "ok" if s.baseten_api_key else ("error" if bt_need else "info"), None),
         ("clock profile", prof_txt, prof_ok, "ok" if prof_ok else "error", None),
         (drv, gcc or "NOT FOUND (compile step skipped)", bool(gcc), "ok" if gcc else "warn", gcc),
+        *([("DFP (-mdfp)", dfp_warn or dfp_val, not dfp_warn, "warn" if dfp_warn else "ok", dfp_val)] if (dfp_val or dfp_warn) else []),
         ("datasheet PDF", ("found: " if pdf_ok else "missing (text-only prompts): ") + str(s.datasheet_pdf),
          pdf_ok, "ok" if pdf_ok else "warn", str(s.datasheet_pdf)),
         ("flash", f"{'ENABLED' if s.enable_flash else 'off'} · tool={s.ipecmd_tool} · power-target={'yes' if s.ipecmd_power_target else 'no'}"

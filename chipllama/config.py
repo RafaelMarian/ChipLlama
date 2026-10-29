@@ -44,6 +44,8 @@ class Settings:
     xc16_bin2hex: str = ""
     xc8_cc: str = ""
     xc32_gcc: str = ""
+    xc_dsc_gcc: str = ""
+    dspic_compiler: str = "auto"   # auto | xc-dsc | xc16
     mplab_packs_dir: str = ""
     datasheet_pdf: str = "datasheets/DS39897C.pdf"
     enable_flash: bool = False
@@ -88,6 +90,8 @@ class Settings:
             xc16_bin2hex=e("XC16_BIN2HEX", ""),
             xc8_cc=e("XC8_CC", ""),
             xc32_gcc=e("XC32_GCC", ""),
+            xc_dsc_gcc=e("XC_DSC_GCC", ""),
+            dspic_compiler=e("CHIPLLAMA_DSPIC_COMPILER", "auto"),
             mplab_packs_dir=e("MPLAB_PACKS_DIR", ""),
             datasheet_pdf=e("DATASHEET_PDF", "datasheets/DS39897C.pdf"),
             enable_flash=_b("CHIPLLAMA_ENABLE_FLASH"),
@@ -106,7 +110,7 @@ class Settings:
 
 # ---------------------------------------------------------------- settings.json (dashboard)
 SECRET_FIELDS = ("meta_api_key", "baseten_api_key")
-UI_FIELDS = ("device", "clock_profile", "crystal_hz", "ics", "xc16_gcc", "xc16_bin2hex", "xc8_cc", "xc32_gcc", "mplab_packs_dir", "ipecmd_path",
+UI_FIELDS = ("device", "clock_profile", "crystal_hz", "ics", "xc16_gcc", "xc16_bin2hex", "xc8_cc", "xc32_gcc", "xc_dsc_gcc", "dspic_compiler", "mplab_packs_dir", "ipecmd_path",
              "ipecmd_tool", "ipecmd_serial", "ipecmd_power_target", "enable_flash", "backend", "meta_model",
              "meta_reasoning_effort", "baseten_model", "baseten_reasoning_effort", "max_iters", "max_tokens",
              "vision_passes", "datasheet_pdf") + SECRET_FIELDS

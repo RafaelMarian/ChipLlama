@@ -121,6 +121,7 @@ def create_app(settings: Settings | None = None, model_factory: Callable | None 
         s = cur()
         return {"xc16_gcc": find_tool("xc16-gcc", ""), "xc16_bin2hex": find_tool("xc16-bin2hex", ""),
                 "xc8_cc": find_tool("xc8-cc", "", "xc8"), "xc32_gcc": find_tool("xc32-gcc", "", "xc32"),
+                "xc_dsc_gcc": find_tool("xc-dsc-gcc", "", "xc-dsc"),
                 "mplab_packs": edcmod.default_pack_roots(),
                 "ipecmd": find_ipecmd(""), "configured": {"xc16_gcc": s.xc16_gcc, "ipecmd_path": s.ipecmd_path}}
 

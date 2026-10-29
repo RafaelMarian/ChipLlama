@@ -96,6 +96,7 @@ dialog{background:var(--panel);color:var(--tx);border:1px solid var(--line);bord
  <div class="card"><h3>Toolchain</h3>
   <label>MPLAB X packs folder (blank = auto, e.g. C:\Program Files\Microchip\MPLABX\v6.25\packs)</label><input id="s-mplab_packs_dir">
   <div class="row"><div><label>xc8-cc path (PIC10/12/16/18, blank = auto)</label><input id="s-xc8_cc"></div><div><label>xc32-gcc path (PIC32, blank = auto)</label><input id="s-xc32_gcc"></div></div>
+  <div class="row"><div><label>xc-dsc-gcc path (dsPIC, blank = auto)</label><input id="s-xc_dsc_gcc"></div><div><label>dsPIC compiler</label><select id="s-dspic_compiler"><option value="auto">auto (XC-DSC if installed)</option><option value="xc-dsc">XC-DSC</option><option value="xc16">XC16</option></select></div></div>
   <label>xc16-gcc path (PIC24/dsPIC, blank = auto)</label><div class="row"><input id="s-xc16_gcc" style="flex:4"><button class="s" style="flex:0 0 auto" onclick="detect()">Auto-detect</button></div>
   <label>ipecmd path (blank = auto)</label><input id="s-ipecmd_path">
   <div class="row"><div><label>Programmer</label><select id="s-ipecmd_tool"></select></div><div><label>Serial (blank = first)</label><input id="s-ipecmd_serial"></div>
@@ -219,7 +220,7 @@ async function legacyDbg(){const fd=new FormData();fd.append('dump',$('dump').va
   const c=el('div','card');c.append(el('h3','','Decoded registers'));j.decoded.forEach(d=>c.append(el('div','f',`${d.register} = ${d.value}  `+Object.entries(d.fields).map(([k,v])=>k+'='+v).join(' '))));o.append(c);
   (j.notes||[]).forEach(n=>o.append(el('div','f mut','note: '+n)))}catch(e){o.replaceChildren(el('div','card','Error: '+e.message))}b.disabled=false}
 // ---------- settings
-const FIELDS=['device','ics','clock_profile','crystal_hz','backend','max_iters','max_tokens','vision_passes','meta_model','meta_reasoning_effort','baseten_model','baseten_reasoning_effort','xc16_gcc','xc8_cc','xc32_gcc','mplab_packs_dir','ipecmd_path','ipecmd_tool','ipecmd_serial','ipecmd_power_target','enable_flash','datasheet_pdf'];
+const FIELDS=['device','ics','clock_profile','crystal_hz','backend','max_iters','max_tokens','vision_passes','meta_model','meta_reasoning_effort','baseten_model','baseten_reasoning_effort','xc16_gcc','xc8_cc','xc32_gcc','xc_dsc_gcc','dspic_compiler','mplab_packs_dir','ipecmd_path','ipecmd_tool','ipecmd_serial','ipecmd_power_target','enable_flash','datasheet_pdf'];
 function opts(id,list){const s=$('s-'+id);s.replaceChildren(...list.map(o=>{const x=el('option','',o.title||o);x.value=o.key||o;return x}))}
 function keyPill(id,on){const p=$(id);p.className='pill '+(on?'ok':'warn');p.textContent=on?'set':'not set'}
 async function loadSettings(){SET=await api('/api/settings');const o=SET.options;opts('ics',o.ics);opts('clock_profile',o.clock_profile);opts('backend',o.backend);opts('ipecmd_tool',o.ipecmd_tool);opts('meta_reasoning_effort',o.reasoning_effort);
@@ -230,6 +231,6 @@ async function saveSettings(){const u={};FIELDS.forEach(k=>{let v=$('s-'+k).valu
  for(const k of['meta_api_key','baseten_api_key']){if($('s-'+k).value)u[k]=$('s-'+k).value}
  try{await post('/api/settings',u);toast('Settings saved');await loadSettings();chips();loadDoctor()}catch(e){toast('Not saved: '+e.message)}}
 async function clearKey(k){if(!confirm('Remove the saved '+k+' from settings.json?'))return;await post('/api/settings',{[k]:'__clear__'});toast('Key cleared');loadSettings();chips()}
-async function detect(){const j=await post('/api/detect',{});const fnd=[];[['xc16_gcc','xc16'],['xc8_cc','xc8'],['xc32_gcc','xc32']].forEach(([k,n])=>{if(j[k]&&!$('s-'+k).value){$('s-'+k).value=j[k]}if(j[k])fnd.push(n)});toast(fnd.length?'Found '+fnd.join(', '):'No XC compiler found - enter the path');if(j.ipecmd&&!$('s-ipecmd_path').value)$('s-ipecmd_path').value=j.ipecmd}
+async function detect(){const j=await post('/api/detect',{});const fnd=[];[['xc16_gcc','xc16'],['xc8_cc','xc8'],['xc32_gcc','xc32'],['xc_dsc_gcc','xc-dsc']].forEach(([k,n])=>{if(j[k]&&!$('s-'+k).value){$('s-'+k).value=j[k]}if(j[k])fnd.push(n)});toast(fnd.length?'Found '+fnd.join(', '):'No XC compiler found - enter the path');if(j.ipecmd&&!$('s-ipecmd_path').value)$('s-ipecmd_path').value=j.ipecmd}
 chips();loadDoctor();loadSettings();
 </script></body></html>

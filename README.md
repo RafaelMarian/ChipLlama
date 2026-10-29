@@ -1,32 +1,105 @@
+<div align="center">
+
 # ChipLlama 🦙⚡
 
-**A verifiable AI copilot for PIC firmware — built for the PIC24FJ256GB110 (16-bit, USB OTG), XC16, MPLAB X and PICkit 5.**
+**The PIC firmware copilot that proves its code is right.**
 
-Powered by Meta's **Muse Spark** models through the Meta Model API (switchable to **Muse Spark Open on Baseten**).
+Plain English in → register-exact, compiler-checked, datasheet-cited C out — for PIC24, dsPIC33, PIC18 and PIC32.
+Powered by Meta **Muse Spark** (Meta Model API) or **Muse Spark Open** (Baseten).
 
-> Built for the Meta Global AI Developer Hackathon. See [Built during the hackathon](#built-during-the-hackathon-started-oct-27-2026).
+`Python 3.11+` · `Windows / Linux` · `MPLAB XC8 · XC16 · XC-DSC · XC32` · `PICkit 5` · `MIT`
 
-ChipLlama is **not a datasheet chatbot**. A chatbot answers "probably this register setting"; ChipLlama *proves* it:
+<!-- GIF placeholders: record with ScreenToGif and drop the files in docs/ -->
+![ChipLlama generating a verified Timer1 interrupt](docs/demo-generate.gif)
+<!-- ![Reverse-debugging an MPLAB X SFR screenshot](docs/demo-debug.gif) -->
 
+</div>
+
+> Built for the Meta Global AI Developer Hackathon (Oct 27 – Nov 4 2026). See [Built during the hackathon](#built-during-the-hackathon-started-oct-27-2026).
+
+ChipLlama is **not a datasheet chatbot**. A chatbot says "probably this register value". ChipLlama replays the generated init code in a register emulator, compares the result with a deterministic reference solver, compiles it with the real Microchip compiler, and loops with Muse until everything passes. Only then is the code marked **VERIFIED**.
+
+## ✨ Features
+
+- **Generate → verify → self-correct.** Request → spec → datasheet pages (as images) → Muse writes C → `xc16-gcc`/`xc-dsc-gcc`/`xc8-cc`/`xc32-gcc` compiles → checker → feedback until both pass.
+- **Deterministic peripheral calculators and checkers** (no AI, no key — `chipllama calc`):
+  Timers 1–5 (16/32-bit, gated), interrupts and priorities, GPIO/CN/INTx, ADC (scan, auto-trigger),
+  Output Compare PWM, Input Capture, UART1–4, SPI1–3, I2C1–3, RTCC, CRC, PMP, Sleep/Idle/Doze/WDT,
+  PPS mapping and lock, config bits matched to your board.
+- **USB is honestly labelled** *UNSUPPORTED-for-verification* — ChipLlama checks the clock/config and points you to MLA/MCC instead of pretending.
+- **Reverse debugging.** Paste a register dump or a screenshot of the MPLAB X SFR window; Muse transcribes it (vision), a rule engine finds *why* the ISR never fires, and Muse explains only the verified findings.
+- **Multi-device via MPLAB X packs (EDC).** Any installed PIC: exact `#pragma config` blocks, correct `-mcpu`/`-mprocessor`, automatic `-mdfp` selection (including the XC32 v5 pack layout) with a Doctor warning when a pack is too old.
+- **MPLAB X export** (`main.c`, `build.bat`, Makefile) and an **opt-in** PICkit 5 flash step via `ipecmd`.
+- **Local dashboard** (FastAPI, no CDN) and a full CLI.
+
+## 🧠 How it works
+
+```mermaid
+flowchart LR
+    U[Request<br/>"SPI1 2 MHz mode 3"] --> P[Parser + spec<br/>Fcy, pins, rates]
+    P --> R[Reference solver<br/>deterministic]
+    P --> D[Datasheet pages<br/>PNG + register tables]
+    D --> M[Meta Muse Spark<br/>writes C]
+    M --> C[XC compiler<br/>-mcpu / -mdfp]
+    C -->|errors| M
+    C --> E[C-subset register emulator]
+    E --> K[Checker vs solver<br/>+ board config rules]
+    R --> K
+    K -->|findings| M
+    K -->|all pass| V[✅ VERIFIED C<br/>+ MPLAB X project]
+    V -.opt-in.-> F[PICkit 5 flash]
 ```
- "Timer1 interrupt every 10 ms at 32 MHz, priority 5"
-        │
-        ▼
- ① request → spec (Timer1, 10 ms, Fosc 32 MHz ⇒ Fcy 16 MHz, IRQ prio 5)
- ② register-table lookup (T1CON, PR1, IFS0/IEC0/IPC0 …) + the matching DATASHEET PAGES
-    rendered to PNG and sent as images (multimodal) to Muse Spark
- ③ Muse writes XC16 C with explicit bit math
- ④ xc16-gcc -mcpu=24FJ256GB110 compiles it  ──► compiler errors parsed → fed back
- ⑤ deterministic register checker: a small C-subset emulator replays the init code,
-    derives the final T1CON / PR1 / IEC0 / IPC0 values and compares the behaviour
-    (period, TON, TCS, IE, IP, ISR flag-clear, write order …) with a reference
-    solver  ──► findings fed back
- ⑥ loop until compile + checker pass (max N iterations) → "verified"
+
+## 🚀 Quick start (Windows, PowerShell)
+
+```powershell
+git clone https://github.com/RafaelMarian/ChipLlama ; cd ChipLlama
+py -3.11 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -e .                       # dev: pip install -r requirements-dev.txt
+copy .env.example .env                 # then edit .env – never commit it
+.\.venv\Scripts\chipllama.exe doctor   # keys, compilers, packs (DFP), datasheet, ipecmd
+.\.venv\Scripts\chipllama.exe serve    # dashboard on http://127.0.0.1:8000
 ```
 
-The second feature is **reverse debugging**: paste a register dump or upload a screenshot of MPLAB X's *SFR* window; Muse reads the screenshot (vision), then a **deterministic** decoder/rule engine finds why e.g. the timer interrupt never fires (TON=0, PR1 still at the 0xFFFF reset value, IE off, priority 0, flag stuck…) and the model only explains the verified findings.
+Offline, no key needed:
 
-The model never sees the reference solution (unless you pass `--hint`), so the checker is a genuine independent check, not a string match: any prescaler/PR combination that hits the period within tolerance passes.
+```powershell
+chipllama calc "Timer1 every 10 ms"
+chipllama calc spi "SPI1 master 2 MHz mode 3"
+chipllama calc i2c "I2C1 400 kHz"
+chipllama calc power "watchdog 1 s"
+```
+
+## 🦙 Using Meta Muse
+
+Put your key in `.env` (git-ignored):
+
+```ini
+CHIPLLAMA_BACKEND=meta
+MODEL_API_KEY=...                      # Meta Model API key (dev.meta.ai)
+# or Muse Spark Open on Baseten:
+# CHIPLLAMA_BACKEND=baseten
+# BASETEN_API_KEY=...
+```
+
+```powershell
+chipllama generate "Timer1 interrupt every 10 ms, priority 5" --out main.c --export out\proj
+chipllama debug --image sfr_screenshot.png --symptom "timer ISR never runs"
+```
+
+Muse receives the request, the relevant register tables and the rendered datasheet pages as images; it never sees the reference solution, so the checker is an independent proof, not a string match.
+
+### Compilers
+
+| Family | Compiler | Notes |
+|---|---|---|
+| PIC10/12/16/18 | XC8 (`xc8-cc`) | `-mdfp=<pack>/xc8`; verified live with XC8 v3.10 on PIC18F45K22 |
+| PIC24 | XC16 (`xc16-gcc`) | |
+| dsPIC33 | **XC-DSC** (`xc-dsc-gcc`) or XC16 | Settings → *dsPIC compiler* (`auto` prefers XC-DSC); v3.30+ gets `-mdfp=<pack>/xc16` |
+| PIC32 | XC32 (`xc32-gcc`) | `-mdfp=<pack root>`; **XC32 v5 needs a pack with `xc32/device_files/`** – Doctor warns and tells you to update the DFP in MPLAB X → Tools → Packs |
+
+Put the datasheet at `datasheets\DS39897C.pdf` (not bundled, Microchip copyright). Without it ChipLlama runs in text-only mode.
 
 ## What is verified, and how
 
@@ -38,41 +111,6 @@ The model never sees the reference solution (unless you pass `--hint`), so the c
 | Optional flash (`flash.py`) | Programs the `.hex` via `ipecmd.exe` + PICkit 5 | MPLAB X IPE, PICkit 5, **off by default** |
 
 Register facts (addresses, bit positions, reset values, page numbers) were extracted from the datasheet **DS39897C** text and are embedded in `chipllama/chipdb.py` with their page numbers (e.g. T1CON 0x0104 p.162, T2CON 0x0110 p.166, T3CON 0x0112 p.167, IFS0 p.84, IEC0 p.90, IPC0/1/2 p.97–99). The datasheet itself is **not bundled** (Microchip copyright) — see below.
-
-## Quick start (Windows, PowerShell)
-
-```powershell
-git clone <this repo> ; cd ChipLlama
-py -3.11 -m venv .venv
-.\.venv\Scripts\Activate.ps1
-pip install -r requirements.txt            # add requirements-dev.txt for tests
-copy .env.example .env                      # then edit .env – never commit it
-```
-
-Edit `.env` (no keys are shipped):
-
-```ini
-CHIPLLAMA_BACKEND=meta
-MODEL_API_KEY=...                     # Meta Model API key
-# or, for Muse Spark Open on Baseten:
-# CHIPLLAMA_BACKEND=baseten
-# BASETEN_API_KEY=...
-```
-
-Put the datasheet at `datasheets\DS39897C.pdf` (download DS39897C "PIC24FJ256GB110 Family Data Sheet" from microchip.com). Page images are rendered with `pdftoppm` (poppler) if on PATH, otherwise with PyMuPDF (`pip install pymupdf`). Without the PDF ChipLlama still works in text-only mode (the register table is in the prompt); only the multimodal page images are missing.
-
-Then:
-
-```powershell
-python -m chipllama doctor                       # shows keys / xc16 / datasheet / ipecmd status
-python -m chipllama calc "Timer1 every 10 ms at 32 MHz"          # no AI, no key
-python -m chipllama generate "Timer1 interrupt every 10 ms at 32 MHz, priority 5" --out main.c --export out\proj
-python -m chipllama debug --dump examples\dead_timer_dump.txt --expected-ms 10
-python -m chipllama debug --image sfr_screenshot.png --symptom "timer ISR never runs"
-python -m chipllama serve                        # web UI on http://127.0.0.1:8000
-```
-
-`calc`, `debug --no-model` and the whole checker run offline without any key.
 
 ## Your board: clock profile, config bits and ICS pins
 
@@ -191,7 +229,7 @@ chipllama/
   export.py      MPLAB X-ready folder (main.c, build.bat, Makefile, steps)
   models/        Meta Model API + Baseten (OpenAI-compatible) clients
   server.py      FastAPI app   ·   web/index.html  single-page UI   ·   cli.py  CLI
-tests/           75 tests, all model/compiler/flash calls mocked
+tests/           300+ tests, all model/compiler/flash calls mocked
 examples/        timer1_10ms.c, dead_timer_dump.txt
 datasheets/      put DS39897C.pdf here (git-ignored)
 ```
@@ -208,9 +246,8 @@ All model, compiler and programmer calls are mocked (scripted model replies, `ht
 ## Limitations (please read)
 
 * The emulator understands **init-style straight-line C**: `#define`s, assignments, `|= &= ^=`, `REGbits.FIELD =`, `_T1IE`-style aliases, casts/suffixes. Control flow is *flattened* (statements in `if`/loops are evaluated as if executed once, in order), so exotic code can be mis-judged. The compile step and your scope/logic analyser remain the final word.
-* Only the **timer + timer-interrupt** domain is verified (Timer1, Timer2, Timer3, 32-bit Timer2/3, IFS0/IEC0/IPC0–2). Other peripherals aren't checked yet.
+* The checker covers the peripherals listed in Features; USB is config-checked only.
 * Default Fosc is assumed to be **32 MHz** if the request doesn't say; ChipLlama cannot see your configuration bits.
-* Timer4/5 share the layout of Timer2/3 but are not wired into the checker.
 
 ## Unverified assumptions (honest list)
 - XC16 `#pragma config` names come from secondary sources (see above), not the datasheet. `PLL_96MHZ` (with
@@ -234,8 +271,13 @@ Verified from primary sources: Meta Model API base URL/models/Chat Completions i
 
 ChipLlama was designed and written from scratch during the Meta Global AI Developer Hackathon; development started on **Oct 27 2026** (submission deadline Nov 4 2026, 9 PM ET). Everything in this repository — the register database, solver, emulator, checker, agent loop, debug engine, model clients, server/UI/CLI and tests — was created during that window (see `git log`). Third-party material used: Microchip's public datasheet DS39897C (register facts only; not redistributed), Meta Model API / Baseten docs, and the open-source Python libraries listed in `requirements.txt`.
 
-## Security notes
+## 🔒 Security notes
 
 * No API keys are stored in the repo; `.env` is git-ignored and `.env.example` contains only empty placeholders.
 * Flashing is opt-in twice (env flag + explicit confirm).
 * Uploaded screenshots and dumps go only to the configured model backend.
+* **Your API key lives only in `.env` on your own machine.** Never commit it, paste it into issues, or share screenshots of it. If it leaks, revoke it at dev.meta.ai immediately.
+
+## License
+
+[MIT](LICENSE) © 2026 Rafael Marian. Microchip datasheets, headers and packs are © Microchip Technology and are not redistributed.
