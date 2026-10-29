@@ -1,70 +1,27 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>ChipLlama · PIC24 copilot</title>
-<style>
-:root{--bg:#0b1020;--panel:#121a2e;--panel2:#18223b;--line:#26314f;--tx:#e6ebf5;--mut:#8c97b2;--acc:#5b8cff;--acc2:#8b5cf6;--ok:#22c55e;--warn:#f59e0b;--bad:#ef4444;--mono:ui-monospace,SFMono-Regular,Consolas,Menlo,monospace}
-*{box-sizing:border-box}body{margin:0;background:radial-gradient(1200px 600px at 10% -10%,#1d2b55 0,transparent 60%),var(--bg);background-attachment:fixed;min-height:100vh;color:var(--tx);font:14px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
-header{display:flex;align-items:center;gap:16px;padding:14px 24px;border-bottom:1px solid var(--line);background:rgba(11,16,32,.8);backdrop-filter:blur(8px);position:sticky;top:0;z-index:5}
-.logo{font-weight:800;font-size:18px;letter-spacing:.2px}.logo span{background:linear-gradient(90deg,var(--acc),var(--acc2));-webkit-background-clip:text;color:transparent}
-.sub{color:var(--mut);font-size:12px}nav{display:flex;gap:4px;margin-left:24px}
-nav button{background:none;border:0;color:var(--mut);padding:8px 14px;border-radius:8px;cursor:pointer;font-weight:600}
-nav button.on{background:var(--panel2);color:var(--tx)}#chips{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap}
-main{max-width:1280px;margin:0 auto;padding:22px}.grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(420px,460px);gap:18px}
-@media(max-width:1100px){.grid{grid-template-columns:1fr}}
-.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:14px}
-.card h3{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:-16px -16px 14px;padding:12px 16px;border-bottom:1px solid var(--line);font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--mut)}
-textarea,input,select{width:100%;background:var(--panel2);color:var(--tx);border:1px solid var(--line);border-radius:10px;padding:10px;font:inherit}
-textarea{font-family:var(--mono);font-size:13px}textarea#req{font-family:inherit;font-size:15px;min-height:86px}
-label{display:block;color:var(--mut);font-size:12px;margin:10px 0 4px}
-.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.row>*{flex:1}
-button.p{background:linear-gradient(90deg,var(--acc),var(--acc2));color:#fff;border:0;border-radius:10px;padding:10px 18px;font-weight:700;cursor:pointer}
-button.s{background:var(--panel2);color:var(--tx);border:1px solid var(--line);border-radius:10px;padding:8px 14px;cursor:pointer;font-weight:600}
-button.d{background:#3b1420;color:#fecaca;border:1px solid #7f1d1d;border-radius:10px;padding:8px 14px;cursor:pointer;font-weight:600}
-button:disabled{opacity:.5;cursor:wait}
-.pill{display:inline-block;border-radius:999px;padding:2px 9px;font-size:11px;font-weight:700;letter-spacing:.03em}
-.ok{background:#0f2e1c;color:#86efac}.warn{background:#3a2a0b;color:#fcd34d}.bad{background:#3b1218;color:#fca5a5}.info{background:#16254a;color:#a5b4fc}
-pre{background:#0a0f1e;border:1px solid var(--line);border-radius:10px;padding:12px;overflow:auto;font:12.5px/1.45 var(--mono);max-height:520px;margin:8px 0}
-.diff .a{color:#86efac}.diff .r{color:#fca5a5}.diff .h{color:#93c5fd}
-.steps{position:relative;margin-left:8px;border-left:2px solid var(--line);padding-left:18px}
-.step{position:relative;margin-bottom:14px;animation:fade .3s}.step:before{content:"";position:absolute;left:-25px;top:6px;width:12px;height:12px;border-radius:50%;background:var(--mut)}
-.step.ok:before{background:var(--ok)}.step.bad:before{background:var(--bad)}.step.run2:before{background:var(--acc)}.step.warn:before{background:var(--warn,#d9a400)}.step.run:before{background:var(--acc);box-shadow:0 0 0 0 var(--acc);animation:pulse 1.2s infinite}
-.step{background:transparent;color:var(--tx)}
-@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(91,140,255,.6)}100%{box-shadow:0 0 0 10px rgba(91,140,255,0)}}@keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1}}
-.f{margin:4px 0;font-size:13px}.mut{color:var(--mut)}table{border-collapse:collapse;width:100%;font:12.5px var(--mono);margin-top:8px}td,th{border-bottom:1px solid var(--line);padding:5px 8px;text-align:left}th{color:var(--mut);font-weight:600}
-.hide{display:none!important}details summary{cursor:pointer;color:var(--mut);margin-top:6px}
-.doc .r{display:grid;grid-template-columns:18px 118px minmax(0,1fr);column-gap:10px;align-items:start;padding:8px 0;border-bottom:1px solid var(--line);font-size:12.5px;line-height:1.45}.doc .r:last-child{border:0}
-.doc .k{color:var(--mut);font-weight:600}.doc .v{min-width:0;overflow-wrap:anywhere;color:var(--tx)}.doc .v code{font:11.5px var(--mono);color:#c7d2fe;background:#0a0f1e;border:1px solid var(--line);border-radius:6px;padding:1px 6px;display:inline-block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:bottom}
-.dot{width:18px;height:18px;flex:none;align-self:start;margin-top:1px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;line-height:1}
-.dot.ok{background:#14532d;color:#86efac}.dot.warn{background:#4a330a;color:#fcd34d}.dot.info{background:#1f2a44;color:#94a3b8}.dot.error{background:#4c1219;color:#fca5a5}
-.doc .sum{font-size:11px;font-weight:600;color:var(--mut)}#pmeta{color:var(--tx)}
-.drop{border:2px dashed var(--line);border-radius:12px;padding:18px;text-align:center;color:var(--mut);cursor:pointer}.drop.over{border-color:var(--acc);color:var(--tx)}
-.thumbs img{max-height:90px;border-radius:8px;margin:6px 6px 0 0;border:1px solid var(--line)}
-.toast{position:fixed;bottom:20px;right:20px;background:var(--panel2);border:1px solid var(--line);padding:10px 16px;border-radius:10px;opacity:0;transition:.3s;z-index:20}.toast.on{opacity:1}
-dialog{background:var(--panel);color:var(--tx);border:1px solid var(--line);border-radius:14px;max-width:460px}dialog::backdrop{background:rgba(0,0,0,.6)}
-.ex{font-size:12px;color:var(--acc);cursor:pointer;margin-right:12px}
-#dout table{width:100%;border-collapse:collapse;font-size:12px}#dout th{text-align:left;color:var(--mut,#888);font-weight:500;padding:4px 6px;border-bottom:1px solid #3334}#dout td{padding:4px 6px;border-bottom:1px solid #2222;vertical-align:top;font-family:ui-monospace,monospace}#dout button.p{margin-top:10px}
-.bgrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(380px,40%);gap:18px}@media(max-width:1100px){.bgrid{grid-template-columns:1fr}}
-.ascore{display:flex;gap:16px;align-items:center}.score{font-weight:800;border-radius:14px;padding:10px 14px;min-width:86px;text-align:center}.score b{font-size:30px}.score span{font-size:12px;opacity:.7}
-.ameta{flex:1}.ameta .ttl{font-weight:700}.afind{padding:10px 0;border-bottom:1px solid var(--line)}.afind:last-child{border:0}.afind .row{justify-content:flex-start;gap:8px}.afind .row>*{flex:0 0 auto}
-.rule{font:12px var(--mono);color:#c7d2fe}.loc{font:12px var(--mono);color:var(--mut)}.pages .ex{margin-right:6px}.empty{color:var(--mut);text-align:center;padding:28px 10px}
-a.btn{text-decoration:none;display:inline-block}a.btn.p{background:linear-gradient(90deg,var(--acc),var(--acc2));color:#fff;border-radius:10px;padding:9px 16px;font-weight:700}.prose{white-space:pre-wrap;font-size:13px}
-</style>
+<title>ChipLlama · PIC copilot</title><link rel="preload" href="/fonts/inter-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/static/app.css">
 <script src="/vendor/blockly.min.js"></script><script src="/vendor/blockly.en.js"></script><script src="/static/blocks.js"></script><script src="/static/audit.js"></script></head><body>
-<header><div><div class="logo">🦙 <span>ChipLlama</span></div><div class="sub">PIC24FJ256GB110 copilot · Muse Spark · verified register code</div></div>
-<nav><button id="t-gen" class="on" onclick="tab('gen')">Generate</button><button id="t-blk" onclick="tab('blk')">Blocks</button><button id="t-aud" onclick="tab('aud')">Audit</button><button id="t-dbg" onclick="tab('dbg')">Reverse debug</button><button id="t-set" onclick="tab('set')">Settings</button></nav>
-<div id="chips"></div></header>
+<div class="app"><aside class="side">
+<div class="brand"><div class="mark">🦙</div><div><div class="logo">ChipLlama</div><div class="sub">PIC copilot · Muse Spark</div></div></div>
+<nav><div class="ngrp">Build</div><button id="t-gen" class="on" onclick="tab('gen')"><svg viewBox="0 0 24 24"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg><span>Generate</span><kbd>⌃↵</kbd></button><button id="t-blk" class="" onclick="tab('blk')"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="8" rx="2"/><rect x="13" y="13" width="8" height="8" rx="2"/><path d="M13 7h4a2 2 0 0 1 2 2v2M11 17H7a2 2 0 0 1-2-2v-2"/></svg><span>Blocks</span></button><div class="ngrp">Analyse</div><button id="t-aud" class="" onclick="tab('aud')"><svg viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6z"/><path d="M8.5 12l2.5 2.5 4.5-5"/></svg><span>Audit</span></button><button id="t-dbg" class="" onclick="tab('dbg')"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M20.5 20.5L16 16M8.5 11h5M11 8.5v5"/></svg><span>Reverse debug</span></button><div class="ngrp">Plan</div><button id="t-pin" class="" onclick="tab('pin')"><svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4"/></svg><span>Pin planner</span></button><div class="nsp"></div><button id="t-set" class="" onclick="tab('set')"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg><span>Settings</span></button></nav>
+<div class="sfoot"><div class="mut">Every answer is checked against the datasheet and the compiler.</div><div class="kbdhint"><kbd>Ctrl</kbd>+<kbd>Enter</kbd> run current tab</div></div>
+</aside><div class="shell">
+<header class="top"><div><h1 id="ptitle">Generate</h1><div class="sub" id="psub"></div></div><div id="chips"></div></header>
 <main>
 <!-- ================= GENERATE ================= -->
 <section id="p-gen"><div class="grid"><div>
  <div class="card"><h3>What should the chip do?</h3>
   <textarea id="req">Timer1 interrupt every 10 ms, priority 5</textarea>
-  <div style="margin:8px 0"><span class="ex" onclick="ex(this)">UART1 115200 on RP10 TX / RP17 RX, print hello every 1 s</span><span class="ex" onclick="ex(this)">Timer1 10 ms toggle RA0</span><span class="ex" onclick="ex(this)">Timer1 interrupt every 10 ms, priority 5</span><span class="ex" onclick="ex(this)">Timer2 polling, 250 us period</span><span class="ex" onclick="ex(this)">32-bit Timer2/3 interrupt every 2 seconds</span><span class="ex" onclick="ex(this)">Timer4 interrupt every 1 ms, toggle RA0</span><span class="ex" onclick="ex(this)">32-bit Timer4/5 interrupt every 10 s</span><span class="ex" onclick="ex(this)">Timer1 gated mode: measure pulse width up to 20 ms, gate on RP7</span><span class="ex" onclick="ex(this)">Blink an LED on RA0 every 500 ms using Timer1 interrupt</span><span class="ex" onclick="ex(this)">RA0 output (LED), RD6 input button with pull-up and change notification interrupt on RD6, priority 4</span><span class="ex" onclick="ex(this)">External interrupt INT1 on RP10, falling edge, priority 6</span><span class="ex" onclick="ex(this)">Sample AN5 continuously at 10 kHz with ADC interrupt priority 3</span><span class="ex" onclick="ex(this)">Scan AN0, AN1 and AN4 triggered by Timer3 at 1 kHz</span><span class="ex" onclick="ex(this)">PWM 20 kHz 25% duty on RP2 using OC1</span><span class="ex" onclick="ex(this)">50 Hz servo PWM 7.5% on RD8 with OC3</span><span class="ex" onclick="ex(this)">Measure period on RP10 with IC1 rising edges using Timer2, up to 20 ms, priority 5</span><span class="ex" onclick="ex(this)">SPI1 master 2 MHz mode 3 SCK on RP10 MOSI on RP17 MISO on RP16</span><span class="ex" onclick="ex(this)">I2C1 master 400 kHz, read a sensor at address 0x48</span><span class="ex" onclick="ex(this)">UART2 9600 baud TX on RP10 RX on RP17</span><span class="ex" onclick="ex(this)">RTCC with an alarm every second</span><span class="ex" onclick="ex(this)">CRC-16-CCITT of a buffer</span><span class="ex" onclick="ex(this)">PMP master 8-bit with 2 address lines and chip select CS1</span><span class="ex" onclick="ex(this)">Watchdog 1 s, sleep until it wakes the chip</span><span class="ex" onclick="ex(this)">USB CDC device (config check only)</span><!--more-chips--></div>
+  <div id="exs" class="exs"><span class="ex" onclick="ex(this)">UART1 115200 on RP10 TX / RP17 RX, print hello every 1 s</span><span class="ex" onclick="ex(this)">Timer1 10 ms toggle RA0</span><span class="ex" onclick="ex(this)">Timer1 interrupt every 10 ms, priority 5</span><span class="ex" onclick="ex(this)">Timer2 polling, 250 us period</span><span class="ex" onclick="ex(this)">32-bit Timer2/3 interrupt every 2 seconds</span><span class="ex" onclick="ex(this)">Timer4 interrupt every 1 ms, toggle RA0</span><span class="ex" onclick="ex(this)">32-bit Timer4/5 interrupt every 10 s</span><span class="ex" onclick="ex(this)">Timer1 gated mode: measure pulse width up to 20 ms, gate on RP7</span><span class="ex" onclick="ex(this)">Blink an LED on RA0 every 500 ms using Timer1 interrupt</span><span class="ex" onclick="ex(this)">RA0 output (LED), RD6 input button with pull-up and change notification interrupt on RD6, priority 4</span><span class="ex" onclick="ex(this)">External interrupt INT1 on RP10, falling edge, priority 6</span><span class="ex" onclick="ex(this)">Sample AN5 continuously at 10 kHz with ADC interrupt priority 3</span><span class="ex" onclick="ex(this)">Scan AN0, AN1 and AN4 triggered by Timer3 at 1 kHz</span><span class="ex" onclick="ex(this)">PWM 20 kHz 25% duty on RP2 using OC1</span><span class="ex" onclick="ex(this)">50 Hz servo PWM 7.5% on RD8 with OC3</span><span class="ex" onclick="ex(this)">Measure period on RP10 with IC1 rising edges using Timer2, up to 20 ms, priority 5</span><span class="ex" onclick="ex(this)">SPI1 master 2 MHz mode 3 SCK on RP10 MOSI on RP17 MISO on RP16</span><span class="ex" onclick="ex(this)">I2C1 master 400 kHz, read a sensor at address 0x48</span><span class="ex" onclick="ex(this)">UART2 9600 baud TX on RP10 RX on RP17</span><span class="ex" onclick="ex(this)">RTCC with an alarm every second</span><span class="ex" onclick="ex(this)">CRC-16-CCITT of a buffer</span><span class="ex" onclick="ex(this)">PMP master 8-bit with 2 address lines and chip select CS1</span><span class="ex" onclick="ex(this)">Watchdog 1 s, sleep until it wakes the chip</span><span class="ex" onclick="ex(this)">USB CDC device (config check only)</span><!--more-chips--></div><button class="exmore" onclick="this.previousElementSibling.classList.toggle('open');this.textContent=this.previousElementSibling.classList.contains('open')?'Show fewer':'Show all examples'">Show all examples</button>
   <div class="row"><button class="p" id="gen" onclick="generate()" style="flex:0 0 auto">Generate &amp; verify</button>
    <label style="flex:0 0 auto;margin:0"><input type="checkbox" id="imgs" checked style="width:auto"> datasheet page images</label>
    <label style="flex:0 0 auto;margin:0" title="Deliberately corrupts the model's first attempt so you can watch the agent detect and fix it. Clearly labelled in the timeline."><input type="checkbox" id="fault" style="width:auto"> Demo: self-correction (inject fault)</label><span class="mut" id="genmeta" style="flex:2"></span></div>
  </div>
  <div id="prog" class="card hide"><h3>Agent progress</h3><div class="steps" id="steps"></div></div>
  <div id="final" class="card hide"></div>
+ <div id="gempty" class="card emptyc"><div class="eico">✦</div><div class="et">Describe what the chip should do</div><div class="mut">Muse writes register-level C, then ChipLlama checks every register against the datasheet and compiles it with XC16. Pick an example above or press <kbd>Ctrl</kbd>+<kbd>Enter</kbd>.</div></div>
 </div><aside>
  <div class="card doc"><h3><span>Doctor <span id="docsum" class="sum"></span></span><button class="s" style="padding:3px 10px;font-size:11px;text-transform:none;letter-spacing:0" onclick="loadDoctor()">↻ refresh</button></h3><div id="doctor" class="mut">loading…</div></div>
  <div class="card"><h3>Board configuration bits</h3><div id="pmeta" class="mut f"></div><details><summary>show #pragma config block</summary><pre id="pragmas"></pre></details></div>
@@ -90,7 +47,7 @@ a.btn{text-decoration:none;display:inline-block}a.btn.p{background:linear-gradie
    <label style="flex:0 0 auto;margin:0"><input type="checkbox" id="aexplain" style="width:auto"> Muse review</label>
    <label style="flex:0 0 auto;margin:0"><input type="checkbox" id="acompile" style="width:auto"> compile patched files</label><span class="mut" id="ameta" style="flex:2"></span></div></div>
  <div class="card"><h3>What the rules check</h3><div class="f mut">Config words (WDT/ClrWdt, JTAG on RA0/1/4/5, ICS pair, clock source) · FCY vs the real clock · PPS mapping for UART/SPI · AD1PCFG analog pins · TRIS vs LAT/PORT · interrupt vector names, flag clearing, auto_psv · enabled IRQs without an ISR · volatile ISR variables. Every finding cites DS39897C pages. Fixes are a patched <b>copy</b>; your files are never edited.</div></div>
-</div><aside id="aout"><div class="card"><div class="empty">Load a buggy example from the menu above, or drop your project, to get a score and fixes.</div></div></aside></div></section>
+</div><aside id="aout"><div class="card emptyc"><div class="eico">◎</div><div class="et">No audit yet</div><div class="mut">Load a buggy example from the menu, or drop your project, to get a score, findings with datasheet pages and a patched copy.</div></div></aside></div></section>
 <!-- ================= DEBUG ================= -->
 <section id="p-dbg" class="hide"><div class="grid"><div>
  <div class="card"><h3><span>Image → diagnosis <span class="sum">Muse Spark vision + deterministic decode</span></span><button class="s" style="padding:3px 10px;font-size:11px;text-transform:none;letter-spacing:0" onclick="clearShots()">clear</button></h3>
@@ -107,7 +64,9 @@ a.btn{text-decoration:none;display:inline-block}a.btn.p{background:linear-gradie
    <div style="flex:0 0 120px"><select id="dpasses" title="independent vision reads"><option value="">passes (Settings)</option><option>1</option><option>2</option><option>3</option></select></div>
    <label style="flex:0 0 auto;margin:0"><input type="checkbox" id="usem" checked style="width:auto"> explain with Muse</label><span class="mut" id="dbgmeta" style="flex:2"></span></div></div>
  <div id="dsteps" class="card hide"><h3>Pipeline</h3><div class="steps" id="dsteplist"></div></div>
-</div><aside><div id="dout"></div></aside></div></section>
+</div><aside><div id="dout"><div class="card emptyc"><div class="eico">⌕</div><div class="et">No diagnosis yet</div><div class="mut">Drop an SFR/Watch screenshot, a scope capture or a terminal, or try a demo image. The verdict, decoded registers and a fix diff appear here.</div></div></div></aside></div></section>
+<!-- ================= PIN PLANNER ================= -->
+<section id="p-pin" class="hide"><div id="pinroot"><div class="card emptyc"><div class="eico">▦</div><div class="et">Pin planner</div><div class="mut">Loading…</div></div></div></section>
 <!-- ================= SETTINGS ================= -->
 <section id="p-set" class="hide"><div class="grid"><div>
  <div class="card"><h3>Target &amp; board</h3>
@@ -134,131 +93,7 @@ a.btn{text-decoration:none;display:inline-block}a.btn.p{background:linear-gradie
  </div>
  <div class="row"><button class="p" style="flex:0 0 auto" onclick="saveSettings()">Save settings</button><span class="mut" id="sfile" style="flex:3"></span></div>
 </div><aside><div class="card"><h3>Notes</h3><div class="f mut">Saved to a local <b>settings.json</b> (not .env). API keys are never sent back to the browser - only "set / not set". Keys are stored in plain text in that file on this PC, so keep it private. The dashboard only listens on 127.0.0.1.</div><div class="f mut">ICS must match the PGECx/PGEDx pins your PICkit 5 is wired to on your board.</div></div></aside></div></section>
-</main>
+</main></div></div>
 <dialog id="dlg"><h3 style="margin-top:0">Flash to board?</h3><p id="dlgtxt"></p><div class="row"><button class="s" onclick="dlg.close('no')">Cancel</button><button class="d" onclick="dlg.close('yes')">Yes, program the PIC</button></div></dialog>
-<div class="toast" id="toast"></div>
-<script>
-const $=id=>document.getElementById(id);let SET=null,LAST=null,FILES=[],FIX_CONTEXT='';
-function el(t,c,x){const e=document.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e}
-function pill(t,c){return el('span','pill '+c,t)}const sevc={error:'bad',warning:'warn',info:'info'};
-function toast(m){const t=$('toast');t.textContent=m;t.classList.add('on');setTimeout(()=>t.classList.remove('on'),2600)}
-function tab(n){for(const k of['gen','blk','aud','dbg','set']){$('p-'+k).classList.toggle('hide',k!=n);$('t-'+k).classList.toggle('on',k==n)}if(n==='aud'&&window.Audit&&!window.AUDIT_INIT){window.AUDIT_INIT=1;Audit.init()}if(n==='blk'&&window.Blocks){Blocks.init().then(()=>Blocks.resize())}}
-function ex(e){$('req').value=e.textContent}
-async function api(u,o){const r=await fetch(u,o);const ct=r.headers.get('content-type')||'';const j=ct.includes('json')?await r.json():null;if(!r.ok)throw new Error((j&&j.detail)||r.statusText);return j}
-const post=(u,b)=>api(u,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)});
-async function chips(){const s=await api('/api/status');const c=$('chips');c.replaceChildren(pill(s.device,'info'),pill(s.backend+(((s.backend=='meta'?s.meta_key_set:s.baseten_key_set))?'':' · no key'),(s.backend=='meta'?s.meta_key_set:s.baseten_key_set)?'ok':'warn'),pill((s.compiler||'xc16')+' '+(s.xc16_gcc?'ok':'missing'),s.xc16_gcc?'ok':'warn'),pill('ICS '+s.ics,'info'),pill('flash '+(s.flash_enabled?'ON':'off'),s.flash_enabled?'warn':'info'))}
-const ICON={ok:'✓',warn:'!',info:'i',error:'✕'};
-function tail(p){const t=String(p).split(/[\\/]/).filter(Boolean);return t.length>2?'…/'+t.slice(-2).join('/'):p}
-async function loadDoctor(){const d=$('doctor');try{const j=await api('/api/doctor');const n={ok:0,warn:0,info:0,error:0};
-d.replaceChildren(...j.rows.map(r=>{const lv=r.level||(r.ok?'ok':'warn');n[lv]=(n[lv]||0)+1;const x=el('div','r');const dot=el('span','dot '+lv,ICON[lv]);dot.title=lv;const v=el('div','v');
-if(r.path&&r.value.includes(r.path)){const [pre,post]=r.value.split(r.path);if(pre)v.append(pre);const c=el('code','',tail(r.path));c.title=r.path;v.append(c);if(post)v.append(post)}else v.textContent=r.value;
-x.append(dot,el('span','k',r.label),v);return x}));$('docsum').textContent=n.error?`· ${n.error} to fix`:n.warn?`· ${n.warn} warning${n.warn>1?'s':''}`:'· all good'}catch(e){d.textContent=e.message}
- try{const p=await api('/api/pragmas');$('pmeta').textContent=p.title;$('pragmas').textContent=p.text+(p.clock_code.length?'\n\n/* first in main() */\n'+p.clock_code.join('\n'):'')}catch(e){$('pmeta').textContent=e.message}}
-// ---------- generate (streamed)
-function step(cls,title){const s=el('div','step '+cls);s.append(el('b','',title));$('steps').append(s);s.scrollIntoView({block:'nearest',behavior:'smooth'});return s}
-function diffPre(t){const p=el('pre','diff');t.split('\n').forEach(l=>{p.append(el('span',l.startsWith('+')&&!l.startsWith('+++')?'a':l.startsWith('-')&&!l.startsWith('---')?'r':l.startsWith('@@')?'h':'',l+'\n'))});return p}
-async function generate(){const bctx=window.BLOCKS_CONTEXT||'';window.BLOCKS_CONTEXT='';const ctx=bctx||FIX_CONTEXT;const ckind=bctx?'blocks':'debug';FIX_CONTEXT='';const b=$('gen');b.disabled=true;b.textContent='Working…';$('prog').classList.remove('hide');$('final').classList.add('hide');$('steps').replaceChildren();let running=null;const t0=Date.now();
- try{const r=await fetch('/api/generate/stream',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({request:$('req').value,use_images:$('imgs').checked,inject_fault:$('fault').checked,context:ctx,context_kind:ckind})});
-  if(!r.ok){const j=await r.json().catch(()=>({}));throw new Error(j.detail||r.statusText)}
-  const rd=r.body.getReader(),dec=new TextDecoder();let buf='';
-  for(;;){const{value,done}=await rd.read();if(done)break;buf+=dec.decode(value,{stream:true});let i;while((i=buf.indexOf('\n'))>=0){const line=buf.slice(0,i);buf=buf.slice(i+1);if(line.trim())running=onEvent(JSON.parse(line),running)}}
- }catch(e){step('bad','Error').append(el('div','f',e.message))}
- b.disabled=false;b.textContent='Generate & verify';$('genmeta').textContent=((Date.now()-t0)/1000).toFixed(1)+' s'}
-function onEvent(ev,running){const d=ev.data;
- if(ev.event=='spec'){const s=d.spec,r=d.reference,u=d.uart;const x=step('ok','Parsed request');
-  if(s){x.append(el('div','f',`Timer${s.bits32?'2/3 (32-bit)':s.timer} · ${s.period_s?(s.period_s*1e3).toPrecision(6)+' ms':'period ?'} · Fosc ${s.fosc_hz/1e6} MHz → Fcy ${s.fosc_hz/2e6} MHz · ${s.interrupt?'interrupt':'polling'}`),el('div','f mut',`Reference: TCKPS=${r.tckps} (1:${r.prescale}), PR=${r.period_reg}, ${r.error_ppm.toFixed(0)} ppm`));(s.notes||[]).forEach(n=>x.append(el('div','f mut','· '+n)))}
-  if(u){const b=u.solution;x.append(el('div','f',`UART${u.uart} · ${u.baud} baud · TX ${u.tx_rp!=null?'RP'+u.tx_rp+' ('+u.tx_pin+')':'any'} · RX ${u.rx_rp!=null?'RP'+u.rx_rp+' ('+u.rx_pin+')':'any'} · Fcy ${u.fcy/1e6} MHz`),el('div','f mut',`Reference: BRGH=${b.brgh}, U1BRG=${b.brg} → ${Math.round(b.actual)} baud (${b.error_pct.toFixed(2)}%)`));(u.notes||[]).forEach(n=>x.append(el('div','f mut','· '+n)))}
-  if(d.demo_fault_injection){const q=el('div','f');q.append(pill('DEMO','warn'),el('span','',' Fault injection ON: attempt 1 will be corrupted on purpose to show self-correction.'));x.append(q)}
-  return null}
- if(ev.event=='fault'){if(running)running.remove();const x=step('bad',`DEMO fault injection · attempt ${d.n}`);const q=el('div','f');q.append(pill('DEMO','warn'),el('span','',' '+d.description+' (done by ChipLlama, not the model)'));x.append(q);
-  if(d.diff){const dd=el('details');dd.append(el('summary','','what was corrupted'),diffPre(d.diff));dd.open=true;x.append(dd)}return null}
- if(ev.event=='reflect'){const x=step('run2',`Self-correction · reading feedback for attempt ${d.n}`);x.append(el('div','f',`Errors fed back: ${(d.errors||[]).join(', ')||'compile errors'}`));
-  if(d.pages&&d.pages.length){const q=el('div','f mut');q.append(document.createTextNode('Re-reading datasheet '+d.pages.map(p=>'p.'+p).join(', ')+(d.images_attached&&d.images_attached.length?' (page images sent to the model)':'')+' '));d.pages.forEach(p=>{const a=el('a','','p.'+p+' ');a.href='/api/page/'+p+'.png';a.target='_blank';q.append(a)});x.append(q)}return null}
- if(ev.event=='model_call'){return step('run',`Attempt ${d.n}: asking ${d.backend}…`)}
- if(ev.event=='attempt'){if(running)running.remove();if(d.error){step('bad','Attempt '+d.n+': '+d.error);return null}
-  const ok=d.check.ok&&d.compile.status!=='error';const x=step(ok?'ok':'bad',`Attempt ${d.n} · ${d.seconds}s `);
-  x.append(pill('checker '+(d.check.ok?'pass':'fail'),d.check.ok?'ok':'bad'),document.createTextNode(' '),pill('compile '+d.compile.status,d.compile.status=='ok'?'ok':d.compile.status=='skipped'?'warn':'bad'));
-  d.check.findings.filter(f=>f.severity!='info').forEach(f=>{const q=el('div','f');q.append(pill(f.code,sevc[f.severity]),el('span','',' '+f.message));x.append(q)});
-  const inf=d.check.findings.filter(f=>f.severity=='info');if(inf.length){const de=el('details');de.append(el('summary','',inf.length+' info notes'));inf.forEach(f=>de.append(el('div','f mut',f.code+': '+f.message)));x.append(de)}
-  if(d.compile.output){const de=el('details');de.append(el('summary','','compiler output'),el('pre','',d.compile.output));if(d.compile.status=='error')de.open=true;x.append(de)}
-  const de=el('details');de.append(el('summary','','registers: code vs reference'));const t=el('table');const h=el('tr');['register','code gives','reference'].forEach(k=>h.append(el('th','',k)));t.append(h);
-  Object.keys(d.check.registers).forEach(k=>{const tr=el('tr');tr.append(el('td','',k),el('td','',d.check.registers[k]),el('td','',d.check.expected[k]||''));t.append(tr)});de.append(t);x.append(de);
-  if(d.diff){const dd=el('details');dd.append(el('summary','',d.n>1?'fix applied by the agent (diff vs previous attempt)':'diff vs previous attempt'),diffPre(d.diff));dd.open=true;x.append(dd)}
-  if(d.injected_fault){const q=el('div','f');q.append(pill('DEMO','warn'),el('span','mut',' this attempt contains an injected fault'));x.insertBefore(q,x.children[1]||null)}
-  return null}
- if(ev.event=='done'){if(running)running.remove();step(d.status=='verified'?'ok':'bad',d.status=='verified'?'VERIFIED':'FAILED'+(d.error?': '+d.error:''));showFinal(d);return null}return running}
-function showFinal(j){LAST=j;const f=$('final');f.classList.remove('hide');f.replaceChildren();
- const h=el('div','row');h.append(el('h3','',''),);f.append(pill(j.status.toUpperCase(),j.status=='verified'?'ok':'bad'),el('span','mut',' '+(j.verification_level||'')+(j.error?' · '+j.error:'')));
- if(!j.code)return;f.append(el('pre','',j.code));
- const r=el('div','row');const bt=(t,c,fn)=>{const b=el('button',c,t);b.style.flex='0 0 auto';b.onclick=fn;r.append(b)};
- bt('Copy','s',()=>{navigator.clipboard.writeText(j.code);toast('Copied')});
- bt('Download main.c','s',()=>dl(new Blob([j.code],{type:'text/plain'}),'main.c'));
- bt('Export MPLAB X project','p',async()=>{const x=await fetch('/api/export',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code:j.code,request:j.request})});dl(await x.blob(),'ChipLlamaProject.zip')});
- bt('Flash to board','d',flashIt);f.append(r);r.append(el('span','mut',''));}
-function dl(b,n){const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=n;a.click()}
-async function flashIt(){const s=SET&&SET.settings;if(!s||!s.enable_flash){toast('Flashing is off - enable it in Settings first');return}
- $('dlgtxt').textContent=`This builds main.c and programs ${s.device} with ${s.ipecmd_tool}${s.ipecmd_power_target?' (PICkit powers the board)':''}. ICS is ${s.ics}. The chip's current firmware will be erased.`;
- $('dlg').returnValue='';$('dlg').showModal();$('dlg').onclose=async()=>{if($('dlg').returnValue!=='yes')return;toast('Flashing…');
-  try{const j=await post('/api/flash',{code:LAST.code,confirm:true});const x=step(j.status=='ok'?'ok':'bad','Flash: '+j.status);if(j.reason)x.append(el('div','f',j.reason));if(j.output)x.append(el('pre','',j.output));if(j.compile&&j.compile.output)x.append(el('pre','',j.compile.output))}catch(e){toast(e.message)}}}
-// ---------- debug
-const drop=$('drop');drop.onclick=()=>$('shots').click();$('shots').onchange=e=>addFiles(e.target.files);
-drop.ondragover=e=>{e.preventDefault();drop.classList.add('over')};drop.ondragleave=()=>drop.classList.remove('over');drop.ondrop=e=>{e.preventDefault();drop.classList.remove('over');addFiles(e.dataTransfer.files)};
-document.addEventListener('paste',e=>{if($('p-dbg').classList.contains('hide'))return;const fs=[...e.clipboardData.items].filter(i=>i.type.startsWith('image/')).map(i=>i.getAsFile());if(fs.length){addFiles(fs);e.preventDefault();toast('image pasted')}});
-let EXTRACTION='';
-function addFiles(fs){for(const f of fs){if(!f.type.startsWith('image/'))continue;FILES.push(f);const i=el('img');i.src=URL.createObjectURL(f);i.title=f.name||'pasted';i.onclick=()=>window.open(i.src);$('thumbs').append(i)}EXTRACTION='';$('dbgmeta').textContent=FILES.length+' image(s)'}
-function clearShots(){FILES=[];EXTRACTION='';$('thumbs').replaceChildren();$('dbgmeta').textContent=''}
-async function loadEx(n){clearShots();const b=await (await fetch('/api/examples/debug/'+n+'.png')).blob();addFiles([new File([b],n+'.png',{type:'image/png'})]);
- const m=await (await fetch('/api/examples/debug/'+n+'.json')).json();$('intent').value=m.intent||'';$('dcode').value=m.code||'';EXTRACTION='';$('dbgmeta').textContent='demo image loaded – Muse will read it'}
-function dstep(cls,title){const x=el('div','step '+cls);x.append(el('b','',title));$('dsteplist').append(x);return x}
-function renderDiff(t){const p=el('pre','diff');t.split('\n').forEach(l=>{p.append(el('span',l.startsWith('+')&&!l.startsWith('+++')?'a':l.startsWith('-')&&!l.startsWith('---')?'r':l.startsWith('@@')?'h':'',l+'\n'))});return p}
-const stc={ok:'ok',bad:'bad',warn:'warn',info:'info'};
-async function dbg(){const o=$('dout'),b=$('dbgb');
- if(!FILES.length){return legacyDbg()}
- const fd=new FormData();fd.append('intent',$('intent').value);fd.append('code',$('dcode').value);fd.append('explain',$('usem').checked);if($('fosc').value)fd.append('fosc_mhz',$('fosc').value);if($('ddev').value)fd.append('device',$('ddev').value.trim());if($('dpasses').value)fd.append('passes',$('dpasses').value);
- FILES.forEach(f=>fd.append('images',f,f.name||'paste.png'));
- b.disabled=true;$('dsteps').classList.remove('hide');$('dsteplist').replaceChildren();o.replaceChildren();const t0=Date.now();
- const s1=dstep('run','1 · Muse Spark reads the image → strict JSON'+($('dpasses').value!=='1'?' + independent verification pass':''));
- try{const j=await api('/api/debug/vision',{method:'POST',body:fd});s1.className='step ok';
-  const e=j.extraction;s1.append(el('div','f mut',`kind: ${e.kind} · confidence ${(e.confidence||0).toFixed(2)}`+(e.repaired&&e.repaired.length?' · repaired: '+e.repaired.join('; '):'')));
-  const ex=el('details');ex.append(el('summary','','extracted JSON'),el('pre','',JSON.stringify({registers:e.registers,scope:e.scope,serial:e.serial},null,1)));s1.append(ex);
-  (e.passes||[]).slice(1).forEach(p=>{const d=p.disagree&&Object.keys(p.disagree).length,x=dstep(p.error?'warn':d||p.reads?'warn':'ok',`1.${p.pass} · pass ${p.pass}: ${p.what}`);x.append(el('div','f mut',p.error||(p.reads?'reads: '+Object.entries(p.reads).map(([k,v])=>k+' '+v.join(' / ')).join(', '):d?'disagree: '+Object.entries(p.disagree).map(([k,v])=>k+' '+v.join(' vs ')).join(', '):'all '+(p.agree||[]).length+' values agree')+(p.voted?' · vote: '+Object.entries(p.voted).map(([k,v])=>k+'='+v).join(', '):'')))});
-  Object.entries(e.disputed||{}).forEach(([k,v])=>{const x=dstep('warn','⚠ '+k+' read as '+v.join(' or '));x.append(el('div','f mut','low confidence - not used as sole evidence for a bug'))});
-  const s2=dstep(j.findings.some(r=>r.status=='bad')?'bad':j.findings.some(r=>r.status=='warn')?'warn':'ok','2 · Deterministic decode (chipdb + timer/baud math)');s2.append(el('div','f mut',`${j.findings.length} rows · clock: ${j.clock.source||''}`));
-  const s3=dstep(j.explanation?'ok':'run2','3 · Grounded explanation'+(j.explanation?' (Muse Spark)':' (rules only)'));
-  const bad=j.verdict.startsWith('BUG'),unc=j.verdict.startsWith('UNCERTAIN'),okv=j.verdict.startsWith('OK');const v=el('div','card');v.append(el('h3','',bad?'Bug found':unc?'Uncertain - needs more evidence':'Verdict'));const vv=el('div','f');vv.append(pill(bad?'BUG':j.verdict.split(':')[0],bad?'bad':unc?'warn':okv?'ok':'info'),el('span','',' '+j.root_cause));v.append(vv);
-  [...j.causes,...(j.uncertain||[]),...(j.explained||[])].filter(c=>c!==j.root_cause).forEach(c=>v.append(el('div','f mut','also: '+c)));
-  if(j.pages.length){const pg=el('div','f mut','datasheet: ');j.pages.forEach(p=>{const a=el('a','',' p.'+p+' ');a.href='/api/page/'+p+'.png';a.target='_blank';a.style.color='var(--acc)';pg.append(a)});v.append(pg)}
-  o.append(v);
-  const tc=el('div','card');tc.append(el('h3','','Findings'));const tb=el('table');const hr=el('tr');['Register','Value','Decoded','Expected',''].forEach(h=>hr.append(el('th','',h)));tb.append(hr);
-  j.findings.forEach(r=>{const tr=el('tr');tr.append(el('td','',r.register),el('td','',r.value),el('td','',r.decoded),el('td','',r.expected));const td=el('td');td.append(pill(r.status.toUpperCase(),stc[r.status]||'info'));tr.append(td);if(r.note)tr.title=r.note;tb.append(tr)});tc.append(tb);o.append(tc);
-  if(j.fix_diff){const fc=el('div','card');fc.append(el('h3','','Fix'),renderDiff(j.fix_diff));
-   if(j.regenerate_context){const bt=el('button','p','Apply fix → regenerate & verify');bt.onclick=()=>applyFix(j);fc.append(bt)}o.append(fc)}
-  else if(j.regenerate_context){const fc=el('div','card');fc.append(el('h3','','Fix'));const bt=el('button','p','Apply fix → regenerate & verify');bt.onclick=()=>applyFix(j);fc.append(bt);o.append(fc)}
-  if(j.explanation){const ec=el('div','card');ec.append(el('h3','','Muse Spark explanation'),el('pre','',j.explanation));o.append(ec)}
-  (j.notes||[]).forEach(n=>o.append(el('div','f mut','note: '+n)));
-  $('dbgmeta').textContent=`done in ${((Date.now()-t0)/1000).toFixed(1)} s`}
- catch(e){s1.className='step bad';s1.append(el('div','f',e.message));o.replaceChildren(el('div','card','Error: '+e.message))}b.disabled=false}
-function applyFix(j){tab('gen');$('req').value=j.regenerate_request||$('intent').value;FIX_CONTEXT=j.regenerate_context;$('fault').checked=false;toast('Regenerating with the reverse-debug fix…');generate()}
-async function legacyDbg(){const fd=new FormData();fd.append('dump',$('dump').value);fd.append('symptom',$('sym').value||$('intent').value);fd.append('code',$('dcode').value);
- if($('fosc').value)fd.append('fosc_mhz',$('fosc').value);if($('exp').value)fd.append('expected_period_ms',$('exp').value);fd.append('use_model',$('usem').checked);
- const o=$('dout'),b=$('dbgb');b.disabled=true;o.replaceChildren(el('div','card','Analysing…'));
- try{const j=await api('/api/debug',{method:'POST',body:fd});o.replaceChildren();
-  const f=el('div','card');f.append(el('h3','','Findings'));j.findings.forEach(x=>{const d=el('div','f');d.append(pill(x.severity,sevc[x.severity]||'info'),el('span','',' '+x.message));f.append(d)});if(!j.findings.length)f.append(el('div','f mut','no rule findings'));o.append(f);
-  if(j.explanation){const e=el('div','card');e.append(el('h3','','Muse explanation'),el('pre','',j.explanation));o.append(e)}
-  const c=el('div','card');c.append(el('h3','','Decoded registers'));j.decoded.forEach(d=>c.append(el('div','f',`${d.register} = ${d.value}  `+Object.entries(d.fields).map(([k,v])=>k+'='+v).join(' '))));o.append(c);
-  (j.notes||[]).forEach(n=>o.append(el('div','f mut','note: '+n)))}catch(e){o.replaceChildren(el('div','card','Error: '+e.message))}b.disabled=false}
-// ---------- settings
-const FIELDS=['device','ics','clock_profile','crystal_hz','backend','max_iters','max_tokens','vision_passes','meta_model','meta_reasoning_effort','baseten_model','baseten_reasoning_effort','xc16_gcc','xc8_cc','xc32_gcc','xc_dsc_gcc','dspic_compiler','mplab_packs_dir','ipecmd_path','ipecmd_tool','ipecmd_serial','ipecmd_power_target','enable_flash','datasheet_pdf'];
-function opts(id,list){const s=$('s-'+id);s.replaceChildren(...list.map(o=>{const x=el('option','',o.title||o);x.value=o.key||o;return x}))}
-function keyPill(id,on){const p=$(id);p.className='pill '+(on?'ok':'warn');p.textContent=on?'set':'not set'}
-async function loadSettings(){SET=await api('/api/settings');const o=SET.options;opts('ics',o.ics);opts('clock_profile',o.clock_profile);opts('backend',o.backend);opts('ipecmd_tool',o.ipecmd_tool);opts('meta_reasoning_effort',o.reasoning_effort);
- const s=SET.settings;FIELDS.forEach(k=>{$('s-'+k).value=String(s[k])});keyPill('k-meta',s.meta_api_key_set);keyPill('k-baseten',s.baseten_api_key_set);$('s-meta_api_key').value='';$('s-baseten_api_key').value='';$('sfile').textContent='File: '+SET.file;devInfo()}
-let DEVT=null;function devSearch(){clearTimeout(DEVT);DEVT=setTimeout(async()=>{const q=$('s-device').value.trim();const j=await api('/api/devices?limit=60&q='+encodeURIComponent(q));$('devlist').replaceChildren(...j.devices.map(d=>{const o=document.createElement('option');o.value=d.name;o.label=d.family+' · '+d.compiler.toUpperCase();return o}));if(!j.roots.length)$('devinfo').textContent='No MPLAB X packs found - set the packs folder below.'},250)}
-async function devInfo(){const n=$('s-device').value.trim();if(!n)return;try{const r=await fetch('/api/device?name='+encodeURIComponent(n));if(!r.ok){$('devinfo').textContent='No device data for '+n+' (check packs folder)';return}const d=await r.json();$('devinfo').textContent=d.family+' · '+d.compiler.toUpperCase()+' · '+d.settings+' config settings · '+d.sfrs+' SFRs · '+(d.source=='built-in'?'built-in data':d.source)}catch(e){}}
-async function saveSettings(){const u={};FIELDS.forEach(k=>{let v=$('s-'+k).value;if(v==='true')v=true;else if(v==='false')v=false;u[k]=v});
- for(const k of['meta_api_key','baseten_api_key']){if($('s-'+k).value)u[k]=$('s-'+k).value}
- try{await post('/api/settings',u);toast('Settings saved');await loadSettings();chips();loadDoctor()}catch(e){toast('Not saved: '+e.message)}}
-async function clearKey(k){if(!confirm('Remove the saved '+k+' from settings.json?'))return;await post('/api/settings',{[k]:'__clear__'});toast('Key cleared');loadSettings();chips()}
-async function detect(){const j=await post('/api/detect',{});const fnd=[];[['xc16_gcc','xc16'],['xc8_cc','xc8'],['xc32_gcc','xc32'],['xc_dsc_gcc','xc-dsc']].forEach(([k,n])=>{if(j[k]&&!$('s-'+k).value){$('s-'+k).value=j[k]}if(j[k])fnd.push(n)});toast(fnd.length?'Found '+fnd.join(', '):'No XC compiler found - enter the path');if(j.ipecmd&&!$('s-ipecmd_path').value)$('s-ipecmd_path').value=j.ipecmd}
-chips();loadDoctor();loadSettings();
-</script></body></html>
+<div class="toasts" id="toasts"></div>
+<script src="/static/app.js"></script></body></html>

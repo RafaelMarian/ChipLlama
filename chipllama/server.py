@@ -96,6 +96,13 @@ def create_app(settings: Settings | None = None, model_factory: Callable | None 
             raise HTTPException(404)
         return FileResponse(f)
 
+    @app.get("/fonts/{name}")
+    def fonts(name: str):
+        f = WEB / "fonts" / name
+        if "/" in name or "\\" in name or f.suffix != ".woff2" or not f.is_file():
+            raise HTTPException(404)
+        return FileResponse(f, media_type="font/woff2", headers={"Cache-Control": "max-age=86400"})
+
     @app.get("/static/{name}")
     def static(name: str):
         f = WEB / name
