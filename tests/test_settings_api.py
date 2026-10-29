@@ -102,3 +102,15 @@ def test_index_served():
     c, _ = client()
     html = c.get("/").text
     assert "Settings" in html and "Reverse debug" in html and "Doctor" in html
+
+
+def test_doctor_levels():
+    from chipllama.config import Settings
+    from chipllama.doctor import doctor
+    s = Settings.from_env()
+    s.backend, s.meta_api_key, s.baseten_api_key, s.enable_flash = "meta", "", "", False
+    rows = {r["label"]: r for r in doctor(s)}
+    assert all(r["level"] in ("ok", "warn", "info", "error") and "ok" in r for r in rows.values())
+    assert rows["BASETEN_API_KEY"]["level"] == "info" and "optional" in rows["BASETEN_API_KEY"]["value"]
+    assert rows["MODEL_API_KEY"]["level"] == "error" and rows["MODEL_API_KEY"]["ok"] is False
+    assert rows["flash"]["level"] == "info"

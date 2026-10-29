@@ -3,16 +3,16 @@
 <title>ChipLlama · PIC24 copilot</title>
 <style>
 :root{--bg:#0b1020;--panel:#121a2e;--panel2:#18223b;--line:#26314f;--tx:#e6ebf5;--mut:#8c97b2;--acc:#5b8cff;--acc2:#8b5cf6;--ok:#22c55e;--warn:#f59e0b;--bad:#ef4444;--mono:ui-monospace,SFMono-Regular,Consolas,Menlo,monospace}
-*{box-sizing:border-box}body{margin:0;background:radial-gradient(1200px 600px at 10% -10%,#1d2b55 0,transparent 60%),var(--bg);color:var(--tx);font:14px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(1200px 600px at 10% -10%,#1d2b55 0,transparent 60%),var(--bg);background-attachment:fixed;min-height:100vh;color:var(--tx);font:14px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
 header{display:flex;align-items:center;gap:16px;padding:14px 24px;border-bottom:1px solid var(--line);background:rgba(11,16,32,.8);backdrop-filter:blur(8px);position:sticky;top:0;z-index:5}
 .logo{font-weight:800;font-size:18px;letter-spacing:.2px}.logo span{background:linear-gradient(90deg,var(--acc),var(--acc2));-webkit-background-clip:text;color:transparent}
 .sub{color:var(--mut);font-size:12px}nav{display:flex;gap:4px;margin-left:24px}
 nav button{background:none;border:0;color:var(--mut);padding:8px 14px;border-radius:8px;cursor:pointer;font-weight:600}
 nav button.on{background:var(--panel2);color:var(--tx)}#chips{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap}
-main{max-width:1280px;margin:0 auto;padding:22px}.grid{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:18px}
-@media(max-width:980px){.grid{grid-template-columns:1fr}}
+main{max-width:1280px;margin:0 auto;padding:22px}.grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(420px,460px);gap:18px}
+@media(max-width:1100px){.grid{grid-template-columns:1fr}}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:14px}
-.card h3{margin:0 0 10px;font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--mut)}
+.card h3{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:-16px -16px 14px;padding:12px 16px;border-bottom:1px solid var(--line);font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--mut)}
 textarea,input,select{width:100%;background:var(--panel2);color:var(--tx);border:1px solid var(--line);border-radius:10px;padding:10px;font:inherit}
 textarea{font-family:var(--mono);font-size:13px}textarea#req{font-family:inherit;font-size:15px;min-height:86px}
 label{display:block;color:var(--mut);font-size:12px;margin:10px 0 4px}
@@ -32,7 +32,11 @@ pre{background:#0a0f1e;border:1px solid var(--line);border-radius:10px;padding:1
 @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(91,140,255,.6)}100%{box-shadow:0 0 0 10px rgba(91,140,255,0)}}@keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1}}
 .f{margin:4px 0;font-size:13px}.mut{color:var(--mut)}table{border-collapse:collapse;width:100%;font:12.5px var(--mono);margin-top:8px}td,th{border-bottom:1px solid var(--line);padding:5px 8px;text-align:left}th{color:var(--mut);font-weight:600}
 .hide{display:none!important}details summary{cursor:pointer;color:var(--mut);margin-top:6px}
-.doc .r{display:flex;gap:8px;padding:6px 0;border-bottom:1px solid var(--line);font-size:12.5px}.doc .r:last-child{border:0}.doc .k{color:var(--mut);min-width:112px}
+.doc .r{display:grid;grid-template-columns:18px 118px minmax(0,1fr);column-gap:10px;align-items:start;padding:8px 0;border-bottom:1px solid var(--line);font-size:12.5px;line-height:1.45}.doc .r:last-child{border:0}
+.doc .k{color:var(--mut);font-weight:600}.doc .v{min-width:0;overflow-wrap:anywhere;color:var(--tx)}.doc .v code{font:11.5px var(--mono);color:#c7d2fe;background:#0a0f1e;border:1px solid var(--line);border-radius:6px;padding:1px 6px;display:inline-block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:bottom}
+.dot{width:18px;height:18px;flex:none;align-self:start;margin-top:1px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;line-height:1}
+.dot.ok{background:#14532d;color:#86efac}.dot.warn{background:#4a330a;color:#fcd34d}.dot.info{background:#1f2a44;color:#94a3b8}.dot.error{background:#4c1219;color:#fca5a5}
+.doc .sum{font-size:11px;font-weight:600;color:var(--mut)}#pmeta{color:var(--tx)}
 .drop{border:2px dashed var(--line);border-radius:12px;padding:18px;text-align:center;color:var(--mut);cursor:pointer}.drop.over{border-color:var(--acc);color:var(--tx)}
 .thumbs img{max-height:90px;border-radius:8px;margin:6px 6px 0 0;border:1px solid var(--line)}
 .toast{position:fixed;bottom:20px;right:20px;background:var(--panel2);border:1px solid var(--line);padding:10px 16px;border-radius:10px;opacity:0;transition:.3s;z-index:20}.toast.on{opacity:1}
@@ -54,7 +58,7 @@ dialog{background:var(--panel);color:var(--tx);border:1px solid var(--line);bord
  <div id="prog" class="card hide"><h3>Agent progress</h3><div class="steps" id="steps"></div></div>
  <div id="final" class="card hide"></div>
 </div><aside>
- <div class="card doc"><h3>Doctor <button class="s" style="float:right;padding:2px 10px;font-size:11px" onclick="loadDoctor()">refresh</button></h3><div id="doctor" class="mut">loading…</div></div>
+ <div class="card doc"><h3><span>Doctor <span id="docsum" class="sum"></span></span><button class="s" style="padding:3px 10px;font-size:11px;text-transform:none;letter-spacing:0" onclick="loadDoctor()">↻ refresh</button></h3><div id="doctor" class="mut">loading…</div></div>
  <div class="card"><h3>Board configuration bits</h3><div id="pmeta" class="mut f"></div><details><summary>show #pragma config block</summary><pre id="pragmas"></pre></details></div>
 </aside></div></section>
 <!-- ================= DEBUG ================= -->
@@ -106,7 +110,12 @@ function ex(e){$('req').value=e.textContent}
 async function api(u,o){const r=await fetch(u,o);const ct=r.headers.get('content-type')||'';const j=ct.includes('json')?await r.json():null;if(!r.ok)throw new Error((j&&j.detail)||r.statusText);return j}
 const post=(u,b)=>api(u,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)});
 async function chips(){const s=await api('/api/status');const c=$('chips');c.replaceChildren(pill(s.device,'info'),pill(s.backend+(((s.backend=='meta'?s.meta_key_set:s.baseten_key_set))?'':' · no key'),(s.backend=='meta'?s.meta_key_set:s.baseten_key_set)?'ok':'warn'),pill('xc16 '+(s.xc16_gcc?'ok':'missing'),s.xc16_gcc?'ok':'warn'),pill('ICS '+s.ics,'info'),pill('flash '+(s.flash_enabled?'ON':'off'),s.flash_enabled?'warn':'info'))}
-async function loadDoctor(){const d=$('doctor');try{const j=await api('/api/doctor');d.replaceChildren(...j.rows.map(r=>{const x=el('div','r');x.append(el('span','k',r.label),pill(r.ok?'✓':'!',r.ok?'ok':'warn'),el('span','',r.value));return x}))}catch(e){d.textContent=e.message}
+const ICON={ok:'✓',warn:'!',info:'i',error:'✕'};
+function tail(p){const t=String(p).split(/[\\/]/).filter(Boolean);return t.length>2?'…/'+t.slice(-2).join('/'):p}
+async function loadDoctor(){const d=$('doctor');try{const j=await api('/api/doctor');const n={ok:0,warn:0,info:0,error:0};
+d.replaceChildren(...j.rows.map(r=>{const lv=r.level||(r.ok?'ok':'warn');n[lv]=(n[lv]||0)+1;const x=el('div','r');const dot=el('span','dot '+lv,ICON[lv]);dot.title=lv;const v=el('div','v');
+if(r.path&&r.value.includes(r.path)){const [pre,post]=r.value.split(r.path);if(pre)v.append(pre);const c=el('code','',tail(r.path));c.title=r.path;v.append(c);if(post)v.append(post)}else v.textContent=r.value;
+x.append(dot,el('span','k',r.label),v);return x}));$('docsum').textContent=n.error?`· ${n.error} to fix`:n.warn?`· ${n.warn} warning${n.warn>1?'s':''}`:'· all good'}catch(e){d.textContent=e.message}
  try{const p=await api('/api/pragmas');$('pmeta').textContent=p.title;$('pragmas').textContent=p.text+(p.clock_code.length?'\n\n/* first in main() */\n'+p.clock_code.join('\n'):'')}catch(e){$('pmeta').textContent=e.message}}
 // ---------- generate (streamed)
 function step(cls,title){const s=el('div','step '+cls);s.append(el('b','',title));$('steps').append(s);s.scrollIntoView({block:'nearest',behavior:'smooth'});return s}
