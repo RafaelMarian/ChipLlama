@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import importlib
 
-MODULES = {"gpio": "gpio", "irq": "interrupts"}        # kind -> module name
+MODULES = {"gpio": "gpio", "irq": "interrupts", "adc": "adc"}        # kind -> module name
 
 
 def _mod(kind: str):
@@ -19,10 +19,16 @@ def _mod(kind: str):
 
 
 def fcy_from_text(text: str, fosc_hz: float | None = None) -> float:
-    from .timers import parse_request
+    """Fcy from an explicit 'NN MHz' clock in the text (Fosc unless it says Fcy/MIPS), else 16 MHz."""
+    import re
     if fosc_hz:
         return fosc_hz / 2
-    return parse_request(text).fcy
+    m = re.search(r"(\d+(?:\.\d+)?)\s*MHz(\s*(?:fcy|instruction|mips))?", text, re.I)
+    if m:
+        f = float(m.group(1)) * 1e6
+        return f if m.group(2) else f / 2
+    m = re.search(r"(\d+(?:\.\d+)?)\s*MIPS", text, re.I)
+    return float(m.group(1)) * 1e6 if m else 16e6
 
 
 def calc(kind: str, text: str, fosc_hz: float | None = None):

@@ -152,7 +152,8 @@ def run_agent(request: str, model: ChatModel, settings: Settings, *, max_iters: 
     res = AgentResult("error", request, backend=getattr(model, "name", "?"))
     builtin = chipdb.is_builtin_family(settings.device)
     uspec = uartmod.parse_uart_request(request, settings.profile().fosc_hz / 2) if builtin else None
-    fcy0 = settings.profile().fosc_hz / 2
+    fcy0 = (peripherals.fcy_from_text(request) if re.search(r"\d\s*(MHz|MIPS)", request, re.I)
+            else settings.profile().fosc_hz / 2)
     pspecs = peripherals.parse_all(request, fcy0) if builtin else {}
     ptimer = peripherals.timer_spec(pspecs) if pspecs else None
     want_timer = (spec is not None or ptimer is not None
