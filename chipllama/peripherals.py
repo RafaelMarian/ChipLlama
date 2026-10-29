@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import importlib
 
-MODULES = {}        # kind -> module name (filled as peripherals are added)
+MODULES = {"gpio": "gpio"}        # kind -> module name
 
 
 def _mod(kind: str):
@@ -56,3 +56,41 @@ def pages_all(specs: dict) -> list[int]:
     for k, sp in specs.items():
         out += _mod(k).pages(sp)
     return list(dict.fromkeys(out))
+
+
+def finding_pages() -> dict:
+    out = {}
+    for k in MODULES:
+        out.update(getattr(_mod(k), "FINDING_PAGES", {}))
+    return out
+
+
+def claims_timer(specs: dict) -> bool:
+    """True when a peripheral spec (PWM/IC/ADC) explains the timer words itself."""
+    return any(getattr(_mod(k), "claims_timer", lambda s: False)(sp) for k, sp in specs.items())
+
+
+def timer_spec(specs: dict):
+    """A TimerSpec some peripheral needs (e.g. ADC timer trigger), or None."""
+    for k, sp in specs.items():
+        f = getattr(_mod(k), "timer_spec", None)
+        ts = f(sp) if f else None
+        if ts is not None:
+            return ts
+    return None
+
+
+def check_full(code: str, specs: dict, *, fcy: float, profile=None, ics: str = "PGx2", rep=None, require_config=True):
+    """Peripheral-only request (no timer/UART spec): peripheral rules + configuration bits / clock tree."""
+    from .checker import CheckReport
+    from .cemu import emulate
+    from . import board as boardmod
+    rep = rep or CheckReport()
+    emu = emulate(code)
+    for w in emu.warnings:
+        rep.add("warning", "UNPARSED", w)
+    check_all(code, specs, rep, emu)
+    if require_config:
+        prof = profile or boardmod.get_profile("frcpll")
+        boardmod.check_config(code, fcy * 2, emu.get("CLKDIV", "RCDIV"), emu.get("CLKDIV", "CPDIV"), prof, ics, rep.add)
+    return rep

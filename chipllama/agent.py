@@ -20,6 +20,8 @@ from .datasheet import load_page_images, pages_for_spec
 from .models.base import ChatModel, Message, ModelError
 from . import prompts
 from . import uart as uartmod
+from . import peripherals
+from .cemu import emulate
 from .faults import DEMO_LABEL, inject_fault as make_fault
 from .timers import TimerSpec, TimerSolution, parse_request, solve
 
@@ -62,6 +64,7 @@ class AgentResult:
     backend: str = ""
     uart: "uartmod.UartSpec | None" = None
     fault: dict | None = None
+    peripherals: dict = field(default_factory=dict)
 
     @property
     def code(self) -> str:
@@ -77,7 +80,8 @@ class AgentResult:
                 "reference": self.solution.to_dict() if self.solution else None,
                 "attempts": [a.to_dict() for a in self.attempts], "notes": self.notes, "error": self.error,
                 "compiled": self.compiled, "code": self.code,
-                "uart": self.uart.to_dict() if self.uart else None, "demo_fault_injection": self.fault,
+                "uart": self.uart.to_dict() if self.uart else None,
+                "peripherals": {k: v.to_dict() for k, v in self.peripherals.items()}, "demo_fault_injection": self.fault,
                 "verification_level": ("registers+compile" if self.status == "verified" and self.compiled else
                                        "registers only (compiler unavailable)" if self.status == "verified" else "none")}
 
@@ -123,10 +127,11 @@ _FINDING_PAGES = {"PERIOD": "timer", "PR_UNSET": "timer", "TCKPS": "timer", "TON
 
 def pages_for_findings(codes: list[str], spec: TimerSpec | None, uspec=None) -> list[int]:
     pages: list[int] = []
+    table = {**_FINDING_PAGES, **peripherals.finding_pages()}
     for c in codes:
-        v = _FINDING_PAGES.get(c)
+        v = table.get(c)
         if v is None:
-            for k, vv in _FINDING_PAGES.items():
+            for k, vv in sorted(table.items(), key=lambda kv: -len(kv[0])):
                 if c.startswith(k):
                     v = vv
                     break
@@ -147,13 +152,22 @@ def run_agent(request: str, model: ChatModel, settings: Settings, *, max_iters: 
     res = AgentResult("error", request, backend=getattr(model, "name", "?"))
     builtin = chipdb.is_builtin_family(settings.device)
     uspec = uartmod.parse_uart_request(request, settings.profile().fosc_hz / 2) if builtin else None
-    want_timer = uspec is None or bool(_TIMER_WORDS.search(request)) or spec is not None
+    fcy0 = settings.profile().fosc_hz / 2
+    pspecs = peripherals.parse_all(request, fcy0) if builtin else {}
+    ptimer = peripherals.timer_spec(pspecs) if pspecs else None
+    want_timer = (spec is not None or ptimer is not None
+                  or (bool(_TIMER_WORDS.search(request)) and not peripherals.claims_timer(pspecs))
+                  or (uspec is None and not pspecs)
+                  or ("gpio" in pspecs and parse_request(request).period_s is not None))
+    res.peripherals = pspecs
+    for sp in pspecs.values():
+        res.notes.extend(getattr(sp, "notes", []))
     res.uart = uspec
     if uspec:
         res.notes.extend(uspec.notes)
     try:
         if want_timer:
-            spec = spec or resolve_spec(request, model, res.notes)
+            spec = spec or ptimer or resolve_spec(request, model, res.notes)
             if any(n.startswith("no clock stated") for n in spec.notes):
                 spec.fosc_hz = settings.profile().fosc_hz
                 spec.notes = [n for n in spec.notes if not n.startswith("no clock stated")] + [
@@ -167,7 +181,8 @@ def run_agent(request: str, model: ChatModel, settings: Settings, *, max_iters: 
         return res
     emit("spec", {"spec": spec.to_dict() if res.spec else None,
                   "reference": res.solution.to_dict() if res.solution else None,
-                  "uart": uspec.to_dict() if uspec else None, "demo_fault_injection": bool(inject_fault)})
+                  "uart": uspec.to_dict() if uspec else None,
+                  "peripherals": {k: v.to_dict() for k, v in pspecs.items()}, "demo_fault_injection": bool(inject_fault)})
     if inject_fault:
         res.notes.append(f"{DEMO_LABEL} enabled: the first model attempt will be corrupted on purpose to demonstrate self-correction")
 
@@ -185,14 +200,16 @@ def run_agent(request: str, model: ChatModel, settings: Settings, *, max_iters: 
     imgs: list[tuple[int, bytes]] = []
     note = ""
     if use_images and builtin:
-        pages = (pages_for_spec(spec) if res.spec else []) + (uartmod.pages_for_uart(uspec) if uspec else [])
+        pages = ((pages_for_spec(spec) if res.spec else []) + (uartmod.pages_for_uart(uspec) if uspec else [])
+                 + peripherals.pages_all(pspecs))
         imgs, note = load_page_images(list(dict.fromkeys(pages))[:8], settings)
         res.notes.append(note)
     image_note = (f"Attached are datasheet page images, in order: {', '.join('p%d' % p for p, _ in imgs)}." if imgs else "")
     if builtin:
         msgs = [Message("system", prompts.SYSTEM),
                 Message("user", prompts.first_user_prompt(request, res.spec, res.solution if hint else None, image_note,
-                                                          settings.profile(), settings.ics, uspec=uspec),
+                                                          settings.profile(), settings.ics, uspec=uspec,
+                                                          pspecs=pspecs),
                         [b for _, b in imgs])]
     else:
         msgs = [Message("system", prompts.generic_system(dev)),
@@ -234,8 +251,14 @@ def run_agent(request: str, model: ChatModel, settings: Settings, *, max_iters: 
                 chk = check_timer(code, res.spec, profile=settings.profile(), ics=settings.ics)
                 if uspec:
                     uartmod.check_uart(code, uspec, chk)
-            else:
+                if pspecs:
+                    peripherals.check_all(code, pspecs, chk, emulate(code))
+            elif uspec:
                 chk = uartmod.check_uart_full(code, uspec, profile=settings.profile(), ics=settings.ics)
+                if pspecs:
+                    peripherals.check_all(code, pspecs, chk, emulate(code))
+            else:
+                chk = peripherals.check_full(code, pspecs, fcy=fcy0, profile=settings.profile(), ics=settings.ics)
             if dev is not None and dev.source != "built-in":
                 check_device(code, dev, ics=settings.ics, rep=chk, require_config=False)
         else:

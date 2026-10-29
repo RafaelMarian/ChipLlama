@@ -76,7 +76,7 @@ def board_text(profile: "boardmod.BoardProfile", ics: str) -> str:
 
 
 def first_user_prompt(request: str, spec: TimerSpec | None, solution_hint: TimerSolution | None, image_note: str,
-                      profile: "boardmod.BoardProfile | None" = None, ics: str = "PGx2", uspec=None) -> str:
+                      profile: "boardmod.BoardProfile | None" = None, ics: str = "PGx2", uspec=None, pspecs: dict | None = None) -> str:
     profile = profile or boardmod.get_profile("frcpll")
     s = [f"Request: {request}", ""]
     if spec is not None:
@@ -89,6 +89,9 @@ def first_user_prompt(request: str, spec: TimerSpec | None, solution_hint: Timer
         s += ["", uart_prompt_text(uspec)]
         if spec is None:
             s += ["Timing that is not part of the verified spec (e.g. 'every 1 s') may use __delay_ms() or a timer."]
+    if pspecs:
+        from .peripherals import prompt_all
+        s += ["", prompt_all(pspecs)]
     if image_note:
         s += ["", image_note]
     if solution_hint:
