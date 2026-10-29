@@ -56,6 +56,7 @@ class Settings:
     crystal_hz: float = 8_000_000
     ics: str = "PGx2"
     max_iters: int = 4
+    vision_passes: int = 2           # 1..3 independent reads of a debug image (2 = read + verify, 3 = + tie-break)
 
     def profile(self):
         from .board import get_profile
@@ -99,6 +100,7 @@ class Settings:
             crystal_hz=float(e("CHIPLLAMA_CRYSTAL_HZ", "8000000")),
             ics=e("CHIPLLAMA_ICS", "PGx2"),
             max_iters=int(e("CHIPLLAMA_MAX_ITERS", "4")),
+            vision_passes=int(e("CHIPLLAMA_VISION_PASSES", "2")),
         )
 
 
@@ -107,7 +109,7 @@ SECRET_FIELDS = ("meta_api_key", "baseten_api_key")
 UI_FIELDS = ("device", "clock_profile", "crystal_hz", "ics", "xc16_gcc", "xc16_bin2hex", "xc8_cc", "xc32_gcc", "mplab_packs_dir", "ipecmd_path",
              "ipecmd_tool", "ipecmd_serial", "ipecmd_power_target", "enable_flash", "backend", "meta_model",
              "meta_reasoning_effort", "baseten_model", "baseten_reasoning_effort", "max_iters", "max_tokens",
-             "datasheet_pdf") + SECRET_FIELDS
+             "vision_passes", "datasheet_pdf") + SECRET_FIELDS
 
 
 def settings_path() -> Path:
@@ -170,6 +172,8 @@ def save_settings(update: dict, path: Path | None = None) -> dict:
             raise ValueError("backend must be meta or baseten")
         if k == "max_iters" and not 1 <= v <= 10:
             raise ValueError("max_iters must be 1..10")
+        if k == "vision_passes" and not 1 <= v <= 3:
+            raise ValueError("vision_passes must be 1..3")
         if k == "device":
             import re as _re
             v = v.strip().upper()

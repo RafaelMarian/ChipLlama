@@ -76,6 +76,7 @@ dialog{background:var(--panel);color:var(--tx);border:1px solid var(--line);bord
   <div class="row" style="margin-top:12px"><button class="p" id="dbgb" onclick="dbg()" style="flex:0 0 auto">Diagnose</button>
    <div style="flex:0 0 150px"><input id="fosc" type="number" step="any" placeholder="Fosc MHz (profile)"></div>
    <div style="flex:0 0 170px"><input id="ddev" list="devlist" placeholder="device (Settings)" title="PIC part in the image - port masks/registers come from its MPLAB device file"></div>
+   <div style="flex:0 0 120px"><select id="dpasses" title="independent vision reads"><option value="">passes (Settings)</option><option>1</option><option>2</option><option>3</option></select></div>
    <label style="flex:0 0 auto;margin:0"><input type="checkbox" id="usem" checked style="width:auto"> explain with Muse</label><span class="mut" id="dbgmeta" style="flex:2"></span></div></div>
  <div id="dsteps" class="card hide"><h3>Pipeline</h3><div class="steps" id="dsteplist"></div></div>
 </div><aside><div id="dout"></div></aside></div></section>
@@ -86,7 +87,7 @@ dialog{background:var(--panel);color:var(--tx);border:1px solid var(--line);bord
   <div class="row"><div><label>Clock profile</label><select id="s-clock_profile"></select></div><div><label>Crystal frequency, Hz (external crystal profile only)</label><input id="s-crystal_hz" type="number"></div></div>
  </div>
  <div class="card"><h3>Model</h3>
-  <div class="row"><div><label>Backend</label><select id="s-backend"></select></div><div><label>Max iterations</label><input id="s-max_iters" type="number" min="1" max="10"></div><div><label>Max tokens</label><input id="s-max_tokens" type="number"></div></div>
+  <div class="row"><div><label>Backend</label><select id="s-backend"></select></div><div><label>Max iterations</label><input id="s-max_iters" type="number" min="1" max="10"></div><div><label>Max tokens</label><input id="s-max_tokens" type="number"></div><div><label>Vision passes (1-3)</label><input id="s-vision_passes" type="number" min="1" max="3" title="2 = read + independent transcription check; 3 = + tie-break on disputed registers"></div></div>
   <div class="row"><div><label>Meta model</label><input id="s-meta_model"></div><div><label>Meta reasoning effort</label><select id="s-meta_reasoning_effort"></select></div></div>
   <div class="row"><div><label>Meta API key <span id="k-meta" class="pill"></span> <a href="#" class="ex" onclick="clearKey('meta_api_key');return false">clear</a></label><input id="s-meta_api_key" type="password" autocomplete="off" placeholder="leave empty to keep"></div>
    <div><label>Baseten API key <span id="k-baseten" class="pill"></span> <a href="#" class="ex" onclick="clearKey('baseten_api_key');return false">clear</a></label><input id="s-baseten_api_key" type="password" autocomplete="off" placeholder="leave empty to keep"></div></div>
@@ -184,13 +185,15 @@ function renderDiff(t){const p=el('pre','diff');t.split('\n').forEach(l=>{p.appe
 const stc={ok:'ok',bad:'bad',warn:'warn',info:'info'};
 async function dbg(){const o=$('dout'),b=$('dbgb');
  if(!FILES.length){return legacyDbg()}
- const fd=new FormData();fd.append('intent',$('intent').value);fd.append('code',$('dcode').value);fd.append('explain',$('usem').checked);if($('fosc').value)fd.append('fosc_mhz',$('fosc').value);if($('ddev').value)fd.append('device',$('ddev').value.trim());
+ const fd=new FormData();fd.append('intent',$('intent').value);fd.append('code',$('dcode').value);fd.append('explain',$('usem').checked);if($('fosc').value)fd.append('fosc_mhz',$('fosc').value);if($('ddev').value)fd.append('device',$('ddev').value.trim());if($('dpasses').value)fd.append('passes',$('dpasses').value);
  FILES.forEach(f=>fd.append('images',f,f.name||'paste.png'));
  b.disabled=true;$('dsteps').classList.remove('hide');$('dsteplist').replaceChildren();o.replaceChildren();const t0=Date.now();
- const s1=dstep('run','1 · Muse Spark reads the image → strict JSON');
+ const s1=dstep('run','1 · Muse Spark reads the image → strict JSON'+($('dpasses').value!=='1'?' + independent verification pass':''));
  try{const j=await api('/api/debug/vision',{method:'POST',body:fd});s1.className='step ok';
   const e=j.extraction;s1.append(el('div','f mut',`kind: ${e.kind} · confidence ${(e.confidence||0).toFixed(2)}`+(e.repaired&&e.repaired.length?' · repaired: '+e.repaired.join('; '):'')));
   const ex=el('details');ex.append(el('summary','','extracted JSON'),el('pre','',JSON.stringify({registers:e.registers,scope:e.scope,serial:e.serial},null,1)));s1.append(ex);
+  (e.passes||[]).slice(1).forEach(p=>{const d=p.disagree&&Object.keys(p.disagree).length,x=dstep(p.error?'warn':d||p.reads?'warn':'ok',`1.${p.pass} · pass ${p.pass}: ${p.what}`);x.append(el('div','f mut',p.error||(p.reads?'reads: '+Object.entries(p.reads).map(([k,v])=>k+' '+v.join(' / ')).join(', '):d?'disagree: '+Object.entries(p.disagree).map(([k,v])=>k+' '+v.join(' vs ')).join(', '):'all '+(p.agree||[]).length+' values agree'))+(p.voted?' · vote: '+Object.entries(p.voted).map(([k,v])=>k+'='+v).join(', '):'')))});
+  Object.entries(e.disputed||{}).forEach(([k,v])=>{const x=dstep('warn','⚠ '+k+' read as '+v.join(' or '));x.append(el('div','f mut','low confidence - not used as sole evidence for a bug'))});
   const s2=dstep(j.findings.some(r=>r.status=='bad')?'bad':j.findings.some(r=>r.status=='warn')?'warn':'ok','2 · Deterministic decode (chipdb + timer/baud math)');s2.append(el('div','f mut',`${j.findings.length} rows · clock: ${j.clock.source||''}`));
   const s3=dstep(j.explanation?'ok':'run2','3 · Grounded explanation'+(j.explanation?' (Muse Spark)':' (rules only)'));
   const bad=j.verdict.startsWith('BUG'),unc=j.verdict.startsWith('UNCERTAIN'),okv=j.verdict.startsWith('OK');const v=el('div','card');v.append(el('h3','',bad?'Bug found':unc?'Uncertain - needs more evidence':'Verdict'));const vv=el('div','f');vv.append(pill(bad?'BUG':j.verdict.split(':')[0],bad?'bad':unc?'warn':okv?'ok':'info'),el('span','',' '+j.root_cause));v.append(vv);
@@ -216,7 +219,7 @@ async function legacyDbg(){const fd=new FormData();fd.append('dump',$('dump').va
   const c=el('div','card');c.append(el('h3','','Decoded registers'));j.decoded.forEach(d=>c.append(el('div','f',`${d.register} = ${d.value}  `+Object.entries(d.fields).map(([k,v])=>k+'='+v).join(' '))));o.append(c);
   (j.notes||[]).forEach(n=>o.append(el('div','f mut','note: '+n)))}catch(e){o.replaceChildren(el('div','card','Error: '+e.message))}b.disabled=false}
 // ---------- settings
-const FIELDS=['device','ics','clock_profile','crystal_hz','backend','max_iters','max_tokens','meta_model','meta_reasoning_effort','baseten_model','baseten_reasoning_effort','xc16_gcc','xc8_cc','xc32_gcc','mplab_packs_dir','ipecmd_path','ipecmd_tool','ipecmd_serial','ipecmd_power_target','enable_flash','datasheet_pdf'];
+const FIELDS=['device','ics','clock_profile','crystal_hz','backend','max_iters','max_tokens','vision_passes','meta_model','meta_reasoning_effort','baseten_model','baseten_reasoning_effort','xc16_gcc','xc8_cc','xc32_gcc','mplab_packs_dir','ipecmd_path','ipecmd_tool','ipecmd_serial','ipecmd_power_target','enable_flash','datasheet_pdf'];
 function opts(id,list){const s=$('s-'+id);s.replaceChildren(...list.map(o=>{const x=el('option','',o.title||o);x.value=o.key||o;return x}))}
 function keyPill(id,on){const p=$(id);p.className='pill '+(on?'ok':'warn');p.textContent=on?'set':'not set'}
 async function loadSettings(){SET=await api('/api/settings');const o=SET.options;opts('ics',o.ics);opts('clock_profile',o.clock_profile);opts('backend',o.backend);opts('ipecmd_tool',o.ipecmd_tool);opts('meta_reasoning_effort',o.reasoning_effort);

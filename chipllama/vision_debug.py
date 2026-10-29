@@ -71,12 +71,24 @@ class Extraction:
     notes: str = ""
     repaired: list[str] = field(default_factory=list)   # what the repair step had to do
     raw: str = ""
+    boxes: dict = field(default_factory=dict)           # optional name -> [x0,y0,x1,y1] (0..1) from the model
+    candidates: dict[str, list[int]] = field(default_factory=dict)  # every distinct reading per register (multi-pass)
+    disputed: dict[str, list[int]] = field(default_factory=dict)    # unresolved: passes disagree, no majority
+    passes: list[dict] = field(default_factory=list)    # per-pass log for the dashboard
 
     def to_dict(self):
         d = asdict(self)
         d["registers"] = {k: f"0x{v:04X}" for k, v in {**self.other, **self.registers}.items()}
         d.pop("other", None)
+        d["candidates"] = {k: [f"0x{x:04X}" for x in v] for k, v in self.candidates.items()}
+        d["disputed"] = {k: [f"0x{x:04X}" for x in v] for k, v in self.disputed.items()}
         return d
+
+    def all_regs(self) -> dict[str, int]:
+        return {**self.other, **self.registers}
+
+    def set_reg(self, name: str, val: int):
+        (self.registers if name in self.registers else self.other)[name] = val
 
 
 def _loose_json(text: str, fixes: list[str]) -> dict:
@@ -198,11 +210,20 @@ def normalize(j: dict, fixes: list[str] | None = None) -> Extraction:
     c = _num(j.get("confidence"))
     ex.confidence = max(0.0, min(1.0, c / 100 if c and c > 1 else (c or 0.0)))
     ex.notes = str(j.get("notes") or "")[:500]
+    bx = j.get("boxes") or {}
+    if isinstance(bx, dict):
+        for k, v in bx.items():
+            try:
+                b = [float(x) for x in v][:4]
+                if len(b) == 4:
+                    ex.boxes[chipdb.REG_ALIASES.get(str(k).upper().strip(), str(k).upper().strip())] = b
+            except (TypeError, ValueError):
+                pass
     return ex
 
 
-def extract(model: ChatModel, images: list[bytes], intent: str = "", device: str = "") -> Extraction:
-    prompt = EXTRACT_PROMPT.replace("a PIC24FJ256GB110 debugging tool", f"a {device or 'PIC'} debugging tool")
+def extract(model: ChatModel, images: list[bytes], intent: str = "", device: str = "", prompt: str | None = None) -> Extraction:
+    prompt = prompt or EXTRACT_PROMPT.replace("a PIC24FJ256GB110 debugging tool", f"a {device or 'PIC'} debugging tool")
     msgs = [Message("user", prompt + (f"\nUser's intent (context only, do not let it bias readings): {intent}" if intent else ""), images)]
     last = None
     for attempt in range(2):
@@ -218,6 +239,164 @@ def extract(model: ChatModel, images: list[bytes], intent: str = "", device: str
             last = e
             msgs = msgs + [Message("assistant", txt or ""), Message("user", REPAIR_PROMPT)]
     raise ModelError(f"vision extraction returned invalid JSON twice: {last}")
+
+
+# ------------------------------------------------------------------ step 1b: multi-pass robustness (misread digits)
+TRANSCRIBE_PROMPT = """You are an OCR transcriber for an embedded-debugging tool. The attached image (enlarged and sharpened)
+shows register names with hex values. Transcribe EXACTLY, character by character. Do not interpret, do not correct,
+do not infer values from what the firmware "should" do. Read every hex digit on its own; take special care with
+look-alike glyphs: 8 / B / E / 3, 0 / D, 1 / 7, 5 / S, 6 / G. Omit a value you cannot read.
+Return ONLY one JSON object:
+{"kind": "registers"|"scope"|"serial"|"unknown", "registers": {"NAME": "0x...."}, "scope": {}, "serial": {},
+ "boxes": {"NAME": [x0, y0, x1, y1]} (optional, fractions 0..1 of the image, the box around NAME and its value),
+ "confidence": number (0..1), "notes": string}"""
+
+TIEBREAK_PROMPT = """Transcribe EXACTLY, character by character, ONLY these register values from the image: {names}.
+Look at each hex digit individually and zoom on the glyph shape (8 has two closed loops, B has a straight left side,
+E has open right side, 3 has open left side; 0 vs D; 1 vs 7; 5 vs S; 6 vs G). Do not guess from context.
+Return ONLY JSON: {{"kind": "registers", "registers": {{"NAME": "0x...."}}, "confidence": number, "notes": string}}"""
+
+CONFUSABLE = [set("8BE3"), set("0D"), set("17"), set("5S"), set("6G")]
+
+
+def confusable(a: str, b: str) -> bool:
+    return a != b and any(a.upper() in g and b.upper() in g for g in CONFUSABLE)
+
+
+def digit_diffs(a: int, b: int) -> list[tuple[int, str, str]]:
+    """(position from left, digit in a, digit in b) for 16-bit hex values."""
+    x, y = f"{a:04X}", f"{b:04X}"
+    return [(i, x[i], y[i]) for i in range(len(x)) if x[i] != y[i]]
+
+
+def ambiguity_note(name: str, vals: list[int]) -> str:
+    vs = [f"0x{v:04X}" for v in vals]
+    conf = sorted({f"{p}/{q}" for a in vals for b in vals if a < b for _, p, q in digit_diffs(a, b) if confusable(p, q)})
+    return (f"{name} read as {' or '.join(vs)}" + (f" (commonly confused glyphs {', '.join(conf)})" if conf else ""))
+
+
+def enhance_image(img: bytes, scale: int = 2, box: list[float] | None = None) -> bytes:
+    """Upscale (LANCZOS), autocontrast + sharpen, optionally crop to a fractional box first. Returns PNG; original on failure."""
+    try:
+        import io
+        from PIL import Image, ImageFilter, ImageOps
+        im = Image.open(io.BytesIO(img)).convert("RGB")
+        if box:
+            W, H = im.size
+            x0, y0, x1, y1 = box
+            pad_x, pad_y = 0.04, 0.03
+            c = (max(0, int((x0 - pad_x) * W)), max(0, int((y0 - pad_y) * H)), min(W, int((x1 + pad_x) * W)), min(H, int((y1 + pad_y) * H)))
+            if c[2] - c[0] > 8 and c[3] - c[1] > 8:
+                im = im.crop(c)
+        w, h = im.size
+        f = max(1, min(scale, int(4096 / max(w, h)) or 1))       # keep payload (= cost) bounded
+        im = im.resize((w * f, h * f), Image.LANCZOS)
+        im = ImageOps.autocontrast(im).filter(ImageFilter.UnsharpMask(radius=2, percent=160, threshold=2))
+        out = io.BytesIO(); im.save(out, "PNG")
+        return out.getvalue()
+    except Exception:
+        return img
+
+
+def _union_box(boxes: list[list[float]]) -> list[float] | None:
+    boxes = [b for b in boxes if b and all(0 <= v <= 1 for v in b) and b[2] > b[0] and b[3] > b[1]]
+    if not boxes:
+        return None
+    return [min(b[0] for b in boxes), min(b[1] for b in boxes), max(b[2] for b in boxes), max(b[3] for b in boxes)]
+
+
+def robust_extract(model: ChatModel, images: list[bytes], intent: str = "", device: str = "", passes: int = 2,
+                   progress=None) -> Extraction:
+    """Pass 1: normal read. Pass 2 (passes>=2, register images only): independent character-by-character transcription
+    of an upscaled/sharpened copy. On disagreement, pass 3 (passes>=3): tie-break on the disputed names only (cropped
+    when a box is known), then majority vote. Unresolved values land in ex.disputed (low confidence)."""
+    passes = max(1, min(3, int(passes or 1)))
+    say = progress or (lambda *_: None)
+    ex = extract(model, images, intent, device)
+    ex.passes.append({"pass": 1, "what": "read image -> JSON", "registers": len(ex.all_regs())})
+    say(ex.passes[-1])
+    if passes < 2 or not images or not ex.all_regs():
+        return ex
+    try:
+        ex2 = extract(model, [enhance_image(i, 2) for i in images], "", device, prompt=TRANSCRIBE_PROMPT)
+    except ModelError as e:
+        ex.passes.append({"pass": 2, "what": "transcription pass failed", "error": str(e)[:200]})
+        return ex
+    r1, r2 = ex.all_regs(), ex2.all_regs()
+    for k, v in r2.items():                    # values only the 2nd pass saw are added (not disputed)
+        if k not in r1:
+            (ex.registers if k in ex2.registers else ex.other)[k] = v
+    for k, b in ex2.boxes.items():
+        ex.boxes.setdefault(k, b)
+    reads: dict[str, list[int]] = {k: [v] + ([r2[k]] if k in r2 else []) for k, v in r1.items()}
+    diff = sorted(k for k, rs in reads.items() if len(set(rs)) > 1)
+    ex.passes.append({"pass": 2, "what": "character-by-character transcription of 2x sharpened image",
+                      "agree": sorted(k for k in r1 if k in r2 and r1[k] == r2[k]),
+                      "disagree": {k: [f"0x{x:04X}" for x in reads[k]] for k in diff}})
+    say(ex.passes[-1])
+    if diff and passes >= 3:
+        box = _union_box([ex.boxes.get(k) for k in diff])
+        imgs3 = [enhance_image(images[0], 3, box)] if box else [enhance_image(i, 2) for i in images]
+        try:
+            ex3 = extract(model, imgs3, "", device, prompt=TIEBREAK_PROMPT.format(names=", ".join(diff)))
+            r3 = ex3.all_regs()
+            for k in diff:
+                if k in r3:
+                    reads[k].append(r3[k])
+            ex.passes.append({"pass": 3, "what": f"tie-break on {', '.join(diff)}" + (" (cropped)" if box else " (full image)"),
+                              "reads": {k: [f"0x{x:04X}" for x in reads[k]] for k in diff}})
+        except ModelError as e:
+            ex.passes.append({"pass": 3, "what": "tie-break failed", "error": str(e)[:200]})
+        say(ex.passes[-1])
+    for k in diff:
+        rs = reads[k]
+        cand = list(dict.fromkeys(rs))
+        ex.candidates[k] = cand
+        best = max(cand, key=rs.count)
+        if rs.count(best) >= 2 and rs.count(best) > len(rs) / 2:
+            ex.set_reg(k, best)               # majority vote
+            ex.passes[-1].setdefault("voted", {})[k] = f"0x{best:04X} ({rs.count(best)}/{len(rs)})"
+        else:
+            ex.disputed[k] = cand              # keep pass-1 value, but low confidence
+    if ex.disputed:
+        ex.confidence = min(ex.confidence or 1.0, 0.4)
+    return ex
+
+
+def _port_consistency(ex: Extraction, writes: dict[str, int], device, port_mask_fn) -> list[str]:
+    """Resolve ambiguous LATx/PORTx readings with chip facts. Returns notes."""
+    notes = []
+    regs = ex.all_regs()
+    for name in list(ex.candidates):
+        m = re.fullmatch(r"(LAT|PORT)([A-K])", name)
+        if not m:
+            continue
+        port = m.group(2)
+        mask = port_mask_fn(device, port)
+        cands = ex.candidates[name]
+        w = writes.get(f"LAT{port}", writes.get(f"PORT{port}"))
+        pick, why = None, ""
+        if w is not None:
+            fits = [c for c in cands if c == w or (mask is not None and c == (w & mask))]
+            if len(fits) == 1:
+                pick, why = fits[0], f"matches the written 0x{w:04X}" + (f" & implemented mask 0x{mask:04X}" if mask is not None and fits[0] != w else "")
+        if pick is None and mask is not None:     # implemented-bit check: a reading with bits set on unimplemented pins is impossible
+            fits = [c for c in cands if c & ~mask & 0xFFFF == 0]
+            if len(fits) == 1 and len(cands) > 1:
+                pick, why = fits[0], f"the other reading sets unimplemented bits (mask 0x{mask:04X})"
+        if pick is None:                          # LATx vs PORTx should agree on implemented output pins
+            other = regs.get(("PORT" if m.group(1) == "LAT" else "LAT") + port)
+            if other is not None and not ex.candidates.get(("PORT" if m.group(1) == "LAT" else "LAT") + port):
+                tris = regs.get(f"TRIS{port}", 0)
+                cmp = (mask if mask is not None else 0xFFFF) & ~tris & 0xFFFF
+                fits = [c for c in cands if (c ^ other) & cmp == 0]
+                if len(fits) == 1:
+                    pick, why = fits[0], f"agrees with the clear reading of {('PORT' if m.group(1) == 'LAT' else 'LAT') + port} on output pins"
+        if pick is not None:
+            ex.set_reg(name, pick)
+            ex.disputed.pop(name, None)
+            notes.append(f"{ambiguity_note(name, cands)}; chose 0x{pick:04X} because it {why}")
+    return notes
 
 
 # ------------------------------------------------------------------ intent + user code
@@ -956,7 +1135,8 @@ def resolve_device(device, packs_dir: str = "", cache_dir: str = ".cache"):
 def vision_debug(images: list[bytes], intent: str = "", code: str = "", model: ChatModel | None = None,
                  fosc_hz: float = 32e6, expected_cosc: int = 1, crystal_hz: float = 8e6,
                  extraction: Extraction | None = None, explain: bool = True, device=None,
-                 clock_explicit: bool = False, packs_dir: str = "", cache_dir: str = ".cache") -> VisionReport:
+                 clock_explicit: bool = False, packs_dir: str = "", cache_dir: str = ".cache",
+                 passes: int = 2, progress=None) -> VisionReport:
     notes: list[str] = []
     it = parse_intent(intent)
     device = resolve_device(device, packs_dir, cache_dir)
@@ -964,14 +1144,25 @@ def vision_debug(images: list[bytes], intent: str = "", code: str = "", model: C
     if ex is None:
         if model is None:
             raise ModelError("a vision model is needed to read the image (set MODEL_API_KEY) - or pass a register dump")
-        ex = extract(model, images, intent, getattr(device, "name", device) or "")
+        ex = robust_extract(model, images, intent, getattr(device, "name", device) or "", passes, progress)
+        if len(ex.passes) > 1:
+            notes.append(f"{len(ex.passes)} independent vision passes; "
+                         + (("disagreed on " + ", ".join(ex.candidates)) if ex.candidates else "all readings agree"))
         notes.append(f"Muse vision read the image as '{ex.kind}' (confidence {ex.confidence:.2f}); every number below is "
                      "recomputed by ChipLlama")
     if ex.repaired:
         notes.append("JSON repair: " + "; ".join(ex.repaired))
     if ex.confidence and ex.confidence < 0.5:
         notes.append("low vision confidence - double-check the extracted values against the image")
+    if ex.candidates:
+        writes = dict(it.writes)
+        clean = re.sub(r"//[^\n]*", "", re.sub(r"/\*.*?\*/", "", code or "", flags=re.S))
+        for m in _LAT_WRITE.finditer(clean):
+            writes.setdefault(m.group(1), int(m.group(2), 0) & 0xFFFF)
+        notes += _port_consistency(ex, writes, device, port_mask)
     A = analyze(ex, it, code, fosc_hz, expected_cosc, crystal_hz, clock_explicit, device)
+    if ex.disputed:
+        _demote_disputed(A, ex)
     if not A.clock.get("clock_known") and any(r.register.startswith(("U1BRG", "Timer", "Fcy")) and r.status != "info" for r in A.rows):
         notes.append("clock assumption: " + A.clock.get("assumption", "") + " - add e.g. 'Fcy 4 MHz' to the intent if different")
     elif it.fcy_hz:
@@ -1020,10 +1211,39 @@ def vision_debug(images: list[bytes], intent: str = "", code: str = "", model: C
     return rep
 
 
+def _row_reg(r: Row) -> str:
+    return re.split(r"[ .\[(]", r.register, maxsplit=1)[0].upper()
+
+
+def _demote_disputed(A: Analysis, ex: Extraction):
+    """A BUG conclusion that rests solely on a disputed reading becomes UNCERTAIN; values show 'read as X or Y'."""
+    for r in A.rows:
+        k = _row_reg(r)
+        if k in ex.disputed:
+            r.value = f"{r.value} (read as {' or '.join(f'0x{v:04X}' for v in ex.disputed[k])})"
+            r.note = (r.note + "; " if r.note else "") + ambiguity_note(k, ex.disputed[k]) + " - vision passes disagree"
+    bad = [r for r in A.rows if r.status == "bad"]
+    if bad and all(_row_reg(r) in ex.disputed for r in bad):
+        for r in bad:
+            r.status = "warn"
+        names = sorted({_row_reg(r) for r in bad})
+        A.uncertain[:0] = [f"Depends on a disputed reading ({ambiguity_note(k, ex.disputed[k])}): " + c
+                           for c in A.causes for k in names[:1]] or [ambiguity_note(k, ex.disputed[k]) for k in names]
+        A.uncertain.append("Re-take the screenshot larger / zoom the SFR window, or type the value into the intent, to decide.")
+        A.causes.clear()
+        A.fixes.clear()
+    elif ex.disputed:
+        A.uncertain += [ambiguity_note(k, v) + " (vision passes disagree; not used as sole evidence)" for k, v in ex.disputed.items()]
+
+
 def format_report(rep: VisionReport) -> str:
     A = rep.analysis
     w = [max(len(r.register) for r in A.rows), max(len(r.value) for r in A.rows)]
-    out = [f"Image: {rep.extraction.kind} (confidence {rep.extraction.confidence:.2f})", f"Intent: {rep.intent.text or '-'}", "",
+    out = [f"Image: {rep.extraction.kind} (confidence {rep.extraction.confidence:.2f})", f"Intent: {rep.intent.text or '-'}"]
+    out += [f"pass {p['pass']}: {p['what']}" + (f"  disagree: {p['disagree']}" if p.get("disagree") else "")
+            + (f"  reads: {p['reads']}" if p.get("reads") else "") + (f"  vote: {p['voted']}" if p.get("voted") else "")
+            for p in rep.extraction.passes]
+    out += ["",
            f"{'REGISTER':<{w[0]}}  {'VALUE':<{w[1]}}  STATUS  DECODED  ->  EXPECTED"]
     for r in A.rows:
         out.append(f"{r.register:<{w[0]}}  {r.value:<{w[1]}}  {r.status.upper():<6}  {r.decoded}  ->  {r.expected}"

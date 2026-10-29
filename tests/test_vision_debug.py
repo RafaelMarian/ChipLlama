@@ -143,11 +143,12 @@ def test_fix_diff_without_code_is_suggestion():
 
 
 def test_full_pipeline_with_model_explains():
-    m = ScriptedModel([(EX / "sfr_timer1_prescaler_bug.extraction.json").read_text(),
+    t1 = (EX / "sfr_timer1_prescaler_bug.extraction.json").read_text()
+    m = ScriptedModel([t1, t1,
                        "Root cause: TCKPS 1:1 (p.162)\n```diff\n+T1CONbits.TCKPS = 1;\n```"])
     rep = vision_debug([PNG], "Timer1 interrupt every 10 ms, toggle RA0", model=m)
     assert "p.162" in rep.explanation and rep.verdict.startswith("BUG")
-    assert "T1CON | 0x8000" in m.calls[1][1].text
+    assert "T1CON | 0x8000" in m.calls[2][1].text and len(rep.extraction.passes) == 2
 
 
 # ---------------------------------------------------------------- CLI / server
@@ -156,7 +157,8 @@ def test_cli_no_model_without_extraction_errors(capsys):
 
 
 def test_server_vision_endpoint(settings):
-    m = ScriptedModel([(EX / "sfr_pll_off.extraction.json").read_text(), "explained p.123"])
+    po = (EX / "sfr_pll_off.extraction.json").read_text()
+    m = ScriptedModel([po, po, "explained p.123"])
     c = TestClient(create_app(settings, model_factory=lambda b: m))
     r = c.post("/api/debug/vision", data={"intent": "Timer1 interrupt every 10 ms"},
                files=[("images", ("a.png", PNG, "image/png"))])
@@ -164,6 +166,7 @@ def test_server_vision_endpoint(settings):
     j = r.json()
     assert j["verdict"].startswith("BUG") and j["explanation"] == "explained p.123"
     assert any(f["register"] == "OSCCON" and f["status"] == "bad" for f in j["findings"])
+    assert len(j["extraction"]["passes"]) == 2 and j["extraction"]["disputed"] == {}
     assert c.post("/api/debug/vision", data={"intent": "x"}).status_code == 422
     bad = TestClient(create_app(settings, model_factory=lambda b: ScriptedModel(["x", "y"])))
     assert bad.post("/api/debug/vision", files=[("images", ("a.png", PNG, "image/png"))]).status_code == 502

@@ -3,7 +3,7 @@ name = "chipllama"
 version = "0.1.0"
 description = "Verifiable AI copilot for PIC24 peripheral bring-up (Muse Spark + XC16)"
 requires-python = ">=3.10"
-dependencies = ["fastapi>=0.110", "uvicorn>=0.29", "httpx>=0.27", "python-multipart>=0.0.9"]
+dependencies = ["fastapi>=0.110", "uvicorn>=0.29", "httpx>=0.27", "python-multipart>=0.0.9", "pillow>=10"]
 
 [project.scripts]
 chipllama = "chipllama.cli:main"
