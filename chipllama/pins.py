@@ -10,7 +10,7 @@ from .i2c import PINS as I2C_PINS
 
 OC_FN = {n: 17 + n for n in range(1, 10)}          # Table 10-3: OC1 = 18 ... OC9 = 26
 JTAG = {"RA0": "TMS", "RA1": "TCK", "RA4": "TDI", "RA5": "TDO"}
-ICS = {"PGx1": ("RB1", "RB0"), "PGx2": ("RB6", "RB7"), "PGx3": ("RB4", "RB5")}   # (PGEC, PGED)
+ICS = {"PGx1": ("RB1", "RB0"), "PGx2": ("RB6", "RB7"), "PGx3": ("RB5", "RB4")}   # (PGEC, PGED), DS39897C p.7 + p.20
 _PIN = re.compile(r"^R[A-G]\d{1,2}$")
 
 

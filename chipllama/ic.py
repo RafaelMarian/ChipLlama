@@ -1,4 +1,4 @@
-"""Input Capture (DS39897C sec. 14: ICxCON1 p.171, ICxCON2 p.172; PPS inputs RPINR7..10/15 p.143-146).
+"""Input Capture (DS39897C sec. 13 p.169; ICxCON1 p.171, ICxCON2 p.172; PPS inputs RPINR7..10/15 p.143-146).
 
 ICM: 001 every edge, 010 every falling, 011 every rising, 100 every 4th rising, 101 every 16th rising.
 ICTSEL: 000 = Timer3, 001 = Timer2, 010 = Timer4, 011 = Timer5, 100 = Timer1, 111 = Fcy.

@@ -39,7 +39,7 @@
     const pre = E('pre', 'code', j.code); c2.append(E('div', 'f')); c2.lastChild.append(pre);
     const pw = j.power, c3 = E('div', 'card'); c3.append(E('h3', '', 'Power estimate'));
     const g = E('div', 'f pgrid');
-    [['run', pw.run_ma + ' mA'], ['awake', pw.awake_ma + ' mA'], ['sleep', (pw.sleep_ma * 1000).toFixed(0) + ' µA'], ['average', pw.avg_ma + ' mA']]
+    [['run (typ/max)', pw.typ.run_ma + ' / ' + pw.max.run_ma + ' mA'], ['awake', pw.awake_ma + ' mA'], ['sleep', (pw.sleep_ma * 1000).toFixed(1) + ' µA'], ['average', pw.avg_ma + ' mA']]
       .concat(pw.battery_hours ? [['battery', pw.battery_hours > 48 ? (pw.battery_hours / 24).toFixed(1) + ' days' : pw.battery_hours + ' h']] : [])
       .forEach(([k, v]) => { const d = E('div', 'pstat'); d.append(E('div', 'mut', k), E('b', '', v)); g.append(d); });
     g.append(E('div', 'mut pnote', 'peripherals: ' + (pw.peripherals.join(', ') || 'none') + ' · ' + pw.note));

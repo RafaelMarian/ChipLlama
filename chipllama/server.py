@@ -155,7 +155,7 @@ def create_app(settings: Settings | None = None, model_factory: Callable | None 
         per = pn.peripherals(r["rows"])
         p = body.get("power") or {}
         r["power"] = pw.estimate(fcy=float(p.get("fcy") or 16e6), peripherals=per, mode=p.get("mode", "run"),
-                                 duty=float(p.get("duty", 1.0)), wdt=bool(p.get("wdt")),
+                                 duty=float(p.get("duty", 1.0)), wdt=bool(p.get("wdt")), rtcc=bool(p.get("rtcc")),
                                  battery_mah=float(p["battery_mah"]) if p.get("battery_mah") else None)
         r["power"]["peripherals"] = per
         return r

@@ -131,26 +131,53 @@ FINDING_PAGES = {"PWR_SLEEP": [131], "PWR_IDLE": [131], "PWR_WAKE": [131], "PWR_
                  "WDT_OFF": [288], "WDT_PERIOD": [288], "WDT_CLR": [288]}
 
 
-# ---- rough current estimate (typical, 3.3 V, 25 C).  Order-of-magnitude figures in the spirit of DS39897C
-# sec. 26 (IDD/IIDLE/IPD tables); NOT verified against the exact table rows - use a meter for real numbers.
-IDD_PER_MIPS_MA = 0.55      # run mode, ~ mA per MIPS
-IIDLE_FRAC = 0.30           # Idle ~ 30 % of run current
-IPD_UA = 20.0               # Sleep, WDT off, typical
-WDT_UA = 1.0
-PERIPH_MA = {"uart": 0.3, "spi": 0.3, "i2c": 0.2, "adc": 0.6, "timer": 0.05, "oc": 0.05, "usb": 6.0}
+# ---- current estimate from DS39897C sec. 29 DC characteristics, VDD = 3.3 V, regulator on, +25 C (typ / max):
+#   IDD  Table 29-4 p.314: 1 MIPS 1.1/1.7 mA (DC20e), 4 MIPS 4.3/6 mA (DC23e), 16 MIPS 18.2/24 mA (DC24e)
+#   IIDLE Table 29-5 p.315: 1 MIPS 0.30/0.39 mA (DC40e), 4 MIPS 1.1/1.4 mA (DC43e), 16 MIPS 4.4/5.6 mA (DC47d)
+#   IPD  Table 29-6 p.316: base 4.0/10 uA (DC60g); WDT adds 2.8/5 uA (DC61g); p.317 RTCC+T1 32 kHz adds 3.5/10 uA (DC62g)
+# The tables are measured with every PMD bit set (no peripherals running), so peripheral currents are NOT included;
+# the datasheet gives no per-module run currents (only the USB transceiver, Eq. 18-1 p.211).
+IDD_TABLE = ((1.0, 1.1, 1.7), (4.0, 4.3, 6.0), (16.0, 18.2, 24.0))           # MIPS, typ mA, max mA
+IIDLE_TABLE = ((1.0, 0.30, 0.39), (4.0, 1.1, 1.4), (16.0, 4.4, 5.6))
+IPD_UA = (4.0, 10.0)
+IWDT_UA = (2.8, 5.0)
+IRTCC_UA = (3.5, 10.0)
+POWER_PAGES = [314, 315, 316, 317]
+
+
+def _interp(tab, mips, col):
+    if mips <= tab[0][0]:
+        return tab[0][col] * mips / tab[0][0]           # below 1 MIPS: scale linearly (extrapolation)
+    for (m0, *a), (m1, *b) in zip(tab, tab[1:]):
+        if mips <= m1:
+            return a[col - 1] + (b[col - 1] - a[col - 1]) * (mips - m0) / (m1 - m0)
+    return tab[-1][col] * mips / tab[-1][0]             # above 16 MIPS: outside the table
 
 
 def estimate(fcy: float = 16e6, peripherals: list[str] | None = None, mode: str = "run", doze: int = 1,
-             duty: float = 1.0, wdt: bool = False, battery_mah: float | None = None) -> dict:
-    """mode run|idle|sleep; duty = fraction of time awake (rest asleep). Returns mA figures + battery life."""
+             duty: float = 1.0, wdt: bool = False, rtcc: bool = False, battery_mah: float | None = None) -> dict:
+    """mode run|idle when awake; duty = fraction of time awake (rest in Sleep). Typical and max, mA."""
     mips = fcy / 1e6
-    per = sum(PERIPH_MA.get(p.lower(), 0.1) for p in (peripherals or []))
-    run = IDD_PER_MIPS_MA * mips / (1 if doze <= 1 else 1 + 0.5 * (1 - 1 / doze)) + per
-    awake = run if mode == "run" else run * IIDLE_FRAC if mode == "idle" else (IPD_UA + (WDT_UA if wdt else 0)) / 1000
-    sleep = (IPD_UA + (WDT_UA if wdt else 0)) / 1000
-    avg = awake * duty + sleep * (1 - duty)
-    out = {"run_ma": round(run, 3), "awake_ma": round(awake, 4), "sleep_ma": round(sleep, 4), "avg_ma": round(avg, 4),
-           "note": "typical-order estimate, not a datasheet guarantee (DS39897C sec. 26)"}
-    if battery_mah:
-        out["battery_hours"] = round(battery_mah / avg, 1) if avg > 0 else None
+    out = {"vdd": 3.3, "temp_c": 25, "pages": POWER_PAGES, "peripherals": list(peripherals or [])}
+    sl_ua = [IPD_UA[k] + (IWDT_UA[k] if wdt else 0) + (IRTCC_UA[k] if rtcc else 0) for k in (0, 1)]
+    for k, name in ((1, "typ"), (2, "max")):
+        run = _interp(IDD_TABLE, mips, k)
+        idle = _interp(IIDLE_TABLE, mips, k)
+        awake = run if mode == "run" else idle
+        sleep = sl_ua[k - 1] / 1000
+        avg = awake * duty + sleep * (1 - duty)
+        out[name] = {"run_ma": round(run, 3), "idle_ma": round(idle, 3), "awake_ma": round(awake, 3),
+                     "sleep_ma": round(sleep, 4), "avg_ma": round(avg, 4)}
+        if battery_mah:
+            out[name]["battery_hours"] = round(battery_mah / avg, 1) if avg > 0 else None
+    # flat keys = typical, for the UI
+    out.update({k: v for k, v in out["typ"].items()})
+    notes = ["DS39897C Table 29-4/5/6 (p.314-317), 3.3 V, 25 C, regulator on; typical = design guidance, not tested"]
+    if not 1 <= mips <= 16:
+        notes.append(f"{mips:g} MIPS is outside the 1-16 MIPS table: extrapolated")
+    if doze > 1:
+        notes.append("Doze lowers CPU current but the datasheet gives no Doze figure: not modelled")
+    if peripherals:
+        notes.append("peripheral currents not included (tables are measured with all PMD bits set)")
+    out["note"] = "; ".join(notes)
     return out

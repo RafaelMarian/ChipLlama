@@ -1,7 +1,7 @@
-"""I2C master (DS39897C sec. 17 "I2C": I2CxCON p.194, I2CxSTAT p.196, Table 16-1 / Eq. 16-1 p.193).
+"""I2C master (DS39897C sec. 16 "I2C" p.191: I2CxCON p.194, I2CxSTAT p.196, Table 16-1 / Eq. 16-1 p.193).
 
     I2CxBRG = Fcy/Fscl - Fcy/10,000,000 - 1      (16 MHz: 100 kHz -> 157, 400 kHz -> 37, 1 MHz -> 13)
-Pins are fixed (not PPS) and open-drain; on the 100-pin PIC24FJ256GB110 (pin table p.18-20):
+Pins are fixed (not PPS) and open-drain; on the 100-pin PIC24FJ256GB110 (100-pin diagram p.7, pin descriptions p.24):
     SCL1 = RA14 (pin 66), SDA1 = RA15 (pin 67); SCL2 = RA2 (58), SDA2 = RA3 (59); SCL3 = RE6 (4), SDA3 = RE7 (5).
 (RG2/RG3 are the USB D+/D- pins on this device.)  External pull-ups are required.
 """
@@ -106,9 +106,19 @@ def check(code: str, spec: I2cSpec, rep, emu) -> None:
     if spec.freq_hz <= 100e3 and g(con, "DISSLW") != 1:
         rep.add("info", "I2C_DISSLW", f"{con}bits.DISSLW = 0: slew-rate control is meant for 400 kHz; set DISSLW = 1 at 100 kHz.")
     scl, sda = PINS[n][:2]
+    odc = _odc_regs()
     for pin in (scl, sda):
-        if (emu.regs.get(f"ODC{pin[1]}", 0) >> int(pin[2:])) & 1:
-            rep.add("info", "I2C_ODC", f"ODC on {pin} is unnecessary: the I2C module drives its pins open-drain itself.")
+        reg, bit = f"ODC{pin[1]}", int(pin[2:])
+        d = odc.get(reg)
+        if d is None or not (d.implemented_mask >> bit) & 1:
+            rep.add("error", "I2C_ODC", f"{reg}<{bit}> for {pin} is not implemented (DS39897C register maps p.51-52).")
+        elif (emu.regs.get(reg, 0) >> bit) & 1:
+            rep.add("info", "I2C_ODC", f"{reg}bits.OD{pin[1]}{bit} = 1 on {pin}: harmless, but not needed; with I2CEN = 1 "
+                    f"the module takes over SDAx/SCLx (I2CxCON p.194; ODCx p.134).")
+    for reg, d in odc.items():
+        if reg.startswith("ODC") and reg in emu.regs and emu.regs[reg] & ~d.implemented_mask & 0xFFFF:
+            rep.add("warning", "ODC_UNIMPL", f"{reg} = 0x{emu.regs[reg]:04X} sets unimplemented bits "
+                    f"(mask 0x{d.implemented_mask:04X}, p.51-52); they read as 0.")
     mapped = [k for k in emu.regs if k.startswith("RPINR")]
     from .uart import PIN_RP
     for pin in (scl, sda):

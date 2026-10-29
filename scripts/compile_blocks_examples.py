@@ -1,0 +1,66 @@
+"""Generate C for every Blocks example (examples/blocks/*.json) and compile it with xc16-gcc.
+
+python scripts/compile_blocks_examples.py [--link] [--require-compiler]
+Prints one line per example: VERIFIED (checker clean + compiled), FAILED (generation, checker or
+compiler error) or SKIPPED (xc16-gcc not found; checker still ran). Exit code 1 if any FAILED
+(or, with --require-compiler, if the compiler is missing).
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))
+
+from chipllama import blocks, compiler  # noqa: E402
+from chipllama.config import Settings  # noqa: E402
+
+
+def settings() -> Settings:
+    for name in ("from_env", "load"):
+        f = getattr(Settings, name, None)
+        if callable(f):
+            return f()
+    return Settings()
+
+
+def run(link: bool = False, require: bool = False, out=print) -> int:
+    s = settings()
+    comp, path = compiler.find_compiler(s)
+    out(f"device {s.device}; compiler {comp}: {path or 'NOT FOUND'}")
+    failed = 0
+    files = sorted((ROOT / "examples" / "blocks").glob("*.json"))
+    for f in files:
+        r = blocks.generate(json.loads(f.read_text(encoding="utf-8")), s)
+        if r["error"] or not r["c"]:
+            failed += 1
+            out(f"FAILED   {f.stem}: generation: {r['error']}")
+            continue
+        errs = [x for x in r["findings"] if x.get("severity") == "error"]
+        if errs:
+            failed += 1
+            out(f"FAILED   {f.stem}: checker: {errs[0].get('code')} {errs[0].get('message', '')}")
+            continue
+        c = compiler.compile_c(r["c"], s, link=link)
+        if c.status == "ok":
+            out(f"VERIFIED {f.stem} ({len(r['c'].splitlines())} lines)")
+        elif c.status == "skipped":
+            out(f"SKIPPED  {f.stem}: checker clean, {c.reason}")
+            failed += require
+        else:
+            failed += 1
+            first = c.diagnostics[0] if c.diagnostics else None
+            out(f"FAILED   {f.stem}: {comp}: " + (f"line {first.line}: {first.message}" if first else c.output.strip()[:300]))
+    out(f"{len(files)} examples, {failed} failed")
+    return 1 if failed else 0
+
+
+if __name__ == "__main__":
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--link", action="store_true", help="link to .elf/.hex instead of -c")
+    ap.add_argument("--require-compiler", action="store_true", help="treat a missing compiler as failure")
+    a = ap.parse_args()
+    sys.exit(run(a.link, a.require_compiler))
