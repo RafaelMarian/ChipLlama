@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import importlib
 
-MODULES = {"gpio": "gpio", "irq": "interrupts", "adc": "adc"}        # kind -> module name
+MODULES = {"gpio": "gpio", "irq": "interrupts", "adc": "adc", "pwm": "pwm"}        # kind -> module name
 
 
 def _mod(kind: str):
