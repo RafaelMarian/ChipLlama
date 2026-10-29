@@ -166,7 +166,7 @@ def normalize(j: dict, fixes: list[str] | None = None) -> Extraction:
     if isinstance(regs_in, list):                  # [{"name":..,"value":..}]
         regs_in = {str(r.get("name")): r.get("value") for r in regs_in if isinstance(r, dict)}
         fixes.append("converted register list to map")
-    known = set(chipdb.REGISTERS) | set(chipdb.DATA_REGS)
+    known = set(chipdb.CORE_NAMES)
     for k, v in (regs_in.items() if isinstance(regs_in, dict) else []):
         name = chipdb.REG_ALIASES.get(str(k).upper().strip(), str(k).upper().strip())
         val = _hex(v)
@@ -512,7 +512,7 @@ def code_registers(code: str) -> tuple[dict[str, int], dict[str, str]]:
     clean = re.sub(r"//[^\n]*", "", clean)
     defines = {m.group(1): m.group(2) for m in _DEFINE.finditer(clean)}
     for m in _EXPR_ASSIGN.finditer(clean):
-        if m.group(1) in chipdb.REGISTERS or m.group(1) in chipdb.DATA_REGS:
+        if m.group(1) in chipdb.CORE_NAMES:
             v = _c_eval(m.group(2), defines)
             if v is not None:
                 regs[m.group(1)] = v & 0xFFFF

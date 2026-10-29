@@ -126,12 +126,54 @@ _add(Register("AD1PCFGL", 0x032C, 273, tuple(Field(f"PCFG{i}", i) for i in range
 # ---- TRIS registers (1 = input, reset all inputs)
 for _p, _a in zip("ABCDEFG", (0x02C0, 0x02C8, 0x02D0, 0x02D8, 0x02E0, 0x02E8, 0x02F0)):
     _add(Register(f"TRIS{_p}", _a, 0, tuple(Field(f"TRIS{_p}{i}", i) for i in range(16)), reset=0xFFFF))
-REG_ALIASES = {"AD1PCFG": "AD1PCFGL"}
+REG_ALIASES = {"AD1PCFG": "AD1PCFGL", "AD1CHS0": "AD1CHS"}
 
 # 16-bit data registers (no bit fields)
 DATA_REGS: dict[str, int] = {"TMR1": 0x0100, "PR1": 0x0102, "TMR2": 0x0106, "TMR3": 0x010A,
                              "PR2": 0x010C, "PR3": 0x010E, "U1BRG": 0x0228}
 DATA_RESET = {"PR1": 0xFFFF, "PR2": 0xFFFF, "PR3": 0xFFFF, "TMR1": 0, "TMR2": 0, "TMR3": 0, "U1BRG": 0}
+
+# ---- the rest of the peripheral SFRs (interrupts, ports, CN, timers 4/5, IC, OC, ADC, PPS inputs):
+# generated from the device pack by tools/gen_gb110_tables.py. Hand-checked entries above win.
+from . import gb110_tables as _gen  # noqa: E402
+
+# registers the debug/vision decoders model in depth (timers, UART, clock); others are reported as 'other'
+CORE_NAMES = frozenset(REGISTERS) | frozenset(DATA_REGS)
+
+_PAGE_FALLBACK = {"TRIS": 133}
+for _n, _a, _pg, _f, _rst in _gen.SFRS:
+    if _n not in REGISTERS:
+        _add(Register(_n, _a, _pg, tuple(Field(fn, lsb, w) for fn, lsb, w in _f), reset=_rst))
+for _r in list(REGISTERS.values()):
+    if _r.name.startswith("TRIS") and _r.page == 0:
+        REGISTERS[_r.name] = Register(_r.name, _r.address, 133, _r.fields, _r.reset)
+for _n, _a, _rst in _gen.DATA:
+    DATA_REGS.setdefault(_n, _a)
+    DATA_RESET.setdefault(_n, _rst)
+VECTORS: dict[str, int] = dict(_gen.VECTORS)      # "T1Interrupt" -> IRQ
+CN_PIN: dict[str, int] = dict(_gen.CN_PIN)        # "RD6" -> 15
+RPI_PIN: dict[int, str] = dict(_gen.RPI_PIN)
+
+
+def implemented_pins() -> set[str]:
+    """Port pins that exist on the 100-pin PIC24FJ256GB110 (from the TRISx bitfields in the pack)."""
+    out = set()
+    for n, _a, _pg, f, _r in _gen.SFRS:
+        if n.startswith("TRIS"):
+            out |= {"R" + fn[4:] for fn, _l, _w in f}
+    return out
+
+
+def _unique_fields() -> dict[str, tuple[str, str]]:
+    """XC16 also defines `_FIELD` macros for every bit name that is unique across SFRs (e.g. _T1IF, _CNIE)."""
+    seen: dict[str, list[str]] = {}
+    for r in REGISTERS.values():
+        for f in r.fields:
+            seen.setdefault(f.name, []).append(r.name)
+    return {f: (rs[0], f) for f, rs in seen.items() if len(rs) == 1}
+
+
+FIELD_ALIASES = _unique_fields()
 
 # Datasheet pages most useful as multimodal inputs per topic.
 PAGES = {

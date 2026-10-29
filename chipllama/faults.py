@@ -44,11 +44,11 @@ def inject_fault(code: str, *, timer: int | None = None, uart: bool = False) -> 
         if new:
             return Fault("uart_brg", "U1BRG doubled (wrong baud-rate divisor -> ~half the requested baud)", code, new)
     if timer:
-        pr = "PR3" if timer == 23 else f"PR{timer}"
+        pr = {23: "PR3", 45: "PR5"}.get(timer, f"PR{timer}")
         new = _sub_first(rf"^(\s*{pr}\s*=\s*)([^;]+);", lambda m: f"{m.group(1)}({m.group(2).strip()}) / 2;", code)
         if new:
             return Fault("timer_period", f"{pr} halved (timer period ~2x too short)", code, new)
-        con = "T2CON" if timer == 23 else f"T{timer}CON"
+        con = {23: "T2CON", 45: "T4CON"}.get(timer, f"T{timer}CON")
         new = _sub_first(rf"^(\s*{con}bits\.TCKPS\s*=\s*)([^;]+);",
                          lambda m: f"{m.group(1)}(({m.group(2).strip()}) + 1) & 3;", code)
         if new:

@@ -85,7 +85,7 @@ class AgentResult:
 def resolve_spec(request: str, model: ChatModel | None, notes: list[str]) -> TimerSpec:
     spec = parse_request(request)
     notes.extend(spec.notes)
-    if spec.period_s is None and model is not None:
+    if spec.period_s is None and model is not None and not spec.gated:
         try:
             txt = model.complete([Message("user", prompts.EXTRACT_SPEC + request)])
             m = re.search(r"\{.*\}", txt, re.S)
@@ -94,7 +94,7 @@ def resolve_spec(request: str, model: ChatModel | None, notes: list[str]) -> Tim
                 spec.period_s = float(j["period_ms"]) / 1e3
             elif j.get("freq_hz"):
                 spec.period_s = 1.0 / float(j["freq_hz"])
-            if j.get("timer") in (1, 2, 3):
+            if j.get("timer") in (1, 2, 3, 4, 5):
                 spec.timer = int(j["timer"])
             spec.bits32 = bool(j.get("bits32", spec.bits32))
             if j.get("fosc_mhz"):
@@ -106,7 +106,7 @@ def resolve_spec(request: str, model: ChatModel | None, notes: list[str]) -> Tim
             notes.append("period/timer extracted by the model (regex could not find them)")
         except (ModelError, ValueError, json.JSONDecodeError) as e:
             notes.append(f"model spec extraction failed: {e}")
-    if spec.period_s is None:
+    if spec.period_s is None and not spec.gated:
         raise ValueError("could not determine the timer period from the request (say e.g. 'every 10 ms')")
     return spec
 
@@ -218,7 +218,7 @@ def run_agent(request: str, model: ChatModel, settings: Settings, *, max_iters: 
             continue
         fault = None
         if inject_fault and res.fault is None:
-            tnum = (23 if res.spec.bits32 else res.spec.timer) if res.spec else None
+            tnum = ((23 if res.spec.base == 2 else 45) if res.spec.bits32 else res.spec.timer) if res.spec else None
             f = make_fault(code, timer=tnum, uart=uspec is not None)
             if f is None:
                 res.fault = {"label": DEMO_LABEL, "kind": "none", "description": "no injectable pattern found; attempt left unchanged", "diff": ""}

@@ -18,7 +18,13 @@ TIMERS = {
     1: dict(con="T1CON", pr="PR1", ifs=("IFS0", "T1IF"), iec=("IEC0", "T1IE"), ipc=("IPC0", "T1IP"), isr="_T1Interrupt"),
     2: dict(con="T2CON", pr="PR2", ifs=("IFS0", "T2IF"), iec=("IEC0", "T2IE"), ipc=("IPC1", "T2IP"), isr="_T2Interrupt"),
     3: dict(con="T3CON", pr="PR3", ifs=("IFS0", "T3IF"), iec=("IEC0", "T3IE"), ipc=("IPC2", "T3IP"), isr="_T3Interrupt"),
+    # Timer4/5 (p.163-167; IFS1<12:11>, IEC1<12:11>, IPC6<14:12>, IPC7<2:0>)
+    4: dict(con="T4CON", pr="PR4", ifs=("IFS1", "T4IF"), iec=("IEC1", "T4IE"), ipc=("IPC6", "T4IP"), isr="_T4Interrupt"),
+    5: dict(con="T5CON", pr="PR5", ifs=("IFS1", "T5IF"), iec=("IEC1", "T5IE"), ipc=("IPC7", "T5IP"), isr="_T5Interrupt"),
 }
+# External clock / gate input of each timer is a PPS input (RPINR2-4, p.142-143)
+CLOCK_INPUT = {1: ("RPINR2", "T1CKR"), 2: ("RPINR3", "T2CKR"), 3: ("RPINR3", "T3CKR"),
+               4: ("RPINR4", "T4CKR"), 5: ("RPINR4", "T5CKR")}
 
 
 @dataclass
@@ -28,13 +34,22 @@ class TimerSpec:
     fosc_hz: float = 32_000_000.0        # PIC24FJ256GB110: up to 32 MHz Fosc = 16 MIPS (datasheet p.1)
     interrupt: bool = True
     priority: int | None = None          # 1..7 or None (= don't care, must be 1..7 if interrupt)
-    bits32: bool = False                 # Timer2/3 32-bit mode
+    bits32: bool = False                 # 32-bit pair: Timer2/3 (timer=2) or Timer4/5 (timer=4)
+    gated: bool = False                  # gated time accumulation (TGATE=1, TCS=0): counts while TxCK is high
+    gate_rp: int | None = None           # RPn/RPIn carrying the TxCK gate signal (PPS input)
     tolerance: float = 0.01              # 1 % period error accepted by the checker
     notes: list[str] = field(default_factory=list)
 
     @property
     def fcy(self) -> float:
         return self.fosc_hz / 2.0
+
+    @property
+    def base(self) -> int:
+        """Timer whose TxCON/PRx are written (even timer of a 32-bit pair)."""
+        if self.bits32 and self.timer in (3, 5):
+            return self.timer - 1
+        return self.timer
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -63,11 +78,16 @@ def timer_period_s(fcy: float, prescale: int, pr: int) -> float:
 
 def solve(spec: TimerSpec) -> TimerSolution:
     if spec.timer not in TIMERS:
-        raise ValueError("timer must be 1, 2 or 3")
+        raise ValueError("timer must be 1..5")
+    if spec.bits32 and spec.timer == 1:
+        raise ValueError("Timer1 has no 32-bit mode; use Timer2/3 or Timer4/5 (T2CON/T4CON<T32>)")
+    if spec.gated and spec.period_s is None:
+        # gated accumulation: the "period" is the longest pulse to measure; default = full 16-bit range at 1:1
+        spec.period_s = 65536 / spec.fcy * (65536 if spec.bits32 else 1)
+        spec.notes.append(f"gated mode without a maximum pulse width: using the full range at 1:1 "
+                          f"({spec.period_s*1e3:.4g} ms)")
     if spec.period_s is None or spec.period_s <= 0:
         raise ValueError("a positive period is required")
-    if spec.bits32 and spec.timer == 1:
-        raise ValueError("Timer1 has no 32-bit mode; use Timer2/3 (T2CON<T32>)")
     prmax = 0xFFFFFFFF if spec.bits32 else 0xFFFF
     ticks_wanted = spec.period_s * spec.fcy
     best = None
@@ -86,16 +106,17 @@ def solve(spec: TimerSpec) -> TimerSolution:
         raise ValueError(
             f"{spec.period_s*1e3:g} ms does not fit Timer{spec.timer} at Fcy={spec.fcy/1e6:g} MHz "
             f"({'32' if spec.bits32 else '16'}-bit, max prescaler 1:256)"
-            + ("" if spec.bits32 or spec.timer == 1 else "; try 32-bit mode (Timer2/3)"))
+            + ("" if spec.bits32 or spec.timer == 1 else "; try 32-bit mode (Timer2/3 or Timer4/5)"))
     code, ps, pr, ach, err = best
-    t = TIMERS[2 if spec.bits32 else spec.timer]
-    con = (1 << 15) | (code << 4)
+    b = spec.base
+    t = TIMERS[b]
+    con = (1 << 15) | (code << 4) | ((1 << 6) if spec.gated else 0)   # TGATE<6>
     regs = {}
     if spec.bits32:
         con |= 1 << 3  # T32
-        regs["T2CON"] = con
-        regs["PR2"] = pr & 0xFFFF           # LSW
-        regs["PR3"] = (pr >> 16) & 0xFFFF   # MSW
+        regs[t["con"]] = con
+        regs[t["pr"]] = pr & 0xFFFF                     # LSW: PR2 / PR4
+        regs[TIMERS[b + 1]["pr"]] = (pr >> 16) & 0xFFFF  # MSW: PR3 / PR5
     else:
         regs[t["con"]] = con
         regs[t["pr"]] = pr
@@ -104,8 +125,12 @@ def solve(spec: TimerSpec) -> TimerSolution:
 
 
 def interrupt_names(spec: TimerSpec) -> dict:
-    """Interrupt flag/enable/priority names. 32-bit mode uses the Timer3 interrupt (datasheet p.163-164)."""
-    return TIMERS[3 if spec.bits32 else spec.timer]
+    """Interrupt flag/enable/priority names. A 32-bit pair uses the odd timer's interrupt (Timer3 / Timer5, p.164)."""
+    return TIMERS[spec.base + 1 if spec.bits32 else spec.timer]
+
+
+def max_period_s(fcy: float, bits32: bool = False) -> float:
+    return (0x100000000 if bits32 else 0x10000) * 256 / fcy
 
 
 # ---------- natural language parsing (deterministic; used to cross-check the model) ----------
@@ -123,13 +148,25 @@ def parse_request(text: str) -> TimerSpec:
     """Best-effort extraction of timer/period/clock from a plain-English request."""
     t = text.lower()
     spec = TimerSpec()
-    m = re.search(r"timer\s*([123])\b", t)
+    m = re.search(r"timer\s*([1-5])\b|\btmr([1-5])\b|\bt([1-5])con\b", t)
     if m:
-        spec.timer = int(m.group(1))
-    if re.search(r"32[- ]?bit|timer\s*2\s*/\s*3|timer\s*2\s*\+\s*3|timer\s*2\s*and\s*3|t32", t):
+        spec.timer = int(next(g for g in m.groups() if g))
+    m45 = re.search(r"timer\s*4\s*(?:/|\+|and|&)\s*(?:timer\s*)?5", t)
+    if m45 or re.search(r"32[- ]?bit|timer\s*2\s*(?:/|\+|and|&)\s*(?:timer\s*)?3|\bt32\b", t):
         spec.bits32 = True
-        if not m:
+        if m45:
+            spec.timer = 4
+        elif not m:
             spec.timer = 2
+        elif spec.timer in (3, 5):
+            spec.timer -= 1
+    if re.search(r"\bgat(?:e|ed|ing)\b|tgate|pulse[- ]width|measure (?:a |the )?(?:high|pulse)", t):
+        spec.gated = True
+        spec.interrupt = True
+        mg = re.search(r"(?:gate|t\dck)\s*(?:input|pin|signal)?\s*(?:on|=|:|at|from)?\s*(?:pin\s*)?(rpi?\d{1,2}|r[a-g]\d{1,2})\b", t)
+        if mg:
+            from .uart import _pin_to_rp
+            spec.gate_rp = _pin_to_rp(mg.group(1))
     # explicit clock: "Fosc 32 MHz", "at 8MHz", "Fcy = 4 MHz", "16 MIPS"
     m_fcy = re.search(r"f\s*cy\s*(?:=|of|:)?\s*" + _NUM + r"\s*(khz|mhz|hz)", t)
     m_mips = re.search(_NUM + r"\s*mips", t)
@@ -151,7 +188,8 @@ def parse_request(text: str) -> TimerSpec:
         spec.fosc_hz = _f(re.search(_NUM + r"\s*mhz", t).group(1)) * 1e6
     else:
         spec.notes.append("no clock stated: assuming Fosc = 32 MHz (Fcy = 16 MHz, max for this device)")
-    mp = re.search(r"(?:every|period(?:\s+of)?|each|interval(?:\s+of)?|of)\s*" + _NUM + r"\s*(us|µs|ms|msec|usec|sec|s)\b", rest) \
+    rest = re.sub(r"(?:gate|t\dck)\s*(?:input|pin|signal)?\s*(?:on|=|:|at|from)?\s*(?:pin\s*)?(rpi?\d{1,2}|r[a-g]\d{1,2})\b", " ", rest)
+    mp = re.search(r"(?:up to|max(?:imum)?|longest|every|period(?:\s+of)?|each|interval(?:\s+of)?|of)\s*" + _NUM + r"\s*(us|µs|ms|msec|usec|sec|s)\b", rest) \
         or re.search(_NUM + r"\s*(us|µs|ms|msec|usec|sec|s)\b", rest)
     mf = re.search(_NUM + r"\s*(khz|hz)\b", rest)
     if mp:
@@ -160,7 +198,11 @@ def parse_request(text: str) -> TimerSpec:
         freq = _f(mf.group(1)) * _UNIT_HZ[mf.group(2)]
         if freq > 0:
             spec.period_s = 1.0 / freq
-    if re.search(r"no interrupt|without interrupt|polling|poll\b", t):
+    if spec.gated and re.search(r"no interrupt|without interrupt|polling|poll\b", t):
+        spec.interrupt = False
+    elif spec.gated:
+        pass
+    elif re.search(r"no interrupt|without interrupt|polling|poll\b", t):
         spec.interrupt = False
     elif re.search(r"interrupt|isr|toggle|blink|tick|every", t):
         spec.interrupt = True

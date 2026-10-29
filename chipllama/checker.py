@@ -62,6 +62,31 @@ class CheckReport:
         return "\n".join(lines)
 
 
+def _check_gate_pin(emu, spec, n: int, rep) -> None:
+    """Gate input TxCK is a PPS input (RPINR2-4): the pin must be mapped, an input and digital."""
+    from .timers import CLOCK_INPUT
+    from .uart import port_pin, analog_channel
+    reg, f = CLOCK_INPUT[n]
+    val = emu.get(reg, f)
+    rep.registers[reg] = emu.regs.get(reg, chipdb.REGISTERS[reg].reset)
+    if spec.gate_rp is None:
+        if val == 0x3F:
+            rep.add("error", "GATE_PPS", f"{reg}.{f} = 63 (unmapped): the T{n}CK gate input is not on any pin "
+                    f"(p.{chipdb.REGISTERS[reg].page}).", "RPn", val)
+        return
+    if val != spec.gate_rp:
+        rep.add("error", "GATE_PPS", f"{reg}.{f} = {val}, expected {spec.gate_rp} to route the gate signal to T{n}CK "
+                f"(p.{chipdb.REGISTERS[reg].page}).", spec.gate_rp, val)
+    pin = port_pin(spec.gate_rp)
+    if pin:
+        port, bit = pin[1], int(pin[2:])
+        if (emu.regs.get(f"TRIS{port}", 0xFFFF) >> bit) & 1 != 1:
+            rep.add("error", "GATE_TRIS", f"gate pin {pin} is an output (TRIS{port}{bit}=0); it must be an input.", 1, 0)
+        an = analog_channel(pin)
+        if an is not None and not (emu.regs.get("AD1PCFGL", 0) >> an) & 1:
+            rep.add("error", "GATE_ANALOG", f"gate pin {pin} is AN{an} and resets analog: set AD1PCFGLbits.PCFG{an} = 1.", 1, 0)
+
+
 def check_timer(code: str, spec: TimerSpec, emu: Emulation | None = None, *,
                 profile: "boardmod.BoardProfile | None" = None, ics: str = "PGx2",
                 require_config: bool = True) -> CheckReport:
@@ -75,13 +100,14 @@ def check_timer(code: str, spec: TimerSpec, emu: Emulation | None = None, *,
     except ValueError as e:
         rep.add("error", "SPEC", f"request cannot be satisfied by this timer: {e}")
         return rep
-    n = 2 if spec.bits32 else spec.timer
+    n = spec.base
     t = TIMERS[n]
     con_name, pr_name = t["con"], t["pr"]
+    msw_name = TIMERS[n + 1]["pr"] if spec.bits32 else None
     ints = interrupt_names(spec)
     con = chipdb.REGISTERS[con_name]
     regs = emu.regs
-    for r in (con_name, pr_name, "PR3" if spec.bits32 else None, ints["ifs"][0], ints["iec"][0], ints["ipc"][0]):
+    for r in (con_name, pr_name, msw_name, ints["ifs"][0], ints["iec"][0], ints["ipc"][0]):
         if r:
             rep.registers[r] = regs.get(r, 0)
 
@@ -98,27 +124,45 @@ def check_timer(code: str, spec: TimerSpec, emu: Emulation | None = None, *,
     # --- clock source / gate
     if fld("TCS") != 0:
         rep.add("error", "TCS", f"{con_name}.TCS=1 selects the EXTERNAL clock pin; internal Fcy needs TCS=0.", 0, fld("TCS"))
-    if fld("TGATE") != 0:
+    if spec.gated:
+        if fld("TGATE") != 1:
+            rep.add("error", "TGATE", f"gated time accumulation requested but {con_name}.TGATE (bit 6) is not set "
+                    f"(p.{con.page}: TGATE=1 with TCS=0 counts Fcy/prescale while T{n}CK is high).", 1, fld("TGATE"))
+        _check_gate_pin(emu, spec, n, rep)
+    elif fld("TGATE") != 0:
         rep.add("error", "TGATE", f"{con_name}.TGATE=1 enables gated accumulation; the timer would only count while the gate input is high.", 0, fld("TGATE"))
     # --- 32-bit mode
-    if n == 2:
+    if n in (2, 4):
         t32 = fld("T32")
+        pair = f"Timer{n}/{n+1}"
         if spec.bits32 and t32 != 1:
-            rep.add("error", "T32", "32-bit timer requested but T2CON.T32 (bit 3) is not set.", 1, t32)
+            rep.add("error", "T32", f"32-bit timer requested but {con_name}.T32 (bit 3) is not set.", 1, t32)
         if not spec.bits32 and t32 == 1:
-            rep.add("error", "T32", "T2CON.T32 is set: Timer2 runs as 32-bit Timer2/3 which was not requested (period would use PR3:PR2).", 0, t32)
-    if n == 3 and emu.get("T2CON", "T32") == 1:
-        rep.add("error", "T32", "T2CON.T32=1: T3CON is ignored in 32-bit mode; configure Timer2/3 through T2CON/PR2/PR3.")
+            rep.add("error", "T32", f"{con_name}.T32 is set: Timer{n} runs as 32-bit {pair} which was not requested "
+                    f"(period would use PR{n+1}:PR{n}).", 0, t32)
+    if n in (3, 5) and emu.get(f"T{n-1}CON", "T32") == 1:
+        rep.add("error", "T32", f"T{n-1}CON.T32=1: T{n}CON is ignored in 32-bit mode; configure Timer{n-1}/{n} "
+                f"through T{n-1}CON/PR{n-1}/PR{n}.")
 
     # --- period computed from the code's registers
     ps = PRESCALERS[fld("TCKPS")]
     pr = regs.get(pr_name, 0xFFFF)
     if spec.bits32:
-        pr = (regs.get("PR3", 0xFFFF) << 16) | pr
+        pr = (regs.get(msw_name, 0xFFFF) << 16) | pr
     ach = timer_period_s(spec.fcy, ps, pr)
     rep.achieved_period_s = ach
     err = (ach - spec.period_s) / spec.period_s
-    if abs(err) > spec.tolerance:
+    if spec.gated:
+        # the period register is only a ceiling for the measured pulse: longer is fine, shorter overflows
+        if err < -spec.tolerance:
+            rep.add("error", "PERIOD",
+                    f"gated range: prescale 1:{ps} with {pr_name}={pr} rolls over after {ach*1e3:.6g} ms, shorter than "
+                    f"the {spec.period_s*1e3:.6g} ms pulse to measure. A correct choice: TCKPS={ref.tckps} (1:{ref.prescale}), "
+                    f"PR={ref.period_reg}.", f">= {spec.period_s*1e3:.6g} ms", f"{ach*1e3:.6g} ms")
+        else:
+            rep.add("info", "GATE_RANGE", f"measures pulses up to {ach*1e3:.6g} ms with {1e9*ps/spec.fcy:.4g} ns resolution")
+        err = 0.0
+    elif abs(err) > spec.tolerance:
         rep.add("error", "PERIOD",
                 f"{con_name} prescale 1:{ps} with {pr_name}={pr} gives {ach*1e3:.6g} ms at Fcy={spec.fcy/1e6:g} MHz "
                 f"({err*100:+.2f}% vs requested {spec.period_s*1e3:.6g} ms). "
@@ -126,7 +170,7 @@ def check_timer(code: str, spec: TimerSpec, emu: Emulation | None = None, *,
                 f"{spec.period_s*1e3:.6g} ms", f"{ach*1e3:.6g} ms")
     elif abs(err) > 1e-4:
         rep.add("info", "PERIOD_ERR", f"period error {err*1e6:+.0f} ppm (within tolerance)")
-    if pr_name not in wrote:
+    if pr_name not in wrote and not spec.gated:
         rep.add("error" if abs(err) > spec.tolerance else "warning", "PR_UNSET",
                 f"{pr_name} is never written; it resets to 0xFFFF.")
     if ps != ref.prescale and abs(err) <= spec.tolerance:
@@ -154,7 +198,8 @@ def check_timer(code: str, spec: TimerSpec, emu: Emulation | None = None, *,
     ip = emu.get(ipc_r, ipc_f)
     if spec.interrupt:
         if ie != 1:
-            rep.add("error", "IE", f"{iec_r}.{iec_f} is not set: Timer interrupt never fires.", 1, ie)
+            rep.add("error", "IE", f"{iec_r}.{iec_f} is not set: Timer interrupt never fires"
+                    + (" (in gated mode it fires on the gate's falling edge)." if spec.gated else "."), 1, ie)
         if ip == 0:
             rep.add("error", "IP", f"{ipc_r}.{ipc_f}=0 means the interrupt source is DISABLED (priority 1-7 needed).", "1..7", ip)
         elif spec.priority and ip != spec.priority:

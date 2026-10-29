@@ -303,6 +303,8 @@ def run_statement(emu: Emulation, stmt: str, func: str, line: int = 0, regs: dic
         info = {"IE": "iec", "IF": "ifs", "IP": "ipc"}[kind]
         from .timers import TIMERS
         reg_name, fld = TIMERS[n][info]
+    elif lhs.startswith("_") and lhs[1:] in chipdb.FIELD_ALIASES:
+        reg_name, fld = chipdb.FIELD_ALIASES[lhs[1:]]
     elif "." in lhs:
         base, fld = lhs.split(".", 1)
         reg_name = base[:-4] if base.endswith("bits") else base
@@ -365,7 +367,7 @@ def emulate(src: str) -> Emulation:
     emu = Emulation(regs=initial_regs(), defines=collect_defines(clean))
     emu.functions = split_functions(clean)
     for fn in emu.functions:
-        if fn.is_isr or re.fullmatch(r"_T\dInterrupt", fn.name):
+        if fn.is_isr or re.fullmatch(r"_(?:Alt)?\w+Interrupt", fn.name):
             continue
         for st in split_statements(fn.body):
             run_statement(emu, st, fn.name, fn.line)

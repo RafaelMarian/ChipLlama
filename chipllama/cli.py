@@ -95,20 +95,53 @@ def cmd_calc_uart(a, s) -> int:
     return 0
 
 
+CALC_KINDS = ("uart", "timer", "gpio", "irq", "adc", "pwm", "ic")
+
+
 def cmd_calc(a, s) -> int:
-    if a.request.strip().lower() == "uart":
+    kind = a.request.strip().lower()
+    text = " ".join(getattr(a, "text", None) or [])
+    if kind == "uart":
         return cmd_calc_uart(a, s)
-    spec = parse_request(a.request)
+    if kind in CALC_KINDS and kind != "timer":
+        from . import peripherals
+        fosc = a.fosc * 1e6 if a.fosc else None
+        try:
+            lines, data = peripherals.calc(kind, text, fosc)
+        except ValueError as e:
+            print(f"error: {e}", file=sys.stderr)
+            return 2
+        print("\n".join(lines))
+        if a.json:
+            print(json.dumps(data, indent=2, default=str))
+        return 0
+    spec = parse_request(text if kind == "timer" else " ".join([a.request, text]))
     if a.fosc:
         spec.fosc_hz = a.fosc * 1e6
-    if spec.period_s is None:
+    if spec.period_s is None and not spec.gated:
         print("no period found in request", file=sys.stderr)
         return 2
-    sol = solve(spec)
-    print(f"Timer{spec.timer}: Fcy={spec.fcy/1e6:g} MHz  prescale 1:{sol.prescale} (TCKPS={sol.tckps})  "
+    try:
+        sol = solve(spec)
+    except ValueError as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 2
+    label = f"Timer{spec.base}/{spec.base+1} (32-bit)" if spec.bits32 else f"Timer{spec.timer}"
+    if spec.gated:
+        label += " gated"
+    print(f"{label}: Fcy={spec.fcy/1e6:g} MHz  prescale 1:{sol.prescale} (TCKPS={sol.tckps})  "
           f"period reg={sol.period_reg}  achieved {sol.achieved_s*1e3:.6g} ms ({sol.error_ppm:.1f} ppm)")
     for name, val in sol.registers.items():
         print(f"  {name} = 0x{val:04X}  ({val})")
+    from .timers import interrupt_names, CLOCK_INPUT
+    if spec.interrupt:
+        ii = interrupt_names(spec)
+        print(f"  interrupt: {ii['isr']}  flag {ii['ifs'][0]}bits.{ii['ifs'][1]}  enable {ii['iec'][0]}bits.{ii['iec'][1]}  "
+              f"priority {ii['ipc'][0]}bits.{ii['ipc'][1]}")
+    if spec.gated:
+        reg, f = CLOCK_INPUT[spec.base]
+        print(f"  gate T{spec.base}CK input: {reg}bits.{f} = " + (str(spec.gate_rp) if spec.gate_rp is not None else "<RPn>")
+              + f"; counts while the gate is high, {spec.fcy and 1e9*sol.prescale/spec.fcy:.4g} ns per tick")
     if a.json:
         print(json.dumps(sol.to_dict(), indent=2, default=str))
     return 0
@@ -274,8 +307,12 @@ def build_parser() -> argparse.ArgumentParser:
     pr.add_argument("--edc", help="explicit path to a <DEVICE>.PIC file")
     pr.add_argument("--generic", action="store_true", help="EDC safe defaults even for the built-in board profile")
     pr.set_defaults(fn=cmd_pragmas)
-    c = sub.add_parser("calc", help="deterministic timer / UART calculator (no AI, no key). `calc uart --baud 115200`")
-    c.add_argument("request", help="timer request text, or the word 'uart'")
+    c = sub.add_parser("calc", help="deterministic peripheral calculator (no AI, no key): "
+                       "`calc timer \"Timer4 1 ms\"`, `calc uart --baud 115200`, `calc pwm \"OC1 20 kHz 25%% on RP10\"`, "
+                       "`calc adc \"AN5 auto-sample 10 ksps\"`, `calc ic \"IC1 rising RP7 down to 50 Hz\"`, "
+                       "`calc gpio \"LED RA0, button RD6 pull-up CN interrupt\"`, `calc irq T4`")
+    c.add_argument("request", help="uart | timer | gpio | irq | adc | pwm | ic  (or a timer request text)")
+    c.add_argument("text", nargs="*", help="request text for that peripheral")
     c.add_argument("--fosc", type=float, help="Fosc in MHz (overrides text / board profile)")
     c.add_argument("--baud", type=int, help="uart: baud rate"); c.add_argument("--tx", help="uart: TX pin, e.g. RP10 or RF4")
     c.add_argument("--rx", help="uart: RX pin, e.g. RP17 or RPI37")

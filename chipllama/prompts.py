@@ -22,12 +22,12 @@ Rules:
 
 
 def register_table_text(spec: TimerSpec) -> str:
-    n = 2 if spec.bits32 else spec.timer
+    n = spec.base
     names = [TIMERS[n]["con"], TIMERS[n]["pr"]]
     ints = interrupt_names(spec)
     names += [ints["ifs"][0], ints["iec"][0], ints["ipc"][0]]
     if spec.bits32:
-        names += ["T3CON", "PR3"]
+        names += [TIMERS[n + 1]["con"], TIMERS[n + 1]["pr"]]
     lines = ["Register facts (from DS39897C; bit numbers are exact):"]
     for nm in dict.fromkeys(names):
         if nm in chipdb.REGISTERS:
@@ -36,17 +36,31 @@ def register_table_text(spec: TimerSpec) -> str:
             fs = ", ".join(f"{f.name}<{f.lsb + f.width - 1}:{f.lsb}>" if f.width > 1 else f"{f.name}<{f.lsb}>" for f in relevant)
             lines.append(f"- {nm} @0x{r.address:04X} (datasheet p.{r.page}): {fs}")
             if nm.startswith("T") and nm.endswith("CON"):
-                lines.append("    TCKPS: 00=1:1, 01=1:8, 10=1:64, 11=1:256; TCS: 0=internal Fosc/2, 1=external pin; TGATE must be 0 for free-running; unimplemented bits read 0")
+                lines.append("    TCKPS: 00=1:1, 01=1:8, 10=1:64, 11=1:256; TCS: 0=internal Fosc/2, 1=external pin; "
+                             + ("TGATE=1 (with TCS=0) = gated time accumulation" if spec.gated else "TGATE must be 0 for free-running")
+                             + "; unimplemented bits read 0")
         elif nm in chipdb.DATA_REGS:
             lines.append(f"- {nm} @0x{chipdb.DATA_REGS[nm]:04X}: 16-bit, resets to 0xFFFF")
     lines.append("- IPCx priority field = 0 disables that interrupt source; reset default is priority 4.")
     if spec.bits32:
-        lines.append("- 32-bit mode: T2CON<T32>=1; PR3 = most significant word, PR2 = least significant word; T3CON is ignored; interrupt is Timer3's (T3IF/T3IE/T3IP, _T3Interrupt).")
+        a, b = n, n + 1
+        lines.append(f"- 32-bit mode (p.164): T{a}CON<T32>=1; PR{b} = most significant word, PR{a} = least significant word; "
+                     f"T{b}CON is ignored; interrupt is Timer{b}'s (T{b}IF/T{b}IE/T{b}IP, _T{b}Interrupt).")
+    if spec.gated:
+        from .timers import CLOCK_INPUT
+        reg, f = CLOCK_INPUT[n]
+        lines.append(f"- Gated time accumulation (p.{chipdb.REGISTERS[TIMERS[n]['con']].page}): TCS=0, TGATE=1. TMR{n} counts "
+                     f"Fcy/prescale while the T{n}CK pin is high; T{n if not spec.bits32 else n+1}IF is set on the gate's FALLING edge "
+                     f"- read TMR{n} in the ISR, then clear TMR{n}. T{n}CK is a PPS input: {reg}bits.{f} = RPn "
+                     f"(p.{chipdb.REGISTERS[reg].page}); make the pin an input and digital (AD1PCFGL PCFGn=1 for RBn).")
+        if spec.gate_rp is not None:
+            lines.append(f"  Gate signal on RP{spec.gate_rp}: {reg}bits.{f} = {spec.gate_rp} (inside the PPS unlock/lock sequence).")
     return "\n".join(lines)
 
 
 def spec_text(spec: TimerSpec) -> str:
-    return (f"Timer{'2/3 (32-bit)' if spec.bits32 else spec.timer}, target period {spec.period_s*1e3:.6g} ms, "
+    return (f"Timer{f'{spec.base}/{spec.base+1} (32-bit)' if spec.bits32 else spec.timer}"
+            + (" GATED (period = longest pulse to measure)" if spec.gated else "") + ", target period {spec.period_s*1e3:.6g} ms, "
             f"Fosc = {spec.fosc_hz/1e6:g} MHz (Fcy = {spec.fcy/1e6:g} MHz), interrupt = {'yes' if spec.interrupt else 'no (polling)'}"
             + (f", priority {spec.priority}" if spec.priority else "") + f", tolerance {spec.tolerance*100:g}%")
 
