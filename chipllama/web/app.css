@@ -137,3 +137,9 @@ dialog{background:var(--panel-solid);color:var(--tx);border:1px solid var(--line
 .exs{margin:12px 0 4px;max-height:66px;overflow:hidden;-webkit-mask-image:linear-gradient(#000 55%,transparent);mask-image:linear-gradient(#000 55%,transparent)}.exs.open{max-height:none;-webkit-mask-image:none;mask-image:none}
 .exmore{background:none;border:0;color:var(--acc);font-size:12px;cursor:pointer;padding:0 0 10px}.exmore:hover{color:#fff}
 button:focus{outline:none}button:focus-visible{outline:2px solid rgba(124,140,255,.7);outline-offset:2px}
+.pinrow{display:grid;grid-template-columns:1.2fr 1fr auto;gap:8px;margin-bottom:8px}.pinrow button{padding:0 12px}
+.ptbl{width:100%;border-collapse:collapse;font-size:13px;margin-bottom:10px}.ptbl th{text-align:left;color:var(--mut);font-weight:500;font-size:11px;text-transform:uppercase;letter-spacing:.05em;padding:6px 8px;border-bottom:1px solid var(--line)}
+.ptbl td{padding:7px 8px;border-bottom:1px solid rgba(255,255,255,.04);font-family:var(--mono);font-size:12.5px}
+.pissue{font-size:13px;margin:6px 0;line-height:1.5}
+.pgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px}.pstat{background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:10px;padding:10px 12px}.pstat b{font-size:18px;font-weight:600;display:block;margin-top:2px}.pnote{grid-column:1/-1;font-size:12px}
+.xl{border-bottom:1px solid rgba(255,255,255,.05);padding:8px 0}.xl code{font-family:var(--mono);font-size:12.5px;color:#dfe3ff}.xl .ln{color:var(--mut);font-family:var(--mono);font-size:11px;margin-right:8px}.xl ul{margin:4px 0 0 18px;padding:0;font-size:13px;color:var(--mut)}

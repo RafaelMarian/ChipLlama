@@ -90,6 +90,27 @@
     g('afiles').replaceChildren(...Object.keys(EX).map(n => E('span', 'pill info', n)));
     run();
   }
+
+  async function explain() {
+    let code = document.getElementById('acode').value;
+    if (!code.trim()) { const f = FILES.find(x => /\.c$/i.test(x.name)); if (f) code = await f.text(); else { const k = Object.keys(EX || {}).find(n => /\.c$/i.test(n)); if (k) code = EX[k]; } }
+    if (!code.trim()) { window.toast && toast('paste or drop a .c file first', 'warn'); return; }
+    const muse = document.getElementById('aexplain').checked;
+    const out = document.getElementById('aout'); out.innerHTML = '<div class="card"><div class="f mut">Explaining…</div></div>';
+    let j;
+    try { j = await (await fetch('/api/explain', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ code, muse }) })).json(); }
+    catch (e) { out.innerHTML = ''; window.toast && toast('explain failed: ' + e.message, 'bad'); return; }
+    out.innerHTML = '';
+    const c = E('div', 'card'); const h = E('h3', '', 'Explain code '); h.append(E('span', 'pill info', j.lines.length + ' annotated lines')); c.append(h);
+    const f = E('div', 'f');
+    if (j.registers.length) f.append(E('div', 'mut', 'Registers: ' + j.registers.map(r => r.name + ' p.' + r.page).join(' · ')));
+    j.lines.forEach(l => { const d = E('div', 'xl'); d.append(E('span', 'ln', 'L' + l.line), E('code', '', l.code)); const u = E('ul');
+      l.notes.forEach(n => u.append(E('li', '', n.what + '  [p.' + n.page + ']'))); d.append(u); f.append(d); });
+    if (!j.lines.length) f.append(E('div', 'mut', 'No register accesses recognised.'));
+    c.append(f); out.append(c);
+    if (j.explanation || j.explanation_error) { const m = E('div', 'card'); m.append(E('h3', '', 'Muse walkthrough'));
+      const p = E('div', 'f'); p.style.whiteSpace = 'pre-wrap'; p.textContent = j.explanation || j.explanation_error; m.append(p); out.append(m); }
+  }
   function init() {
     const d = g('adrop'), inp = g('ainput');
     d.onclick = () => inp.click(); inp.onchange = () => { EX = null; take(inp.files); inp.value = ''; };
@@ -103,5 +124,5 @@
     });
     examples().catch(() => {});
   }
-  window.Audit = { init, run, loadEx };
+  window.Audit = { explain, init, run, loadEx };
 })();

@@ -129,3 +129,28 @@ def pages(spec):
 
 FINDING_PAGES = {"PWR_SLEEP": [131], "PWR_IDLE": [131], "PWR_WAKE": [131], "PWR_DOZE": [125], "PWR_DOZEN": [125],
                  "WDT_OFF": [288], "WDT_PERIOD": [288], "WDT_CLR": [288]}
+
+
+# ---- rough current estimate (typical, 3.3 V, 25 C).  Order-of-magnitude figures in the spirit of DS39897C
+# sec. 26 (IDD/IIDLE/IPD tables); NOT verified against the exact table rows - use a meter for real numbers.
+IDD_PER_MIPS_MA = 0.55      # run mode, ~ mA per MIPS
+IIDLE_FRAC = 0.30           # Idle ~ 30 % of run current
+IPD_UA = 20.0               # Sleep, WDT off, typical
+WDT_UA = 1.0
+PERIPH_MA = {"uart": 0.3, "spi": 0.3, "i2c": 0.2, "adc": 0.6, "timer": 0.05, "oc": 0.05, "usb": 6.0}
+
+
+def estimate(fcy: float = 16e6, peripherals: list[str] | None = None, mode: str = "run", doze: int = 1,
+             duty: float = 1.0, wdt: bool = False, battery_mah: float | None = None) -> dict:
+    """mode run|idle|sleep; duty = fraction of time awake (rest asleep). Returns mA figures + battery life."""
+    mips = fcy / 1e6
+    per = sum(PERIPH_MA.get(p.lower(), 0.1) for p in (peripherals or []))
+    run = IDD_PER_MIPS_MA * mips / (1 if doze <= 1 else 1 + 0.5 * (1 - 1 / doze)) + per
+    awake = run if mode == "run" else run * IIDLE_FRAC if mode == "idle" else (IPD_UA + (WDT_UA if wdt else 0)) / 1000
+    sleep = (IPD_UA + (WDT_UA if wdt else 0)) / 1000
+    avg = awake * duty + sleep * (1 - duty)
+    out = {"run_ma": round(run, 3), "awake_ma": round(awake, 4), "sleep_ma": round(sleep, 4), "avg_ma": round(avg, 4),
+           "note": "typical-order estimate, not a datasheet guarantee (DS39897C sec. 26)"}
+    if battery_mah:
+        out["battery_hours"] = round(battery_mah / avg, 1) if avg > 0 else None
+    return out

@@ -141,6 +141,41 @@ def create_app(settings: Settings | None = None, model_factory: Callable | None 
                 "flash_enabled": s.enable_flash, "flash_tool": s.ipecmd_tool, "ipe_part": part_name(s.device),
                 "datasheet_found": Path(s.datasheet_pdf).is_file(), "clock_profile": s.clock_profile, "ics": s.ics}
 
+    @app.get("/api/pins/functions")
+    def pins_fn():
+        from . import pins as pn
+        from .uart import RP_PIN, OUTPUT_RP_MAX
+        return {"functions": pn.functions(), "rp": [{"rp": k, "pin": p, "input_only": k > OUTPUT_RP_MAX} for k, p in RP_PIN.items()]}
+
+    @app.post("/api/pins/plan")
+    def pins_plan(body: dict):
+        from . import pins as pn, power as pw
+        s = cur()
+        r = pn.plan(body.get("items") or [], ics=body.get("ics") or s.ics, jtag=bool(body.get("jtag")))
+        per = pn.peripherals(r["rows"])
+        p = body.get("power") or {}
+        r["power"] = pw.estimate(fcy=float(p.get("fcy") or 16e6), peripherals=per, mode=p.get("mode", "run"),
+                                 duty=float(p.get("duty", 1.0)), wdt=bool(p.get("wdt")),
+                                 battery_mah=float(p["battery_mah"]) if p.get("battery_mah") else None)
+        r["power"]["peripherals"] = per
+        return r
+
+    @app.post("/api/explain")
+    def explain_ep(body: dict):
+        from . import explain as ex
+        code = body.get("code") or ""
+        if not code.strip():
+            raise HTTPException(422, "no code")
+        ann = ex.explain_code(code)
+        ann["explanation"] = None
+        if body.get("muse"):
+            try:
+                from .models import Message
+                ann["explanation"] = mk(body.get("backend")).complete([Message("user", ex.explain_prompt(code, ann))]).strip()
+            except (ModelError, ValueError) as e:
+                ann["explanation_error"] = str(e)
+        return ann
+
     @app.get("/api/doctor")
     def doctor_ep():
         return {"rows": doctor(cur())}

@@ -32,6 +32,21 @@ ChipLlama is **not a datasheet chatbot**. A chatbot says "probably this register
 - **MPLAB X export** (`main.c`, `build.bat`, Makefile) and an **opt-in** PICkit 5 flash step via `ipecmd`.
 - **Local dashboard** (FastAPI, no CDN) and a full CLI.
 
+## 🎬 Demo (3 minutes, no API key needed for steps 2-5)
+
+| Generate | Audit | Pin planner |
+|---|---|---|
+| ![Generate](docs/screenshots/generate.png) | ![Audit](docs/screenshots/audit.png) | ![Pins](docs/screenshots/pins.png) |
+
+1. `chipllama serve` → **Generate**: type *"Timer1 interrupt every 10 ms, priority 5"*, press **Ctrl+Enter**. Muse writes register-level C; every register is checked against DS39897C and compiled with XC16 (needs `MODEL_API_KEY`).
+2. **Blocks**: pick an example, drag blocks; the C on the right is deterministic and already verified.
+3. **Audit** → *Load a buggy example* → `blinky_buggy`: score 15/100, findings with datasheet pages; **Apply 7 fixes** downloads a patched copy that scores 100.
+4. **Explain code** (Audit tab): every register access annotated with decoded fields and its datasheet page. CLI: `chipllama explain main.c`.
+5. **Pin planner**: assign `U1TX=RP10`, `OC1=RC1` → instant conflict (*RC1 is RPI38, input-only*), a ready `pins_init()` and a rough power/battery estimate. CLI: `chipllama pins U1TX=RP10 U1RX=RF5`.
+6. **Reverse debug**: drop a screenshot of the MPLAB X SFR window; ChipLlama decodes the registers and points at the root cause.
+
+See [ROADMAP.md](ROADMAP.md) for what comes next.
+
 ## 🧠 How it works
 
 ```mermaid
@@ -259,8 +274,11 @@ chipllama/
   flash.py       optional ipecmd/PICkit 5 programming (off by default)
   export.py      MPLAB X-ready folder (main.c, build.bat, Makefile, steps)
   models/        Meta Model API + Baseten (OpenAI-compatible) clients
-  server.py      FastAPI app   ·   web/index.html  single-page UI   ·   cli.py  CLI
-tests/           300+ tests, all model/compiler/flash calls mocked
+  blocks.py      Blockly workspace → deterministic C       audit.py   static audit rules + patched copy
+  pins.py        pin planner (PPS / fixed pins / JTAG+ICS) explain.py per-line register annotation
+  power.py       sleep/idle/doze/WDT + rough current estimate
+  server.py      FastAPI app   ·   web/ (index.html, app.css, app.js, blocks.js, audit.js, pins.js, fonts/)   ·   cli.py  CLI
+tests/           340+ tests, all model/compiler/flash calls mocked
 examples/        timer1_10ms.c, dead_timer_dump.txt
 datasheets/      put DS39897C.pdf here (git-ignored)
 ```

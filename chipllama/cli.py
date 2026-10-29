@@ -335,6 +335,51 @@ def cmd_serve(a, s: Settings) -> int:
     return 0
 
 
+def cmd_explain(a, s: Settings) -> int:
+    from . import explain as ex
+    p = Path(a.path)
+    if not p.is_file():
+        print(f"no such file: {a.path}", file=sys.stderr)
+        return 2
+    code = p.read_text(encoding="utf-8", errors="replace")
+    ann = ex.explain_code(code)
+    text = None
+    if a.muse:
+        from .models import Message
+        text = make_model(s, a.backend).complete([Message("user", ex.explain_prompt(code, ann))]).strip()
+    if a.json:
+        print(json.dumps({**ann, "explanation": text}, indent=2))
+        return 0
+    for l in ann["lines"]:
+        print(f"{p.name}:{l['line']:<4} {l['code']}")
+        for n in l["notes"]:
+            print(f"        -> {n['what']}  [DS39897C p.{n['page']}]")
+    if text:
+        print("\n" + text)
+    return 0
+
+
+def cmd_pins(a, s: Settings) -> int:
+    from . import pins as pn
+    items = []
+    for tok in a.assign:
+        if "=" not in tok:
+            print(f"use FN=PIN, e.g. U1TX=RP10 (got {tok!r})", file=sys.stderr)
+            return 2
+        fn, pin = tok.split("=", 1)
+        items.append({"fn": fn, "pin": pin})
+    r = pn.plan(items, ics=a.ics or s.ics, jtag=a.jtag)
+    if a.json:
+        print(json.dumps(r, indent=2))
+    else:
+        for row in r["rows"]:
+            print(f"  {row['fn']:<9} {row['pin']:<5} {row['rp'] or '':<6} {row['kind']}")
+        for i in r["issues"]:
+            print(f"  [{i['severity']}] {i['msg']}")
+        print("\n" + r["code"])
+    return 0 if r["ok"] else 1
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser("chipllama", description="Verifiable AI copilot for Microchip PIC MCUs (XC8/XC16/XC32)")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -393,6 +438,14 @@ def build_parser() -> argparse.ArgumentParser:
     au.add_argument("--ics", choices=["PGx1", "PGx2", "PGx3"], help="debug pin pair of your board")
     au.add_argument("--backend")
     au.set_defaults(fn=cmd_audit)
+    ex = sub.add_parser("explain", help="annotate existing C: register fields + datasheet pages per line")
+    ex.add_argument("path"); ex.add_argument("--json", action="store_true")
+    ex.add_argument("--muse", action="store_true", help="add a Muse walkthrough (needs MODEL_API_KEY)")
+    ex.add_argument("--backend"); ex.set_defaults(fn=cmd_explain)
+    pi = sub.add_parser("pins", help="pin planner: check FN=PIN assignments (PPS, fixed pins, JTAG/ICS) and emit init code")
+    pi.add_argument("assign", nargs="*", help="e.g. U1TX=RP10 U1RX=RF5 OC1=RD0 AN3=RB3")
+    pi.add_argument("--ics", choices=["PGx1", "PGx2", "PGx3"]); pi.add_argument("--jtag", action="store_true")
+    pi.add_argument("--json", action="store_true"); pi.set_defaults(fn=cmd_pins)
     sv = sub.add_parser("serve", help="start the web UI")
     sv.add_argument("--host", default="127.0.0.1"); sv.add_argument("--port", type=int, default=8000)
     sv.add_argument("--no-browser", action="store_true"); sv.set_defaults(fn=cmd_serve)
