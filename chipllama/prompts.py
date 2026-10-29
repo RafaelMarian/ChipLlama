@@ -60,7 +60,7 @@ def register_table_text(spec: TimerSpec) -> str:
 
 def spec_text(spec: TimerSpec) -> str:
     return (f"Timer{f'{spec.base}/{spec.base+1} (32-bit)' if spec.bits32 else spec.timer}"
-            + (" GATED (period = longest pulse to measure)" if spec.gated else "") + ", target period {spec.period_s*1e3:.6g} ms, "
+            + (" GATED (period = longest pulse to measure)" if spec.gated else "") + f", target period {spec.period_s*1e3:.6g} ms, "
             f"Fosc = {spec.fosc_hz/1e6:g} MHz (Fcy = {spec.fcy/1e6:g} MHz), interrupt = {'yes' if spec.interrupt else 'no (polling)'}"
             + (f", priority {spec.priority}" if spec.priority else "") + f", tolerance {spec.tolerance*100:g}%")
 
