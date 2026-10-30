@@ -64,7 +64,35 @@ def run(link: bool = False, require: bool = False, out=print, verbose: bool = Fa
             if verbose:
                 out("    cmd: " + " ".join(c.command or []))
     out(f"{len(files)} examples, {failed} failed")
+    failed += run_circuits(s, require, out, verbose)
     return 1 if failed else 0
+
+
+def run_circuits(s, require: bool = False, out=print, verbose: bool = False) -> int:
+    """Build every Circuit example (examples/circuit/*.json) as a full MPLAB project and compile it to .hex."""
+    from chipllama import projgen
+    failed = 0
+    files = sorted((ROOT / "examples" / "circuit").glob("*.json"))
+    for f in files:
+        res = projgen.build(json.loads(f.read_text(encoding="utf-8")))
+        if not res["erc_ok"] or not res["verified"]:
+            failed += 1
+            out(f"FAILED   circuit/{f.stem}: ERC ok={res['erc_ok']} verified={res['verified']}")
+            continue
+        c = compiler.compile_project(res, s)
+        if c.status == "ok" and c.hex_path:
+            out(f"VERIFIED circuit/{f.stem} ({res['device']}, {len(res['files'])} files, .hex built: {c.hex_path})")
+        elif c.status == "skipped":
+            out(f"SKIPPED  circuit/{f.stem} ({res['device']}): verified, {c.reason}")
+            failed += require
+        else:
+            failed += 1
+            bad = [l.strip() for l in (c.output or "").splitlines() if "error" in l.lower()]
+            out(f"FAILED   circuit/{f.stem}: {(bad[0] if bad else c.reason or 'no .hex')}")
+            if verbose:
+                out("    cmd: " + " ".join(c.command or []))
+    out(f"{len(files)} circuit projects, {failed} failed")
+    return failed
 
 
 if __name__ == "__main__":

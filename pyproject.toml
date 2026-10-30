@@ -12,7 +12,7 @@ chipllama = "chipllama.cli:main"
 include = ["chipllama*"]
 
 [tool.setuptools.package-data]
-chipllama = ["web/*", "web/vendor/*", "web/fonts/*"]
+chipllama = ["web/*", "web/vendor/*", "web/fonts/*", "data/*", "data/*/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

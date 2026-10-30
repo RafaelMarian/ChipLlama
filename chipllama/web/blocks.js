@@ -68,5 +68,6 @@ function save(){const ws=Blockly.serialization.workspaces.save(WS);const a=docum
 function load(file){const r=new FileReader();r.onload=()=>{try{WS.clear();Blockly.serialization.workspaces.load(JSON.parse(r.result),WS);gen()}catch(e){alert('Not a ChipLlama blocks file: '+e.message)}};r.readAsText(file)}
 function copy(){if(LAST&&LAST.c)navigator.clipboard.writeText(LAST.c).then(()=>window.toast&&toast('C copied'))}
 function polish(){if(!LAST||!LAST.c){return}if(typeof tab==='function')tab('gen');document.getElementById('req').value=LAST.intent;window.BLOCKS_CONTEXT=LAST.c;window.toast&&toast('Muse is polishing the Blocks code…');generate()}
-window.Blocks={init,gen,loadEx,save,load,copy,polish,resize:()=>WS&&Blockly.svgResize(WS)};
+function loadWs(j){WS.clear();Blockly.serialization.workspaces.load(j,WS);WS.cleanUp();WS.scrollCenter();gen()}
+window.Blocks={init,loadWs,gen,loadEx,save,load,copy,polish,resize:()=>WS&&Blockly.svgResize(WS)};
 })();
