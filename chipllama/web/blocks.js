@@ -43,7 +43,9 @@ const TOOLBOX={kind:'categoryToolbox',contents:[
  cat('Math','#5b67a5',['math_number','math_arithmetic','math_modulo']),
  cat('Comms',C.com,['cl_spi_begin',{kind:'block',type:'cl_spi_send',inputs:{VALUE:{shadow:N(0)}}},{kind:'block',type:'cl_spi_transfer',inputs:{VALUE:{shadow:N(0)}}},'cl_i2c_begin',{kind:'block',type:'cl_i2c_write',inputs:{VALUE:{shadow:N(0)}}}]),
 ]};
-async function init(){
+let INITP=null;
+function init(){if(!INITP)INITP=init0();return INITP}
+async function init0(){
  if(READY)return;READY=true;
  try{const m=await (await fetch('/api/blocks/meta')).json();PINS=m.pins.map(p=>p.pin);CN=m.pins.filter(p=>p.cn).map(p=>p.pin);
   const s=document.getElementById('bex');s.replaceChildren(new Option('Examples…',''),...m.examples.map(e=>new Option(e.title,e.name)))}catch(e){}
@@ -52,7 +54,7 @@ async function init(){
  WS=Blockly.inject('bws',{toolbox:TOOLBOX,media:'/vendor/',sounds:false,theme,renderer:'zelos',trashcan:true,zoom:{controls:true,wheel:true,startScale:.8},grid:{spacing:24,length:2,colour:'#1a2234',snap:true}});
  WS.addChangeListener(e=>{if(e.isUiEvent)return;clearTimeout(T);T=setTimeout(gen,300)});
  const saved=localStorage.getItem('cl_blocks');
- if(saved){try{Blockly.serialization.workspaces.load(JSON.parse(saved),WS)}catch(e){loadEx('blink')}}else loadEx('blink');
+ if(saved){try{Blockly.serialization.workspaces.load(JSON.parse(saved),WS)}catch(e){await loadEx('blink')}}else await loadEx('blink');
 }
 async function gen(){
  const ws=Blockly.serialization.workspaces.save(WS);localStorage.setItem('cl_blocks',JSON.stringify(ws));

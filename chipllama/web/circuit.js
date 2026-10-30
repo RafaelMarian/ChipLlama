@@ -220,7 +220,9 @@ function loadFile(f){const r=new FileReader();r.onload=async()=>{try{const d=JSO
 /* ---------------------------------------------------------------- device / palette / init */
 async function loadMeta(dev){const r=await fetch('/api/circuit/meta?device='+encodeURIComponent(dev));if(!r.ok)throw Error('no pinout for '+dev);META=await r.json();LIB={};META.library.forEach(l=>LIB[l.type]=l)}
 async function setCircuit(d){D=d;D.assign=D.assign||{};if(!D.parts.some(p=>p.type==='mcu'))D.parts.unshift({id:'U1',type:'mcu',x:420,y:60});
- await loadMeta(D.device||'PIC24FJ256GB110');$('cdev').value=META.device.device;$('cname').value=D.name||'';CHK=null;PRJ=null;SEL.clear();SELW=-1;fit();save();check()}
+ await loadMeta(D.device||'PIC24FJ256GB110');$('cdev').value=META.device.device;$('cname').value=D.name||'';CHK=null;PRJ=null;SEL.clear();SELW=-1;
+ {const b=$('cpbadge');b.className='pill info';b.textContent='not generated';$('cprj').classList.remove('stale');$('cpinfo').replaceChildren();$('ctree').replaceChildren(h('div',{cls:'mut f'},'Generate to see config/ hal/ drivers/ board/ app/.'));$('cfname').textContent='';$('cfile').textContent=''}
+ fit();save();check()}
 async function setDevice(dev){if(D.wires.length&&!confirm(`Switch to ${dev}? Wires to MCU pins are kept by pin number; check the ERC afterwards.`)){$('cdev').value=D.device;return}D.device=dev;D.assign={};await setCircuit(D)}
 function palette(q=''){const cats={};META.library.filter(l=>!q||(l.label+' '+l.type+' '+l.cat).toLowerCase().includes(q.toLowerCase())).forEach(l=>(cats[l.cat]=cats[l.cat]||[]).push(l));
  $('cpal').replaceChildren(...Object.keys(cats).sort().map(c=>h('div',{},h('div',{cls:'cpal-c',style:`color:${CATC[c]||'#ccc'}`},c),...cats[c].map(l=>{const b=h('div',{cls:'cpal-i',draggable:'true',title:l.doc||''},h('span',{cls:'dot',style:`background:${CATC[c]||'#7c8cff'}`}),l.label);

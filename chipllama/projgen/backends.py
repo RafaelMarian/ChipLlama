@@ -91,7 +91,7 @@ void hal_delay_ms(uint16_t ms)
 {{
     while (ms > 0U)
     {{
-        __delay_ms(1);
+        __delay32(HAL_FCY_HZ / 1000UL);   /* libpic30: FCY-free 1 ms busy wait */
         ms--;
     }}
 }}
@@ -193,7 +193,7 @@ void hal_delay_us(uint16_t us)
         delay = f"""
 void hal_delay_ms(uint16_t ms)
 {{
-    while (ms > 0U) {{ __delay_ms(1); s_ms++; ms--; }}
+    while (ms > 0U) {{ {"__delay32(HAL_FCY_HZ / 1000UL);" if comp == "xc16" else "__delay_ms(1);"} s_ms++; ms--; }}
 }}
 
 void hal_delay_us(uint16_t us)
