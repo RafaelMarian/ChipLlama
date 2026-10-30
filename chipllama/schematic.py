@@ -341,6 +341,8 @@ def autowire(d: dict, pid: str, packs: str = "") -> dict:
     else:
         _auto_module(A, pd, x, y, free)
     A.d["schema"] = 2
+    from . import geometry as GM
+    A.d = GM.tidy(A.d, set(A.added), packs)
     res = check(A.d, packs)
     return {"ok": True, "circuit": A.d, "added": A.added, "notes": A.notes, "check": {"ok": res["ok"], "findings": res["findings"]}}
 

@@ -7,7 +7,7 @@ real resistors (LED series R, I2C pull-ups).  Examples marked mcu_power=True als
 """
 import json
 from pathlib import Path
-from chipllama import pinout as PO, symbols as S, schematic as SCH
+from chipllama import pinout as PO, symbols as S, schematic as SCH, geometry as GM
 
 OUT = Path("examples/circuit")
 PWR = {"GND": "gnd", "3V3": "vdd33", "5V": "v5"}
@@ -64,6 +64,9 @@ def make(name, title, dev, parts, wires, mcu_power=False, auto=(), **kw):
         r = SCH.autowire(d, pid)
         assert r["ok"], r
         d = r["circuit"]
+    d = GM.tidy(d)                       # KiCad-style layout: every wire routed on the grid around bodies and text
+    a = GM.audit(d)
+    assert not a["problems"] and not d.get("unrouted"), (name, a["problems"][:5], d.get("unrouted"))
     (OUT / f"{name}.json").write_text(json.dumps(d, indent=1))
     return d
 

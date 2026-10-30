@@ -515,6 +515,12 @@ class Circuit:
         for key, g in self.label_groups.items():
             if key.startswith("lbl:") and len(g) == 1 and len(self.net(g[0])) < 2:
                 self.add("warning", "LABEL_DANGLING", f"label '{key[4:]}' ({g[0].split('.')[0]}) touches no wire.", [g[0].split(".")[0]])
+        for pid, pd in self.parts.items():
+            if pd.get("type") == "junction":
+                n = sum(1 for w in self.d.get("wires", []) for e in (w.get("a"), w.get("b")) if e == f"{pid}.1")
+                if n < 2:
+                    self.add("warning", "WIRE_DANGLING", f"wire end unconnected at {pid} ({pd.get('x')}, {pd.get('y')}) - "
+                             "finish the wire on a pin end, another wire end or a junction.", [pid])
         ncs = {ep for pid, pd in self.parts.items() if pd.get("type") == "noconnect" for ep in self.net(f"{pid}.1")}
         for pid, pd in self.parts.items():
             lib = C.LIB.get(pd.get("type"))
@@ -624,4 +630,6 @@ def meta(device: str, packs: str = "") -> dict:
     c = Circuit({"device": device, "parts": [{"id": "U1", "type": "mcu"}]}, packs)
     for p in info["pins"]:
         p["functions"] = c.valid_functions(str(p["num"]))
-    return {"device": info, "library": C.library(), "bundled": PO.bundled()}
+    from . import geometry as GM
+    return {"device": info, "library": C.library(), "bundled": PO.bundled(),
+            "geo": {"grid": GM.GRID, "mcu": GM.mcu_geo(device, packs, info), "sym": GM.library_geo()}}

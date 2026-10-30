@@ -35,6 +35,7 @@ const SYMCACHE={};
 function symGeo(pt){
  const lib=LIB[pt.type]||{pins:[],sym:'module'},k=lib.sym||'module',pins=lib.pins||[],key=pt.type;
  if(SYMCACHE[key])return SYMCACHE[key];
+ if(META&&META.geo&&META.geo.sym&&META.geo.sym[key]){const q=META.geo.sym[key],g={kind:q.kind,pins:q.pins,box:q.box,body:q.body,pin:{}};g.pins.forEach(p=>g.pin[p.num]=p);return SYMCACHE[key]=g}
  const by=n=>pins.find(p=>p.name===n)||{},num=n=>by(n).num;let g={pins:[],kind:k};
  const two=(len,half)=>{g.pins=[P(pins[0].num,pins[0].name,0,-half,0,-1,len),P(pins[1].num,pins[1].name,0,half,0,1,len)]};
  switch(k){
@@ -71,8 +72,16 @@ function xf(pt,x,y){if(pt.mx)x=-x;if(pt.my)y=-y;const r=((pt.rot||0)%360+360)%36
  if(r===90){X=-y;Y=x}else if(r===180){X=-x;Y=-y}else if(r===270){X=y;Y=-x}return{x:pt.x+X,y:pt.y+Y}}
 function xd(pt,dx,dy){const o=xf({x:0,y:0,rot:pt.rot,mx:pt.mx,my:pt.my},dx,dy);return{dx:Math.round(o.x),dy:Math.round(o.y)}}
 function bbox(pt){if(pt.type==='mcu'){const m=GEO.mcu;return[pt.x-30,pt.y-30,pt.x+m.w+30,pt.y+m.h+30]}
- const g=symGeo(pt),b=g.box,c=[xf(pt,b[0],b[1]),xf(pt,b[2],b[3])];return[Math.min(c[0].x,c[1].x),Math.min(c[0].y,c[1].y),Math.max(c[0].x,c[1].x),Math.max(c[0].y,c[1].y)]}
+ const g=symGeo(pt),b=g.box.slice(),c0=0;if(g.kind==='label'||g.kind==='glabel')b[2]=labelW(pt,g.kind);const c=[xf(pt,b[0],b[1]),xf(pt,b[2],b[3])];return[Math.min(c[0].x,c[1].x),Math.min(c[0].y,c[1].y),Math.max(c[0].x,c[1].x),Math.max(c[0].y,c[1].y)]}
 
+const labelW=(pt,k)=>{const n=String((pt.params||{}).name||'NET').length;return k==='glabel'?Math.max(40,n*7+18):n*7+14};
+/* fields (Ref/Value) like geometry.field_place: on the first box side without pins (right, left, top, bottom), always upright */
+function fieldPlace(pt){const bb=bbox(pt),ref=pt.id,val=valueOf(pt),w=Math.max(ref.length*7.5,String(val).length*6.2)+4;
+ const has=new Set(symGeo(pt).pins.map(q=>{const d=xd(pt,q.dx,q.dy);return d.dx+','+d.dy})),cx=(bb[0]+bb[2])/2,cy=(bb[1]+bb[3])/2;
+ if(!has.has('1,0'))return{ref:{x:bb[2]+6,y:cy-3,a:'start'},val:{x:bb[2]+6,y:cy+11,a:'start'}};
+ if(!has.has('-1,0'))return{ref:{x:bb[0]-6,y:cy-3,a:'end'},val:{x:bb[0]-6,y:cy+11,a:'end'}};
+ if(!has.has('0,-1'))return{ref:{x:cx,y:bb[1]-18,a:'middle'},val:{x:cx,y:bb[1]-6,a:'middle'}};
+ return{ref:{x:cx,y:bb[3]+14,a:'middle'},val:{x:cx,y:bb[3]+26,a:'middle'}}}
 /* ---------------- MCU: KiCad-style rectangle, VDD on top, VSS at the bottom, ports grouped left/right (or the real package) */
 function mcuGeo(){
  const pins=META.device.pins,n=pins.length,g={pins:{}};
@@ -98,7 +107,7 @@ function mcuGeo(){
  bot.forEach((p,i)=>g.pins[p.num]={p,x:W/2-(bot.length-1)*PP+i*PP*2,y:H,dx:0,dy:1});
  return g}
 const MCU_PIN=30;
-let GEO=null;
+let GEO=null,ENDS={};
 function partById(id){return D.parts.find(p=>p.id===id)}
 function pinPos(ep){
  const i=ep.indexOf('.'),pid=ep.slice(0,i),num=ep.slice(i+1),pt=partById(pid);if(!pt)return null;
@@ -108,11 +117,12 @@ function pinPos(ep){
 /* ---------------- wires: orthogonal polylines, user bends kept in w.pts (rubber-banded when parts move) */
 function wirePath(w){
  const A=pinPos(w.a),B=pinPos(w.b);if(!A||!B)return null;
- if(w.pts&&w.pts.length){const raw=[A,...w.pts,B],out=[{x:A.x,y:A.y}];let horiz=A.dy===0;
+ if(w.pts){const raw=[A,...w.pts,B],out=[{x:A.x,y:A.y}];let horiz=A.dy===0;
   for(let i=1;i<raw.length;i++){const p=out[out.length-1],q=raw[i];
    if(p.x!==q.x&&p.y!==q.y){out.push(horiz?{x:q.x,y:p.y}:{x:p.x,y:q.y});horiz=!horiz}else horiz=p.y===q.y;
    out.push({x:q.x,y:q.y})}
   return out.filter((p,i)=>!i||p.x!==out[i-1].x||p.y!==out[i-1].y)}
+ /* not routed yet (pts undefined): provisional path until /api/circuit/route answers */
  const s=10,a={x:A.x+A.dx*s,y:A.y+A.dy*s},b={x:B.x+B.dx*s,y:B.y+B.dy*s};let mid;
  const hA=A.dx!==0||(A.dy===0&&Math.abs(B.x-A.x)>=Math.abs(B.y-A.y)),hB=B.dx!==0||(B.dy===0&&Math.abs(B.x-A.x)>=Math.abs(B.y-A.y));
  if(hA&&hB){const xm=snap((a.x+b.x)/2);mid=[{x:xm,y:a.y},{x:xm,y:b.y}]}
@@ -147,9 +157,9 @@ function drawBody(g,k,pt,geo){
  const R=(x,y,w,hh,c='csb')=>el('rect',{x,y,width:w,height:hh,class:c},g),C=(cx,cy,r,c='csb')=>el('circle',{cx,cy,r,class:c},g);
  const arrows=(x,y,out)=>{for(const o of [0,8]){const a=out?[x+o,y,x+o+10,y-10]:[x+o+10,y-10,x+o,y];L(a[0],a[1],a[2],a[3]);PL(`${a[2]-4},${a[3]} ${a[2]},${a[3]} ${a[2]},${a[3]+(out?4:-4)}`)}};
  switch(k){
- case 'res':R(-6,-25,12,50);break;
- case 'ldr':R(-6,-25,12,50);arrows(-28,-8,false);break;
- case 'ntc':R(-6,-25,12,50);PL('-14,18 14,-18 20,-18');break;
+ case 'res':R(-6,-20,12,40);break;
+ case 'ldr':R(-6,-20,12,40);arrows(-28,-8,false);break;
+ case 'ntc':R(-6,-20,12,40);PL('-14,18 14,-18 20,-18');break;
  case 'cap':L(-12,-4,12,-4,'csl w');L(-12,4,12,4,'csl w');break;
  case 'ecap':L(-12,-4,12,-4,'csl w');el('path',{d:'M-12,8 Q0,2 12,8',class:'csl w'},g);L(-10,-14,-4,-14);L(-7,-17,-7,-11);break;
  case 'led':case 'diode':case 'zener':PG('-10,-15 10,-15 0,15','csb f');
@@ -162,7 +172,7 @@ function drawBody(g,k,pt,geo){
  case 'spdt':C(-20,0,2.5);C(20,-20,2.5);C(20,20,2.5);L(-18,0,18,-16);break;
  case 'btn4':L(-20,-20,-20,20);L(20,-20,20,20);C(-20,0,2.2,'csd');C(20,0,2.2,'csd');L(-20,0,-10,0);L(10,0,20,0);C(-8,0,2.2);C(8,0,2.2);
   L(-12,-10,12,-10,'csl w');L(0,-10,0,-24);L(-6,-24,6,-24);break;
- case 'pot':R(-6,-25,12,50);L(26,0,10,0);PG('6,0 12,-4 12,4','csb f');break;
+ case 'pot':R(-6,-20,12,40);L(12,0,10,0);PG('6,0 12,-4 12,4','csb f');break;
  case 'npn':case 'pnp':C(0,0,20);L(-14,0,-6,0);L(-6,-12,-6,12,'csl w');L(-6,-5,10,-18);L(-6,5,10,18);
   if(k==='npn')PG('10,18 2,16 6,11','csb f');else PG('-6,-5 2,-6 -1,-11','csb f');break;
  case 'nmos':case 'pmos':C(0,0,20);L(-14,0,-10,0);L(-10,-10,-10,10,'csl w');L(-5,-12,-5,-6,'csl w');L(-5,-3,-5,3,'csl w');L(-5,6,-5,12,'csl w');
@@ -175,7 +185,7 @@ function drawBody(g,k,pt,geo){
  case 'gnd':L(0,0,0,10);L(-12,10,12,10,'csl w');L(-7,15,7,15,'csl w');L(-2,20,2,20,'csl w');break;
  case 'label':L(0,0,6,0,'cwl');break;
  case 'glabel':{const w=Math.max(40,String((pt.params||{}).name||'NET').length*7+18);PG(`0,0 8,-8 ${w},-8 ${w},8 8,8`,'csb glab');break}
- case 'junction':C(0,0,4,'cjn');break;
+ case 'junction':{const n=ENDS[pt.id+'.1']||0;if(n>=3)C(0,0,4,'cjn');else if(n<2)R(-4,-4,8,8,'cdang');break}
  case 'nc':L(-6,-6,6,6,'csl nc');L(-6,6,6,-6,'csl nc');break;
  default:{const b=geo.body;R(b[0],b[1],b[2]-b[0],b[3]-b[1],'csb f2');if(k==='dip'){el('path',{d:`M-8,${b[1]} A8,8 0 0 0 8,${b[1]}`,class:'csl'},g)}}}}
 function txt(par,x,y,s,cls,anchor='start'){const t=el('text',{x,y,class:cls,'text-anchor':anchor},par);t.textContent=s;return t}
@@ -190,7 +200,7 @@ function render(){
  const used=new Set();D.wires.forEach(w=>[w.a,w.b].forEach(e=>{const [pid,po]=e.split('.');if(partById(pid)&&partById(pid).type==='mcu')used.add(po)}));
  const pg=el('g',{},root),wg=el('g',{},root),tg=el('g',{},root),mg=el('g',{},root);
  // wires
- const ends={};
+ const ends={};ENDS=ends;
  D.wires.forEach((w,i)=>{const pts=wirePath(w);if(!pts)return;const s=pts.map(p=>p.x+','+p.y).join(' '),n=(NET[w.a]||{}).id||0;
   el('polyline',{points:s,class:'cw-hit','data-w':i},wg);el('polyline',{points:s,class:'cw'+(SELW.has(i)?' sel':''),'data-wn':n},wg);
   [w.a,w.b].forEach(e=>{ends[e]=(ends[e]||0)+1})});
@@ -198,13 +208,14 @@ function render(){
   if(ends[e]>=2||(ends[e]>=1&&k==='label'&&false)){const p=pinPos(e);if(p)el('circle',{cx:p.x,cy:p.y,r:3.5,class:'cjn'},wg)}}
  // parts
  for(const pt of D.parts){
-  if(pt.type==='mcu'){drawMcu(pg,pt,bad,used);continue}
+  if(pt.type==='mcu'){drawMcu(pg,pt,bad,used,ends);continue}
   const geo=symGeo(pt),k=geo.kind,lib=LIB[pt.type]||{label:pt.type};
   const g=el('g',{transform:`translate(${pt.x},${pt.y}) rotate(${pt.rot||0}) scale(${pt.mx?-1:1},${pt.my?-1:1})`,class:'cpart k-'+k+(SEL.has(pt.id)?' sel':'')+(badParts.has(pt.id)?' bad':''),'data-id':pt.id},pg);
   const b=geo.box;el('rect',{x:b[0]-4,y:b[1]-4,width:b[2]-b[0]+8,height:b[3]-b[1]+8,class:'chit'},g);
   drawBody(g,k,pt,geo);
   const showNames=['dip','module','conn','reg','relay','led','diode','zener','ecap','battery','npn','pnp','nmos','pmos','spdt'].includes(k),showNums=!ANN.has(k)&&!['res','cap','ldr','ntc'].includes(k);
   geo.pins.forEach(q=>{if(q.len)el('line',{x1:q.x,y1:q.y,x2:q.x-q.dx*q.len,y2:q.y-q.dy*q.len,class:'cspin'},g);
+   if(!ANN.has(k)&&!ends[pt.id+'.'+q.num])el('circle',{cx:q.x,cy:q.y,r:2.5,class:'cpo'},g);
    el('circle',{cx:q.x,cy:q.y,r:ANN.has(k)?5:4,class:'cep','data-ep':pt.id+'.'+q.num},g);
    const W=xf(pt,q.x,q.y),dd=xd(pt,q.dx,q.dy),rx=W.x-dd.dx*q.len,ry=W.y-dd.dy*q.len;
    if(showNums&&q.len){const mx=(W.x+rx)/2,my=(W.y+ry)/2;txt(tg,dd.dx?mx:mx-3,dd.dx?my-3:my,q.num,'cpn',dd.dx?'middle':'end')}
@@ -217,9 +228,8 @@ function render(){
   else if(k==='label'){const r=((pt.rot||0)%360+360)%360,anchor=(r===180)!==!!pt.mx?'end':'start',t=xf(pt,8,-3);txt(tg,t.x,t.y,val,'clab',anchor)}
   else if(k==='glabel'){const t=xf(pt,12,4);txt(tg,t.x,t.y,val,'clab g',(((pt.rot||0)%360+360)%360===180)!==!!pt.mx?'end':'start')}
   else if(!ANN.has(k)){
-   if(['dip','module','conn','reg','relay'].includes(k)){txt(tg,(bb[0]+bb[2])/2+(k==='module'||k==='conn'?15:0),bb[1]-6,pt.id,'cref','middle');txt(tg,(bb[0]+bb[2])/2+(k==='module'||k==='conn'?15:0),bb[3]+14,val,'cval','middle');
-    if(k==='module'){const c=xf(pt,0,0);txt(tg,c.x+5,c.y+4,lib.label,'cmod','middle')}}
-   else{txt(tg,bb[2]+6,(bb[1]+bb[3])/2-3,pt.id,'cref');txt(tg,bb[2]+6,(bb[1]+bb[3])/2+11,val,'cval')}}}
+   const f=fieldPlace(pt);txt(tg,f.ref.x,f.ref.y,pt.id,'cref',f.ref.a);txt(tg,f.val.x,f.val.y,val,'cval',f.val.a);
+   if(k==='module'){const c=xf(pt,0,0);txt(tg,c.x+5,c.y+4,lib.label,'cmod','middle')}}}
  // ERC markers
  ((CHK&&CHK.findings)||[]).forEach((f,i)=>{if(f.severity==='info')return;let p=null;
   if(f.pins&&f.pins.length){const u=D.parts.find(x=>x.type==='mcu');p=u&&pinPos(u.id+'.'+f.pins[0])}
@@ -228,19 +238,20 @@ function render(){
   el('path',{d:'M0,0 L-6,-16 L6,-16 Z'},g);txt(g,0,-6,'!','cerc-t','middle')});
  // in-progress wire
  if(MODE&&MODE.t==='wire'&&MODE.from){const A=pinPos(MODE.from);if(A){const pts=[{x:A.x,y:A.y},...MODE.pts],l=pts[pts.length-1],c={x:snap(MOUSE.x),y:snap(MOUSE.y)};
-  pts.push({x:c.x,y:l.y},c);el('polyline',{points:pts.map(p=>p.x+','+p.y).join(' '),class:'cw tmp'},mg)}}
+  if(l.x!==c.x&&l.y!==c.y)pts.push(MODE.vfirst?{x:l.x,y:c.y}:{x:c.x,y:l.y});pts.push(c);el('polyline',{points:pts.map(p=>p.x+','+p.y).join(' '),class:'cw tmp'},mg)}}
  if(MODE&&MODE.t==='wire'){const c={x:snap(MOUSE.x),y:snap(MOUSE.y)};el('path',{d:`M${c.x-6},${c.y}h12M${c.x},${c.y-6}v12`,class:'ccur'},mg)}
  $('czoom').textContent=Math.round(VIEW.k*100)+'%';status();
 }
-function drawMcu(pg,pt,bad,used){const m=GEO.mcu;
+function drawMcu(pg,pt,bad,used,ends){const m=GEO.mcu;
  const g=el('g',{transform:`translate(${pt.x},${pt.y})`,class:'cpart mcu'+(SEL.has(pt.id)?' sel':''),'data-id':pt.id},pg);
  el('rect',{x:0,y:0,width:m.w,height:m.h,class:'csb f2 mcu'},g);
  txt(g,m.w/2,PKG?m.h/2-6:30,META.device.device,'cmcu-t','middle');
  txt(g,m.w/2,PKG?m.h/2+12:46,`${META.device.count} pins · ${META.device.family}${META.device.verified?' · datasheet-verified':''}`,'cmcu-s','middle');
- txt(g,m.w/2,-38,pt.id,'cref','middle');
+ txt(g,8,16,pt.id,'cref','start');
  for(const num in m.pins){const q=m.pins[num],p=q.p,pw=!!p.power;const s=String(num);
   const cls='cspin'+(pw?' pw':'')+(bad.has(s)?' bad':used.has(s)?' used':'');
   el('line',{x1:q.x,y1:q.y,x2:q.x+q.dx*MCU_PIN,y2:q.y+q.dy*MCU_PIN,class:cls},g);
+  if(!(ends||{})[pt.id+'.'+num])el('circle',{cx:q.x+q.dx*MCU_PIN,cy:q.y+q.dy*MCU_PIN,r:2.5,class:'cpo'},g);
   el('circle',{cx:q.x+q.dx*MCU_PIN,cy:q.y+q.dy*MCU_PIN,r:4,class:'cep','data-ep':pt.id+'.'+num},g);
   const fn=fnOf(s);const lab=el('text',{class:'cpl mp'+(fn?' fn':''),'data-pin':num},g);lab.textContent=(fn&&fn!==p.label&&!fn.startsWith('GPIO')?p.label+' · '+fn:p.label);
   if(q.dx){lab.setAttribute('x',q.x-q.dx*5);lab.setAttribute('y',q.y+3.5);lab.setAttribute('text-anchor',q.dx<0?'start':'end')}
@@ -259,8 +270,9 @@ function nextRef(type){const l=LIB[type]||{};const pre=PREFIX[l.sym]||(l.prefix|
 function newPart(type,x,y,params){const lib=LIB[type];const id=nextRef(type);const pt={id,type,params:{...(lib.params||{}),...(params||{})},x:snap(x),y:snap(y)};if(pt.type!=='mcu'){pt.rot=0}D.parts.push(pt);return pt}
 function addPart(type,x,y,params){snapshot();const pt=newPart(type,x,y,params);SEL=new Set([pt.id]);SELW.clear();changed();return pt}
 function targets(){if(SEL.size)return[...SEL].map(partById).filter(Boolean);if(HOVER&&HOVER.part)return[partById(HOVER.part)].filter(Boolean);return[]}
-function rotate(){const ts=targets().filter(p=>p.type!=='mcu');if(!ts.length)return;if(!MODE||MODE.t!=='move')snapshot();ts.forEach(p=>p.rot=(((p.rot||0)+90)%360));changed()}
-function mirror(axis){const ts=targets().filter(p=>p.type!=='mcu');if(!ts.length)return;if(!MODE||MODE.t!=='move')snapshot();ts.forEach(p=>{if(axis==='x')p.my=!p.my;else p.mx=!p.mx});changed()}
+function rotate(){const ts=targets().filter(p=>p.type!=='mcu');if(!ts.length)return;if(!MODE||MODE.t!=='move')snapshot();ts.forEach(p=>p.rot=(((p.rot||0)+90)%360));unroute(ts);changed()}
+function mirror(axis){const ts=targets().filter(p=>p.type!=='mcu');if(!ts.length)return;if(!MODE||MODE.t!=='move')snapshot();ts.forEach(p=>{if(axis==='x')p.my=!p.my;else p.mx=!p.mx});unroute(ts);changed()}
+function unroute(ts){const ids=new Set(ts.map(p=>p.id));D.wires.forEach(w=>{if(ids.has(w.a.split('.')[0])||ids.has(w.b.split('.')[0]))delete w.pts})}
 function delSel(){const ids=new Set(targets().filter(p=>p.type!=='mcu').map(p=>p.id));if(!ids.size&&!SELW.size&&HOVER&&HOVER.wire!=null)SELW.add(HOVER.wire);
  if(!ids.size&&!SELW.size)return;snapshot();D.wires=D.wires.filter((w,i)=>!SELW.has(i)&&!ids.has(w.a.split('.')[0])&&!ids.has(w.b.split('.')[0]));
  D.parts=D.parts.filter(p=>!ids.has(p.id));SEL.clear();SELW.clear();changed()}
@@ -274,7 +286,7 @@ function startMove(ids,clearPts,fresh){ids=ids.filter(id=>id);if(!ids.length)ret
   wpts:D.wires.map(w=>w.pts?w.pts.map(p=>({...p})):null)};render()}
 function moveTo(w){const dx=snap(w.x)-MODE.start.x,dy=snap(w.y)-MODE.start.y;MODE.orig.forEach(([p,x,y])=>{p.x=x+dx;p.y=y+dy});
  const ids=new Set(MODE.ids);D.wires.forEach((wi,i)=>{const a=ids.has(wi.a.split('.')[0]),b=ids.has(wi.b.split('.')[0]);if(!a&&!b)return;
-  if(MODE.clearPts){if(!(a&&b))wi.pts=[]}else if(a&&b&&MODE.wpts[i])wi.pts=MODE.wpts[i].map(p=>({x:p.x+dx,y:p.y+dy}))});render()}
+  if(MODE.clearPts){if(!(a&&b))delete wi.pts}else if(a&&b&&MODE.wpts[i])wi.pts=MODE.wpts[i].map(p=>({x:p.x+dx,y:p.y+dy}))});render()}
 function endMode(commit){if(!MODE)return;if(MODE.t==='move'&&!commit){if(MODE.fresh){const ids=new Set(MODE.ids);D.parts=D.parts.filter(p=>!ids.has(p.id));D.wires=D.wires.filter(w=>!ids.has(w.a.split('.')[0])&&!ids.has(w.b.split('.')[0]));UNDO.pop()}
   else{MODE.orig.forEach(([p,x,y])=>{p.x=x;p.y=y});D.wires.forEach((w,i)=>{if(MODE.wpts[i])w.pts=MODE.wpts[i];});UNDO.pop()}}
  const was=MODE;MODE=null;if(was.t==='move'&&commit)changed();else render()}
@@ -288,11 +300,18 @@ function splitWire(i,w){const n=nearestOnWire(i,w);if(!n)return null;const wi=D.
  const inner=n.pts.slice(1,-1),before=inner.slice(0,n.s),after=inner.slice(n.s);
  D.wires.splice(i,1,{a:wi.a,b:J.id+'.1',pts:[...before,{x:n.p.x,y:n.p.y}]},{a:J.id+'.1',b:wi.b,pts:after});return J.id+'.1'}
 function wireClick(e,w){const t=e.target;
- if(!MODE.from){if(t.dataset.ep){snapshot();MODE.from=t.dataset.ep;MODE.pts=[];MODE.snap=true}else if(t.dataset.w!==undefined){snapshot();MODE.from=splitWire(+t.dataset.w,w);MODE.pts=[];MODE.snap=true}render();return}
+ if(!MODE.from){snapshot();if(t.dataset.ep)MODE.from=t.dataset.ep;else if(t.dataset.w!==undefined)MODE.from=splitWire(+t.dataset.w,w);
+  else{const J=newPart('junction',w.x,w.y);MODE.from=J.id+'.1'}MODE.pts=[];MODE.snap=true;render();return}
  let to=null;if(t.dataset.ep&&t.dataset.ep!==MODE.from)to=t.dataset.ep;else if(t.dataset.w!==undefined)to=splitWire(+t.dataset.w,w);
- if(to){const pts=MODE.pts.slice();D.wires.push({a:MODE.from,b:to,pts});MODE.snap=false;const keep=e.detail;MODE={t:'wire'};changed();if(keep>=2)MODE=null;return}
+ if(to){const pts=MODE.pts.slice(),l=pts.length?pts[pts.length-1]:pinPos(MODE.from),T=pinPos(to);
+  if(l&&T&&l.x!==T.x&&l.y!==T.y)pts.push(MODE.vfirst?{x:l.x,y:T.y}:{x:T.x,y:l.y});
+  /* pin-to-pin click with no bends drawn: let the orthogonal router pick the path around the symbols (KiCad-style result, no wire through a body) */
+  const nw={a:MODE.from,b:to};if(MODE.pts.length)nw.pts=pts;D.wires.push(nw);MODE.snap=false;const keep=e.detail,vf=MODE.vfirst;MODE={t:'wire',vfirst:vf};changed();if(keep>=2)MODE=null;return}
  const l=MODE.pts.length?MODE.pts[MODE.pts.length-1]:pinPos(MODE.from),c={x:snap(w.x),y:snap(w.y)};
- if(c.x!==l.x&&c.y!==l.y)MODE.pts.push({x:c.x,y:l.y});MODE.pts.push(c);render()}
+ if(c.x===l.x&&c.y===l.y)return;if(c.x!==l.x&&c.y!==l.y)MODE.pts.push(MODE.vfirst?{x:l.x,y:c.y}:{x:c.x,y:l.y});MODE.pts.push(c);render()}
+/* double-click on empty grid ends the wire there (a dangling end - the ERC flags it until something connects) */
+function wireEndHere(){if(!MODE||!MODE.from||!MODE.pts.length){MODE=null;render();return}const pts=MODE.pts.slice(),last=pts.pop();
+ const J=newPart('junction',last.x,last.y);D.wires.push({a:MODE.from,b:J.id+'.1',pts});MODE=null;changed()}
 
 /* ================================================================ annotate (renumber references top-left -> bottom-right, like KiCad Annotate) */
 function annotate(){snapshot();const groups={};
@@ -343,7 +362,7 @@ function bind(){
    DRAG={mode:'move',start:{x:snap(w.x),y:snap(w.y)},snap:JSON.stringify(D),orig:[...SEL].map(i=>{const p=partById(i);return[p,p.x,p.y]}),moved:false};render();guide();return}
   if(t.dataset.w!==undefined){const i=+t.dataset.w;if(!(e.shiftKey||e.ctrlKey))SEL.clear(),SELW.clear();SELW.add(i);render();return}
   if(!(e.shiftKey||e.ctrlKey)){SEL.clear();SELW.clear()}DRAG={mode:'box',start:w,rect:el('rect',{class:'cbox'},$('croot'))};render();DRAG.rect=el('rect',{class:'cbox'},$('croot'));guide()});
- svg.addEventListener('dblclick',e=>{if(MODE&&MODE.t==='wire'){MODE=null;render()}});
+ svg.addEventListener('dblclick',e=>{if(MODE&&MODE.t==='wire'){const t=e.target;if(t.dataset&&(t.dataset.ep||t.dataset.w!==undefined)){MODE=null;render()}else wireEndHere()}});
  window.addEventListener('mousemove',e=>{if(!READY||!D)return;const w=toWorld(e);
   if(!DRAG){MOUSE=w;if(MODE&&MODE.t==='move'){moveTo(w);return}if(MODE&&MODE.t==='wire'){render()}hoverAt(e);return}
   if(DRAG.mode==='pan'){VIEW.x=DRAG.vx+e.clientX-DRAG.sx;VIEW.y=DRAG.vy+e.clientY-DRAG.sy;setView()}
@@ -368,6 +387,7 @@ function bind(){
   else if(ctl)done=false;
   else if(k==='escape'){if(MODE)endMode(false);else{SEL.clear();SELW.clear();closePop();render()}}
   else if(k==='delete'||k==='backspace')delSel();
+  else if(k==='/'&&MODE&&MODE.t==='wire'){MODE.vfirst=!MODE.vfirst;render()}
   else if(k==='w'){if(HOVER&&HOVER.ep){snapshot();MODE={t:'wire',from:HOVER.ep,pts:[]}}else MODE={t:'wire',from:null,pts:[]};render()}
   else if(k==='l'){const n=prompt('Net label name (wires touching labels with the same name are connected):',LASTLABEL);if(n){LASTLABEL=n.toUpperCase().replace(/[^A-Z0-9_+\-]/g,'');place('label',{name:LASTLABEL})}}
   else if(k==='p')powerPop(e);else if(k==='a')addPop(e);
@@ -441,7 +461,12 @@ async function netlist(fmt){const r=await post('/api/circuit/netlist',{circuit:D
  if(fmt==='json')dl(nm+'.netlist.json',new Blob([JSON.stringify(await r.json(),null,1)],{type:'application/json'}));else dl(nm+'.net',await r.blob())}
 
 /* ================================================================ ERC / BOM */
-function changed(){save();render();clearTimeout(T);T=setTimeout(check,250);PRJ=null;$('cprj')&&$('cprj').classList.add('stale');guide()}
+let RT=null;
+function routeSoon(){clearTimeout(RT);if(!D.wires.some(w=>w.pts===undefined))return;RT=setTimeout(async()=>{const snap=JSON.stringify(D);
+ try{const r=await (await post('/api/circuit/route',{circuit:D,part:''})).json();if(JSON.stringify(D)!==snap||MODE)return routeSoon();D=r.circuit;save();render()}catch(e){console.warn(e)}},150)}
+async function reroute(mode){snapshot();try{const r=await (await post('/api/circuit/route',{circuit:D,part:mode})).json();D=r.circuit;changed();
+ const a=r.audit;toast(a.problems.length?`${a.problems.length} drawing problems: ${a.problems[0]}`:`Wires routed - ${D.wires.length} wires, none through a symbol`)}catch(e){toast('route failed: '+e.message)}}
+function changed(){save();render();routeSoon();clearTimeout(T);T=setTimeout(check,250);PRJ=null;$('cprj')&&$('cprj').classList.add('stale');guide()}
 function save(){try{localStorage.setItem('cl_circuit',JSON.stringify(D))}catch(e){}}
 async function check(){
  try{CHK=await (await post('/api/circuit/check',{circuit:D})).json()}catch(e){return}
@@ -521,11 +546,11 @@ async function init(){if(READY){render();return}READY=true;
  if(d&&d.parts){try{await setCircuit(d)}catch(e){await loadEx('led_button')}}else await loadEx('led_button');
  $('cdev').replaceChildren(...META.bundled.map(b=>new Option(b,b)));$('cdev').value=META.device.device;palette()}
 window.Circuit={init,fit,zoom,generate,zip,hex,toBlocks,exportSvg,exportPng,saveFile,loadFile,bomCsv,bomMd,loadEx,setDevice,palette,
- undo,redo,annotate,netlist,autowire,place,addPart,rotate,mirror,duplicate,
+ undo,redo,annotate,netlist,autowire,reroute,place,addPart,rotate,mirror,duplicate,
  tool:t=>{if(t==='wire'){MODE={t:'wire',from:null,pts:[]};render()}else if(t==='label'){const n=prompt('Net label name:',LASTLABEL);if(n){LASTLABEL=n.toUpperCase();place('label',{name:LASTLABEL})}}else if(t==='power')powerPop(null);else if(t==='add')addPop(null)},
  pkg:()=>{PKG=!PKG;$('cpkg')&&$('cpkg').classList.toggle('on',PKG);fit()},
  select:ids=>{SEL=new Set(ids);render();guide()},
  rename:v=>{D.name=v.replace(/[^A-Za-z0-9_ -]/g,'');save()},resize:()=>D&&render(),
  clear:()=>{if(confirm('Remove every part except the MCU?')){snapshot();D.parts=D.parts.filter(p=>p.type==='mcu');D.wires=[];D.assign={};changed()}},
- state:()=>D,nets:()=>{computeNets();return NET},pinPos:ep=>pinPos(ep),view:()=>VIEW,checkNow:check};
+ state:()=>D,audit:async()=>(await (await post('/api/circuit/route',{circuit:D,part:'check'})).json()).audit,nets:()=>{computeNets();return NET},pinPos:ep=>pinPos(ep),view:()=>VIEW,checkNow:check};
 })();

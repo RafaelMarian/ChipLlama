@@ -201,3 +201,6 @@ button:focus{outline:none}button:focus-visible{outline:2px solid rgba(124,140,25
 .ccl .ok{color:#3ddc97}.ccl .todo{color:#f5b84b}
 .cadd{max-height:240px;overflow:auto;margin-top:6px}.cadd-i{padding:4px 6px;border-radius:6px;cursor:pointer;font-size:12px}.cadd-i:hover{background:var(--panel2)}
 #cpop{width:290px}
+
+.cpo{fill:none;stroke:#8fa3c7;stroke-width:1;pointer-events:none}.cdang{fill:none;stroke:#ff6b6b;stroke-width:1.4}
+.ccur,.cw.tmp{pointer-events:none}

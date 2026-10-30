@@ -200,6 +200,19 @@ def create_app(settings: Settings | None = None, model_factory: Callable | None 
         from . import schematic as sch
         return sch.autowire(req.circuit, req.part, cur().mplab_packs_dir)
 
+    @app.post("/api/circuit/route")
+    def circuit_route(req: CircuitReq):
+        """part='' -> route wires without pts; part='all' -> re-route every wire; part='tidy' -> also re-place parts."""
+        from . import geometry as GM, schematic as sch
+        d = sch.migrate(req.circuit)
+        pk = cur().mplab_packs_dir
+        if req.part == "tidy":
+            d = GM.tidy(d, None, pk)
+        else:
+            d = GM.route_all(d, pk, only_unrouted=req.part != "all")
+        a = GM.audit(d, pk)
+        return {"circuit": d, "audit": a}
+
     @app.post("/api/circuit/checklist")
     def circuit_checklist(req: CircuitReq):
         from . import schematic as sch
