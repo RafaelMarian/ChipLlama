@@ -1,0 +1,74 @@
+{
+ "title": "Servo on OC1 (RP2/RD8) follows a pot on AN2",
+ "name": "servo_pot",
+ "device": "PIC24FJ256GB110",
+ "parts": [
+  {
+   "id": "U1",
+   "type": "mcu",
+   "x": 420,
+   "y": 60
+  },
+  {
+   "id": "POT1",
+   "type": "pot",
+   "params": {},
+   "x": 80,
+   "y": 140
+  },
+  {
+   "id": "SV1",
+   "type": "servo",
+   "params": {},
+   "x": 80,
+   "y": 340
+  },
+  {
+   "id": "V5",
+   "type": "v5",
+   "params": {},
+   "x": 40,
+   "y": 40
+  },
+  {
+   "id": "VDD",
+   "type": "vdd33",
+   "params": {},
+   "x": 200,
+   "y": 40
+  },
+  {
+   "id": "GND",
+   "type": "gnd",
+   "params": {},
+   "x": 40,
+   "y": 520
+  }
+ ],
+ "wires": [
+  {
+   "a": "U1.23",
+   "b": "POT1.W"
+  },
+  {
+   "a": "POT1.1",
+   "b": "GND.-"
+  },
+  {
+   "a": "POT1.2",
+   "b": "VDD.+"
+  },
+  {
+   "a": "U1.68",
+   "b": "SV1.SIG"
+  },
+  {
+   "a": "SV1.V+",
+   "b": "V5.+"
+  },
+  {
+   "a": "SV1.GND",
+   "b": "GND.-"
+  }
+ ]
+}

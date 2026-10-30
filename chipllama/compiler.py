@@ -205,3 +205,91 @@ def _compile_other(comp, drv, cpu, src: Path, tmp: Path, settings, runner, link)
             if hp.returncode == 0:
                 res.hex_path = str(tmp / "main.hex")
     return res
+
+
+def compile_project(res: dict, settings: Settings, runner=subprocess.run, workdir: str | None = None) -> CompileResult:
+    """Build a generated multi-file project (projgen.build result) to a .hex with the real XC toolchain.
+
+    xc16 / xc-dsc: every .c compiled to .o with -I hal/drivers/board/config, then one link with the device
+    linker script and bin2hex.  xc8: a single xc8-cc call over all sources.  xc32: same shape as xc8.
+    """
+    import dataclasses
+    s = dataclasses.replace(settings, device=res["device"]) if dataclasses.is_dataclass(settings) else settings
+    comp, gcc = find_compiler(s, res["device"])
+    drv, _, env, flag = COMPILERS[comp]
+    if not gcc:
+        return CompileResult("skipped", reason=f"{drv} not found (install MPLAB {comp.upper()} or set {env}).")
+    from .edc import compiler_cpu
+    mcpu = compiler_cpu(res["device"])
+    tmp = Path(workdir or tempfile.mkdtemp(prefix="chipllama_prj_"))
+    for p, t in res["files"].items():
+        f = tmp / p
+        f.parent.mkdir(parents=True, exist_ok=True)
+        f.write_text(t, encoding="utf-8")
+    srcs = [str(tmp / p) for p in sorted(res["files"]) if p.endswith(".c")]
+    inc = [f"-I{tmp / d}" for d in ("hal", "drivers", "board", "config")]
+    dfp = _dfp_for(s, comp, gcc)
+    log, cmds = [], []
+
+    def run(cmd, timeout=180):
+        cmds.append(cmd)
+        try:
+            p = runner(cmd, capture_output=True, text=True, timeout=timeout)
+        except (OSError, subprocess.TimeoutExpired) as e:
+            return None, str(e)
+        log.append((p.stdout or "") + (p.stderr or ""))
+        return p.returncode, None
+
+    if comp in ("xc16", "xc-dsc"):
+        from .dfp import compiler_version
+        extra = [f"-mdfp={dfp}"] if (dfp and comp == "xc-dsc" and compiler_version(gcc) >= (3, 30)) else []
+        objs = []
+        for src in srcs:
+            o = str(Path(src).with_suffix(".o"))
+            rc, err = run([gcc, f"-mcpu={mcpu}", *extra, "-omf=elf", "-O1", "-Wall", *inc, "-c", src, "-o", o])
+            if err:
+                return CompileResult("skipped", command=cmds[-1], reason=err)
+            if rc != 0:
+                t = "\n".join(log)
+                return CompileResult("error", parse_diagnostics(t), t, cmds[-1])
+            objs.append(o)
+        elf = str(tmp / "app.elf")
+        link = link_command(gcc, mcpu, objs[0], elf, extra)
+        link[link.index(objs[0])] = objs[0]
+        link[link.index(objs[0]) + 1:link.index(objs[0]) + 1] = objs[1:]
+        rc, err = run(link)
+        t = "\n".join(log)
+        if err or rc != 0:
+            return CompileResult("error" if not err else "skipped", parse_diagnostics(t), t, link, reason=err or "")
+        b2n = "xc-dsc-bin2hex" if comp == "xc-dsc" else "xc16-bin2hex"
+        b2h = (find_tool(b2n, s.xc16_bin2hex) if comp == "xc16" else None) or str(Path(gcc).with_name(b2n + Path(gcc).suffix))
+        run([b2h, elf], 60)
+        res_ = CompileResult("ok", parse_diagnostics(t), "\n".join(log), link)
+        if (tmp / "app.hex").is_file():
+            res_.hex_path = str(tmp / "app.hex")
+        else:
+            res_.status = "error"
+            res_.reason = "link succeeded but bin2hex produced no .hex"
+        return res_
+    extra = [f"-mdfp={dfp}"] if dfp else []
+    if comp == "xc8":
+        out = tmp / "app.hex"
+        cmd = [gcc, flag + mcpu, *extra, "-O1", *inc, *srcs, "-o", str(out)]
+    else:
+        out = tmp / "app.elf"
+        cmd = [gcc, flag + mcpu, *extra, "-O1", "-Wall", *inc, *srcs, "-o", str(out)]
+    rc, err = run(cmd)
+    t = "\n".join(log)
+    if err:
+        return CompileResult("skipped", command=cmd, reason=err)
+    if rc != 0:
+        return CompileResult("error", parse_diagnostics(t), t, cmd)
+    r = CompileResult("ok", parse_diagnostics(t), t, cmd)
+    if comp == "xc8":
+        r.hex_path = str(out) if out.is_file() else None
+    else:
+        b2h = str(Path(gcc).with_name("xc32-bin2hex" + Path(gcc).suffix))
+        run([b2h, str(out)], 60)
+        if (tmp / "app.hex").is_file():
+            r.hex_path = str(tmp / "app.hex")
+    return r

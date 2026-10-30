@@ -1,0 +1,150 @@
+{
+ "title": "PIC18F45K22: LED, button, pot, TMP102 (MSSP1), EUSART1 logger, CCP1 buzzer",
+ "name": "k22_logger",
+ "device": "PIC18F45K22",
+ "parts": [
+  {
+   "id": "U1",
+   "type": "mcu",
+   "x": 420,
+   "y": 60
+  },
+  {
+   "id": "R1",
+   "type": "resistor",
+   "params": {
+    "ohms": 330
+   },
+   "x": 60,
+   "y": 60
+  },
+  {
+   "id": "LED1",
+   "type": "led",
+   "params": {},
+   "x": 20,
+   "y": 140
+  },
+  {
+   "id": "SW1",
+   "type": "button",
+   "params": {},
+   "x": 60,
+   "y": 230
+  },
+  {
+   "id": "POT1",
+   "type": "pot",
+   "params": {},
+   "x": 60,
+   "y": 330
+  },
+  {
+   "id": "BZ1",
+   "type": "buzzer_passive",
+   "params": {},
+   "x": 60,
+   "y": 460
+  },
+  {
+   "id": "S1",
+   "type": "tmp102",
+   "params": {
+    "pullups": true
+   },
+   "x": 820,
+   "y": 80
+  },
+  {
+   "id": "USB1",
+   "type": "uart_usb",
+   "params": {},
+   "x": 820,
+   "y": 300
+  },
+  {
+   "id": "VDD",
+   "type": "vdd33",
+   "params": {},
+   "x": 240,
+   "y": 0
+  },
+  {
+   "id": "GND",
+   "type": "gnd",
+   "params": {},
+   "x": 240,
+   "y": 600
+  }
+ ],
+ "wires": [
+  {
+   "a": "U1.19",
+   "b": "R1.1"
+  },
+  {
+   "a": "R1.2",
+   "b": "LED1.A"
+  },
+  {
+   "a": "LED1.K",
+   "b": "GND.-"
+  },
+  {
+   "a": "U1.33",
+   "b": "SW1.1"
+  },
+  {
+   "a": "SW1.2",
+   "b": "GND.-"
+  },
+  {
+   "a": "U1.2",
+   "b": "POT1.W"
+  },
+  {
+   "a": "POT1.1",
+   "b": "GND.-"
+  },
+  {
+   "a": "POT1.2",
+   "b": "VDD.+"
+  },
+  {
+   "a": "U1.17",
+   "b": "BZ1.+"
+  },
+  {
+   "a": "BZ1.-",
+   "b": "GND.-"
+  },
+  {
+   "a": "U1.18",
+   "b": "S1.SCL"
+  },
+  {
+   "a": "U1.23",
+   "b": "S1.SDA"
+  },
+  {
+   "a": "S1.VCC",
+   "b": "VDD.+"
+  },
+  {
+   "a": "S1.GND",
+   "b": "GND.-"
+  },
+  {
+   "a": "U1.25",
+   "b": "USB1.RX"
+  },
+  {
+   "a": "U1.26",
+   "b": "USB1.TX"
+  },
+  {
+   "a": "USB1.GND",
+   "b": "GND.-"
+  }
+ ]
+}

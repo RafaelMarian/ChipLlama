@@ -1,0 +1,67 @@
+{
+ "title": "LED on RA0 + button on RD6 (internal pull-up)",
+ "name": "led_button",
+ "device": "PIC24FJ256GB110",
+ "parts": [
+  {
+   "id": "U1",
+   "type": "mcu",
+   "x": 420,
+   "y": 60
+  },
+  {
+   "id": "R1",
+   "type": "resistor",
+   "params": {
+    "ohms": 330
+   },
+   "x": 120,
+   "y": 120
+  },
+  {
+   "id": "LED1",
+   "type": "led",
+   "params": {
+    "color": "red"
+   },
+   "x": 40,
+   "y": 200
+  },
+  {
+   "id": "SW1",
+   "type": "button",
+   "params": {},
+   "x": 120,
+   "y": 360
+  },
+  {
+   "id": "GND",
+   "type": "gnd",
+   "params": {},
+   "x": 40,
+   "y": 480
+  }
+ ],
+ "wires": [
+  {
+   "a": "U1.17",
+   "b": "R1.1"
+  },
+  {
+   "a": "R1.2",
+   "b": "LED1.A"
+  },
+  {
+   "a": "LED1.K",
+   "b": "GND.-"
+  },
+  {
+   "a": "U1.83",
+   "b": "SW1.1"
+  },
+  {
+   "a": "SW1.2",
+   "b": "GND.-"
+  }
+ ]
+}

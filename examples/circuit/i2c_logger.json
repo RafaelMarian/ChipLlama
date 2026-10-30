@@ -1,0 +1,73 @@
+{
+ "title": "TMP102 on I2C2 logged over UART1 (RP17 TX / RP10 RX)",
+ "name": "i2c_logger",
+ "device": "PIC24FJ256GB110",
+ "parts": [
+  {
+   "id": "U1",
+   "type": "mcu",
+   "x": 420,
+   "y": 60
+  },
+  {
+   "id": "S1",
+   "type": "tmp102",
+   "params": {
+    "pullups": true
+   },
+   "x": 60,
+   "y": 120
+  },
+  {
+   "id": "USB1",
+   "type": "uart_usb",
+   "params": {},
+   "x": 60,
+   "y": 380
+  },
+  {
+   "id": "VDD",
+   "type": "vdd33",
+   "params": {},
+   "x": 200,
+   "y": 30
+  },
+  {
+   "id": "GND",
+   "type": "gnd",
+   "params": {},
+   "x": 40,
+   "y": 540
+  }
+ ],
+ "wires": [
+  {
+   "a": "U1.58",
+   "b": "S1.SCL"
+  },
+  {
+   "a": "U1.59",
+   "b": "S1.SDA"
+  },
+  {
+   "a": "S1.VCC",
+   "b": "VDD.+"
+  },
+  {
+   "a": "S1.GND",
+   "b": "GND.-"
+  },
+  {
+   "a": "U1.50",
+   "b": "USB1.RX"
+  },
+  {
+   "a": "U1.49",
+   "b": "USB1.TX"
+  },
+  {
+   "a": "USB1.GND",
+   "b": "GND.-"
+  }
+ ]
+}

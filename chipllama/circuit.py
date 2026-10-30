@@ -206,6 +206,19 @@ class Circuit:
         if not self.info or self.info.get("generic"):
             self.add("warning", "DEVICE_GENERIC", f"No pin table for {self.device}: showing a generic block. Install its DFP "
                      "(MPLAB X packs) so the real pinout is read from edc/<device>.PIC.")
+        for w in self.d.get("wires", []):
+            for ep in (w.get("a"), w.get("b")):
+                if not ep or "." not in str(ep):
+                    continue
+                pid, port = str(ep).split(".", 1)
+                if pid == self.mcu:
+                    if port not in self.pins:
+                        self.add("error", "BAD_ENDPOINT", f"wire end {ep}: {self.device} has no pin {port}", [pid])
+                elif pid not in self.parts:
+                    self.add("error", "BAD_ENDPOINT", f"wire end {ep}: no part {pid} in the circuit", [])
+                elif self.part(pid) and port not in [n for n, _ in self.part(pid).ports]:
+                    self.add("error", "BAD_ENDPOINT", f"wire end {ep}: {self.ptype(pid)} has no port '{port}' "
+                             f"(ports: {', '.join(n for n, _ in self.part(pid).ports)})", [pid])
         used_fn: dict[str, str] = {}
         counters = defaultdict(int)
         want: dict[str, tuple[str, str]] = {}      # pin -> (needed role, part id)
@@ -392,7 +405,7 @@ class Circuit:
                                  [pid], [pb["pin"]], pg(135))
             for port, pb in b["pins"].items():
                 if pb["role"] in ("scl", "sda"):
-                    if not self.has_pullup(self.net(f"{pid}.{port}")) and not self.d.get("module_pullups", {}).get(pid):
+                    if not self.has_pullup(self.net(f"{pid}.{port}")) and not self.d.get("module_pullups", {}).get(pid) and not self.param(pid, "pullups"):
                         self.add("warning", "I2C_PULLUP", f"{pid}.{port} ({self.label(pb['pin'])}): I2C needs a pull-up "
                                  "(2.2-4.7 k to 3.3 V). Breakout boards often have one - tick 'module has pull-ups' if so.",
                                  [pid], [pb["pin"]], pg(191))

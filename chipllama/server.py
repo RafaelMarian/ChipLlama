@@ -50,6 +50,11 @@ class BlocksReq(BaseModel):
     workspace: dict
 
 
+class CircuitReq(BaseModel):
+    circuit: dict
+    compile: bool = False
+
+
 class CalcReq(BaseModel):
     request: str
 
@@ -130,6 +135,67 @@ def create_app(settings: Settings | None = None, model_factory: Callable | None 
     def blocks_generate(req: BlocksReq):
         from . import blocks as bl
         return bl.generate(req.workspace, cur())
+
+    # ------------------------------------------------------------ circuit (M6)
+    @app.get("/api/circuit/meta")
+    def circuit_meta(device: str = "PIC24FJ256GB110"):
+        from . import circuit as cir
+        try:
+            return cir.meta(device, cur().mplab_packs_dir)
+        except (KeyError, FileNotFoundError, ValueError) as e:
+            raise HTTPException(404, f"no pin data for {device}: {e}")
+
+    @app.get("/api/circuit/examples")
+    def circuit_examples():
+        out = []
+        for f in sorted(EXAMPLES.glob("circuit/*.json")):
+            d = json.loads(f.read_text(encoding="utf-8"))
+            out.append({"name": f.stem, "title": d.get("title", f.stem), "device": d.get("device", "")})
+        return out
+
+    @app.get("/api/circuit/example/{name}")
+    def circuit_example(name: str):
+        f = EXAMPLES / "circuit" / f"{name}.json"
+        if not name.replace("_", "").isalnum() or not f.is_file():
+            raise HTTPException(404)
+        return json.loads(f.read_text(encoding="utf-8"))
+
+    @app.post("/api/circuit/check")
+    def circuit_check(req: CircuitReq):
+        from . import circuit as cir
+        return cir.check(req.circuit, cur().mplab_packs_dir)
+
+    @app.post("/api/circuit/generate")
+    def circuit_generate(req: CircuitReq):
+        from . import projgen
+        from .projgen import syntax
+        from .compiler import compile_project
+        s = cur()
+        res = projgen.build(req.circuit, getattr(s, "ics", "PGx2") or "PGx2", s.mplab_packs_dir)
+        if not res.get("erc_ok", True):
+            return {k: v for k, v in res.items() if k != "amalg"}
+        res["syntax"] = syntax.syntax_check(res, projgen.load_dev(res["device"]))
+        if req.compile:
+            cr = compile_project(res, s)
+            res["compile"] = {k: v for k, v in cr.to_dict().items() if k != "hex_path"}
+            if cr.hex_path and Path(cr.hex_path).is_file():
+                res["hex"] = Path(cr.hex_path).read_text(errors="replace")
+        return {k: v for k, v in res.items() if k != "amalg"}
+
+    @app.post("/api/circuit/to_blocks")
+    def circuit_to_blocks(req: CircuitReq):
+        from .projgen.bridge import to_blocks
+        return to_blocks(req.circuit, cur().mplab_packs_dir)
+
+    @app.post("/api/circuit/project.zip")
+    def circuit_zip(req: CircuitReq):
+        from . import projgen
+        s = cur()
+        res = projgen.build(req.circuit, getattr(s, "ics", "PGx2") or "PGx2", s.mplab_packs_dir)
+        if not res.get("erc_ok") or not res.get("files"):
+            raise HTTPException(400, "circuit has ERC errors; fix them before generating a project")
+        return Response(projgen.zip_bytes(res), media_type="application/zip",
+                        headers={"Content-Disposition": f'attachment; filename="{res["name"]}.X.zip"'})
 
     @app.get("/api/status")
     def status():

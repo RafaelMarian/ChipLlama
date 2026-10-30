@@ -1,0 +1,246 @@
+{
+ "title": "GB110: LED, button, pot, servo, buzzer, TMP102, UART, LCD1602, SPI flash",
+ "name": "gb110_multi",
+ "device": "PIC24FJ256GB110",
+ "parts": [
+  {
+   "id": "U1",
+   "type": "mcu",
+   "x": 420,
+   "y": 60
+  },
+  {
+   "id": "R1",
+   "type": "resistor",
+   "params": {
+    "ohms": 330
+   },
+   "x": 60,
+   "y": 60
+  },
+  {
+   "id": "LED1",
+   "type": "led",
+   "params": {},
+   "x": 20,
+   "y": 140
+  },
+  {
+   "id": "SW1",
+   "type": "button",
+   "params": {},
+   "x": 60,
+   "y": 230
+  },
+  {
+   "id": "POT1",
+   "type": "pot",
+   "params": {},
+   "x": 60,
+   "y": 320
+  },
+  {
+   "id": "SV1",
+   "type": "servo",
+   "params": {},
+   "x": 60,
+   "y": 430
+  },
+  {
+   "id": "BZ1",
+   "type": "buzzer_passive",
+   "params": {},
+   "x": 60,
+   "y": 540
+  },
+  {
+   "id": "S1",
+   "type": "tmp102",
+   "params": {
+    "pullups": true
+   },
+   "x": 1040,
+   "y": 60
+  },
+  {
+   "id": "USB1",
+   "type": "uart_usb",
+   "params": {},
+   "x": 1040,
+   "y": 220
+  },
+  {
+   "id": "LCD1",
+   "type": "lcd1602",
+   "params": {},
+   "x": 1040,
+   "y": 360
+  },
+  {
+   "id": "F1",
+   "type": "flash25",
+   "params": {},
+   "x": 1040,
+   "y": 560
+  },
+  {
+   "id": "VDD",
+   "type": "vdd33",
+   "params": {},
+   "x": 240,
+   "y": 0
+  },
+  {
+   "id": "V5",
+   "type": "v5",
+   "params": {},
+   "x": 320,
+   "y": 0
+  },
+  {
+   "id": "GND",
+   "type": "gnd",
+   "params": {},
+   "x": 240,
+   "y": 660
+  }
+ ],
+ "wires": [
+  {
+   "a": "U1.17",
+   "b": "R1.1"
+  },
+  {
+   "a": "R1.2",
+   "b": "LED1.A"
+  },
+  {
+   "a": "LED1.K",
+   "b": "GND.-"
+  },
+  {
+   "a": "U1.83",
+   "b": "SW1.1"
+  },
+  {
+   "a": "SW1.2",
+   "b": "GND.-"
+  },
+  {
+   "a": "U1.23",
+   "b": "POT1.W"
+  },
+  {
+   "a": "POT1.1",
+   "b": "GND.-"
+  },
+  {
+   "a": "POT1.2",
+   "b": "VDD.+"
+  },
+  {
+   "a": "U1.68",
+   "b": "SV1.SIG"
+  },
+  {
+   "a": "SV1.V+",
+   "b": "V5.+"
+  },
+  {
+   "a": "SV1.GND",
+   "b": "GND.-"
+  },
+  {
+   "a": "U1.69",
+   "b": "BZ1.+"
+  },
+  {
+   "a": "BZ1.-",
+   "b": "GND.-"
+  },
+  {
+   "a": "U1.58",
+   "b": "S1.SCL"
+  },
+  {
+   "a": "U1.59",
+   "b": "S1.SDA"
+  },
+  {
+   "a": "S1.VCC",
+   "b": "VDD.+"
+  },
+  {
+   "a": "S1.GND",
+   "b": "GND.-"
+  },
+  {
+   "a": "U1.50",
+   "b": "USB1.RX"
+  },
+  {
+   "a": "U1.49",
+   "b": "USB1.TX"
+  },
+  {
+   "a": "USB1.GND",
+   "b": "GND.-"
+  },
+  {
+   "a": "U1.93",
+   "b": "LCD1.RS"
+  },
+  {
+   "a": "U1.94",
+   "b": "LCD1.E"
+  },
+  {
+   "a": "U1.98",
+   "b": "LCD1.D4"
+  },
+  {
+   "a": "U1.99",
+   "b": "LCD1.D5"
+  },
+  {
+   "a": "U1.100",
+   "b": "LCD1.D6"
+  },
+  {
+   "a": "U1.3",
+   "b": "LCD1.D7"
+  },
+  {
+   "a": "LCD1.VCC",
+   "b": "V5.+"
+  },
+  {
+   "a": "LCD1.GND",
+   "b": "GND.-"
+  },
+  {
+   "a": "U1.76",
+   "b": "F1.SCK"
+  },
+  {
+   "a": "U1.77",
+   "b": "F1.SI"
+  },
+  {
+   "a": "U1.78",
+   "b": "F1.SO"
+  },
+  {
+   "a": "U1.81",
+   "b": "F1.CS"
+  },
+  {
+   "a": "F1.VCC",
+   "b": "VDD.+"
+  },
+  {
+   "a": "F1.GND",
+   "b": "GND.-"
+  }
+ ]
+}
