@@ -1,0 +1,276 @@
+{
+"device": "PIC24FJ64GA002",
+"arch": "24xxxx",
+"pps": "complex",
+"source": "Microchip PIC24F-GA-GB_DFP 1.11.479 edc/PIC24FJ64GA002.PIC <edc:PinList>",
+"pins": [
+{
+"num": 1,
+"names": [
+"PGD1",
+"EMUD1",
+"AN2",
+"C2IN-",
+"RP0",
+"CN4",
+"RB0"
+]
+},
+{
+"num": 2,
+"names": [
+"PGC1",
+"EMUC1",
+"AN3",
+"C2IN+",
+"RP1",
+"CN5",
+"RB1"
+]
+},
+{
+"num": 3,
+"names": [
+"AN4",
+"C1IN-",
+"RP2",
+"SDA2",
+"CN6",
+"RB2"
+]
+},
+{
+"num": 4,
+"names": [
+"AN5",
+"C1IN+",
+"RP3",
+"SCL2",
+"CN7",
+"RB3"
+]
+},
+{
+"num": 5,
+"names": [
+"VSS"
+]
+},
+{
+"num": 6,
+"names": [
+"OSCI",
+"CLKI",
+"CN30",
+"RA2"
+]
+},
+{
+"num": 7,
+"names": [
+"OSCO",
+"CLKO",
+"CN29",
+"PMA0",
+"RA3"
+]
+},
+{
+"num": 8,
+"names": [
+"SOSCI",
+"RP4",
+"PMBE",
+"CN1",
+"RB4"
+]
+},
+{
+"num": 9,
+"names": [
+"SOSCO",
+"T1CK",
+"CN0",
+"PMA1",
+"RA4"
+]
+},
+{
+"num": 10,
+"names": [
+"VDD"
+]
+},
+{
+"num": 11,
+"names": [
+"PGD3",
+"EMUD3",
+"RP5",
+"ASDA1",
+"CN27",
+"PMD7",
+"RB5"
+]
+},
+{
+"num": 12,
+"names": [
+"PGC3",
+"EMUC3",
+"RP6",
+"ASCL1",
+"CN24",
+"PMD6",
+"RB6"
+]
+},
+{
+"num": 13,
+"names": [
+"RP7",
+"INT0",
+"CN23",
+"PMD5",
+"RB7"
+]
+},
+{
+"num": 14,
+"names": [
+"TCK",
+"RP8",
+"SCL1",
+"CN22",
+"PMD4",
+"RB8"
+]
+},
+{
+"num": 15,
+"names": [
+"TDO",
+"RP9",
+"SDA1",
+"CN21",
+"PMD3",
+"RB9"
+]
+},
+{
+"num": 16,
+"names": [
+"DISVREG"
+]
+},
+{
+"num": 17,
+"names": [
+"VCAP",
+"VDDCORE"
+]
+},
+{
+"num": 18,
+"names": [
+"PGD2",
+"EMUD2",
+"TDI",
+"RP10",
+"CN16",
+"PMD2",
+"RB10"
+]
+},
+{
+"num": 19,
+"names": [
+"PGC2",
+"EMUC2",
+"TMS",
+"RP11",
+"CN15",
+"PMD1",
+"RB11"
+]
+},
+{
+"num": 20,
+"names": [
+"AN12",
+"RP12",
+"CN14",
+"PMD0",
+"RB12"
+]
+},
+{
+"num": 21,
+"names": [
+"AN11",
+"RP13",
+"CN13",
+"PMRD",
+"RB13"
+]
+},
+{
+"num": 22,
+"names": [
+"AN10",
+"CVREF",
+"RTCC",
+"RP14",
+"CN12",
+"PMWR",
+"RB14"
+]
+},
+{
+"num": 23,
+"names": [
+"AN9",
+"RP15",
+"CN11",
+"PMCS1",
+"RB15"
+]
+},
+{
+"num": 24,
+"names": [
+"VSS"
+]
+},
+{
+"num": 25,
+"names": [
+"VDD"
+]
+},
+{
+"num": 26,
+"names": [
+"MCLR"
+]
+},
+{
+"num": 27,
+"names": [
+"AN0",
+"VREF+",
+"CN2",
+"RA0"
+]
+},
+{
+"num": 28,
+"names": [
+"AN1",
+"VREF-",
+"CN3",
+"RA1"
+]
+}
+]
+}

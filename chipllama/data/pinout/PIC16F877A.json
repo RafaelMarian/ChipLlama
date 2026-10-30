@@ -1,0 +1,295 @@
+{
+"device": "PIC16F877A",
+"arch": "16xxxx",
+"pps": "none",
+"source": "Microchip PIC16Fxxx_DFP 1.9.176 edc/PIC16F877A.PIC <edc:PinList>",
+"pins": [
+{
+"num": 1,
+"names": [
+"MCLR",
+"VPP"
+]
+},
+{
+"num": 2,
+"names": [
+"RA0",
+"AN0"
+]
+},
+{
+"num": 3,
+"names": [
+"RA1",
+"AN1"
+]
+},
+{
+"num": 4,
+"names": [
+"RA2",
+"AN2",
+"VREF-",
+"CVREF"
+]
+},
+{
+"num": 5,
+"names": [
+"RA3",
+"AN3",
+"VREF+"
+]
+},
+{
+"num": 6,
+"names": [
+"RA4",
+"T0CKI",
+"C1OUT"
+]
+},
+{
+"num": 7,
+"names": [
+"RA5",
+"AN4",
+"SS",
+"C2OUT"
+]
+},
+{
+"num": 8,
+"names": [
+"RE0",
+"RD",
+"AN5"
+]
+},
+{
+"num": 9,
+"names": [
+"RE1",
+"WR",
+"AN6"
+]
+},
+{
+"num": 10,
+"names": [
+"RE2",
+"CS",
+"AN7"
+]
+},
+{
+"num": 11,
+"names": [
+"VDD"
+]
+},
+{
+"num": 12,
+"names": [
+"VSS"
+]
+},
+{
+"num": 13,
+"names": [
+"OSC1",
+"CLKI"
+]
+},
+{
+"num": 14,
+"names": [
+"OSC2",
+"CLKO"
+]
+},
+{
+"num": 15,
+"names": [
+"RC0",
+"T1OSO",
+"T1CKI"
+]
+},
+{
+"num": 16,
+"names": [
+"RC1",
+"T1OSI",
+"CCP2"
+]
+},
+{
+"num": 17,
+"names": [
+"RC2",
+"CCP1"
+]
+},
+{
+"num": 18,
+"names": [
+"RC3",
+"SCK",
+"SCL"
+]
+},
+{
+"num": 19,
+"names": [
+"RD0",
+"PSP0"
+]
+},
+{
+"num": 20,
+"names": [
+"RD1",
+"PSP1"
+]
+},
+{
+"num": 21,
+"names": [
+"RD2",
+"PSP2"
+]
+},
+{
+"num": 22,
+"names": [
+"RD3",
+"PSP3"
+]
+},
+{
+"num": 23,
+"names": [
+"RC4",
+"SDI",
+"SDA"
+]
+},
+{
+"num": 24,
+"names": [
+"RC5",
+"SDO"
+]
+},
+{
+"num": 25,
+"names": [
+"RC6",
+"TX",
+"CK"
+]
+},
+{
+"num": 26,
+"names": [
+"RC7",
+"RX",
+"DT"
+]
+},
+{
+"num": 27,
+"names": [
+"RD4",
+"PSP4"
+]
+},
+{
+"num": 28,
+"names": [
+"RD5",
+"PSP5"
+]
+},
+{
+"num": 29,
+"names": [
+"RD6",
+"PSP6"
+]
+},
+{
+"num": 30,
+"names": [
+"RD7",
+"PSP7"
+]
+},
+{
+"num": 31,
+"names": [
+"VSS"
+]
+},
+{
+"num": 32,
+"names": [
+"VDD"
+]
+},
+{
+"num": 33,
+"names": [
+"RB0",
+"INT"
+]
+},
+{
+"num": 34,
+"names": [
+"RB1"
+]
+},
+{
+"num": 35,
+"names": [
+"RB2"
+]
+},
+{
+"num": 36,
+"names": [
+"RB3",
+"PGM"
+]
+},
+{
+"num": 37,
+"names": [
+"RB4"
+]
+},
+{
+"num": 38,
+"names": [
+"RB5"
+]
+},
+{
+"num": 39,
+"names": [
+"RB6",
+"PGC"
+]
+},
+{
+"num": 40,
+"names": [
+"RB7",
+"PGD"
+]
+}
+]
+}

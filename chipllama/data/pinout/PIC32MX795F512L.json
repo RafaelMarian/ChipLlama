@@ -1,0 +1,957 @@
+{
+"device": "PIC32MX795F512L",
+"arch": "32xxxx",
+"pps": "none",
+"source": "Microchip PIC32MX_DFP 1.7.380 edc/PIC32MX795F512L.PIC <edc:PinList>",
+"pins": [
+{
+"num": 1,
+"names": [
+"RG15",
+"AERXERR"
+]
+},
+{
+"num": 2,
+"names": [
+"VDD"
+]
+},
+{
+"num": 3,
+"names": [
+"RE5",
+"PMD5"
+]
+},
+{
+"num": 4,
+"names": [
+"RE6",
+"PMD6"
+]
+},
+{
+"num": 5,
+"names": [
+"RE7",
+"PMD7"
+]
+},
+{
+"num": 6,
+"names": [
+"RC1",
+"T2CK"
+]
+},
+{
+"num": 7,
+"names": [
+"RC2",
+"AC2TX",
+"T3CK"
+]
+},
+{
+"num": 8,
+"names": [
+"RC3",
+"AC2RX",
+"T4CK"
+]
+},
+{
+"num": 9,
+"names": [
+"RC4",
+"SDI1",
+"T5CK"
+]
+},
+{
+"num": 10,
+"names": [
+"RG6",
+"CN8",
+"PMA5",
+"U3RTS",
+"U6TX",
+"SCK2",
+"ECOL"
+]
+},
+{
+"num": 11,
+"names": [
+"RG7",
+"CN9",
+"PMA4",
+"U3RX",
+"SDI2",
+"SDA4",
+"ECRS"
+]
+},
+{
+"num": 12,
+"names": [
+"RG8",
+"CN10",
+"PMA3",
+"U3TX",
+"SDO2",
+"SCL4",
+"AECRSDV",
+"ECRSDV",
+"AERXDV",
+"ERXDV"
+]
+},
+{
+"num": 13,
+"names": [
+"MCLR"
+]
+},
+{
+"num": 14,
+"names": [
+"RG9",
+"CN11",
+"PMA2",
+"U3CTS",
+"U6RX",
+"SS2",
+"AEREFCLK",
+"EREFCLK",
+"AERXCLK",
+"ERXCLK"
+]
+},
+{
+"num": 15,
+"names": [
+"VSS"
+]
+},
+{
+"num": 16,
+"names": [
+"VDD"
+]
+},
+{
+"num": 17,
+"names": [
+"RA0",
+"TMS"
+]
+},
+{
+"num": 18,
+"names": [
+"RE8",
+"INT1",
+"AERXD0"
+]
+},
+{
+"num": 19,
+"names": [
+"RE9",
+"INT2",
+"AERXD1"
+]
+},
+{
+"num": 20,
+"names": [
+"RB5",
+"CN7",
+"VBUSON",
+"C1IN+",
+"AN5"
+]
+},
+{
+"num": 21,
+"names": [
+"RB4",
+"CN6",
+"C1IN-",
+"AN4"
+]
+},
+{
+"num": 22,
+"names": [
+"RB3",
+"CN5",
+"C2IN+",
+"AN3"
+]
+},
+{
+"num": 23,
+"names": [
+"RB2",
+"CN4",
+"C2IN-",
+"AN2"
+]
+},
+{
+"num": 24,
+"names": [
+"RB1",
+"CN3",
+"AN1",
+"PGEC1"
+]
+},
+{
+"num": 25,
+"names": [
+"RB0",
+"CN2",
+"AN0",
+"PGED1"
+]
+},
+{
+"num": 26,
+"names": [
+"RB6",
+"OCFA",
+"AN6",
+"PGEC2"
+]
+},
+{
+"num": 27,
+"names": [
+"RB7",
+"AN7",
+"PGED2"
+]
+},
+{
+"num": 28,
+"names": [
+"RA9",
+"PMA7",
+"AERXD2",
+"VREF-"
+]
+},
+{
+"num": 29,
+"names": [
+"RA10",
+"PMA6",
+"AERXD3",
+"VREF+"
+]
+},
+{
+"num": 30,
+"names": [
+"AVDD"
+]
+},
+{
+"num": 31,
+"names": [
+"AVSS"
+]
+},
+{
+"num": 32,
+"names": [
+"RB8",
+"C1OUT",
+"AN8"
+]
+},
+{
+"num": 33,
+"names": [
+"RB9",
+"C2OUT",
+"AN9"
+]
+},
+{
+"num": 34,
+"names": [
+"RB10",
+"PMA13",
+"CVREFOUT",
+"AN10"
+]
+},
+{
+"num": 35,
+"names": [
+"RB11",
+"PMA12",
+"AETXERR",
+"ERXERR",
+"AN11"
+]
+},
+{
+"num": 36,
+"names": [
+"VSS"
+]
+},
+{
+"num": 37,
+"names": [
+"VDD"
+]
+},
+{
+"num": 38,
+"names": [
+"RA1",
+"TCK"
+]
+},
+{
+"num": 39,
+"names": [
+"RF13",
+"U2RTS",
+"U5TX",
+"SCK4",
+"AC1TX"
+]
+},
+{
+"num": 40,
+"names": [
+"RF12",
+"U2CTS",
+"U5RX",
+"SS4",
+"AC1RX"
+]
+},
+{
+"num": 41,
+"names": [
+"RB12",
+"PMA11",
+"AECRS",
+"ERXD0",
+"AN12"
+]
+},
+{
+"num": 42,
+"names": [
+"RB13",
+"PMA10",
+"AECOL",
+"ERXD1",
+"AN13"
+]
+},
+{
+"num": 43,
+"names": [
+"RB14",
+"PMA1",
+"PMALH",
+"AETXD3",
+"ERXD2",
+"AN14"
+]
+},
+{
+"num": 44,
+"names": [
+"RB15",
+"CN12",
+"PMA0",
+"PMALL",
+"OCFB",
+"AETXD2",
+"ERXD3",
+"AN15"
+]
+},
+{
+"num": 45,
+"names": [
+"VSS"
+]
+},
+{
+"num": 46,
+"names": [
+"VDD"
+]
+},
+{
+"num": 47,
+"names": [
+"RD14",
+"CN20",
+"U1CTS",
+"U4RX",
+"SS3",
+"AETXD0"
+]
+},
+{
+"num": 48,
+"names": [
+"RD15",
+"CN21",
+"U1RTS",
+"U4TX",
+"SCK3",
+"AETXD1"
+]
+},
+{
+"num": 49,
+"names": [
+"RF4",
+"CN17",
+"PMA9",
+"U2RX",
+"SDI4",
+"SDA5"
+]
+},
+{
+"num": 50,
+"names": [
+"RF5",
+"CN18",
+"PMA8",
+"U2TX",
+"SDO4",
+"SCL5"
+]
+},
+{
+"num": 51,
+"names": [
+"RF3",
+"USBID"
+]
+},
+{
+"num": 52,
+"names": [
+"RF2",
+"U1RX",
+"SDI3",
+"SDA3"
+]
+},
+{
+"num": 53,
+"names": [
+"RF8",
+"U1TX",
+"SDO3",
+"SCL3"
+]
+},
+{
+"num": 54,
+"names": [
+"VBUS"
+]
+},
+{
+"num": 55,
+"names": [
+"VUSB3V3"
+]
+},
+{
+"num": 56,
+"names": [
+"RG3",
+"D-"
+]
+},
+{
+"num": 57,
+"names": [
+"RG2",
+"D+"
+]
+},
+{
+"num": 58,
+"names": [
+"RA2",
+"SCL2"
+]
+},
+{
+"num": 59,
+"names": [
+"RA3",
+"SDA2"
+]
+},
+{
+"num": 60,
+"names": [
+"RA4",
+"TDI"
+]
+},
+{
+"num": 61,
+"names": [
+"RA5",
+"TDO"
+]
+},
+{
+"num": 62,
+"names": [
+"VDD"
+]
+},
+{
+"num": 63,
+"names": [
+"RC12",
+"CLKI",
+"OSC1"
+]
+},
+{
+"num": 64,
+"names": [
+"RC15",
+"CLKO",
+"OSC2"
+]
+},
+{
+"num": 65,
+"names": [
+"VSS"
+]
+},
+{
+"num": 66,
+"names": [
+"RA14",
+"INT3",
+"SCL1",
+"AETXCLK"
+]
+},
+{
+"num": 67,
+"names": [
+"RA15",
+"INT4",
+"SDA1",
+"AETXEN"
+]
+},
+{
+"num": 68,
+"names": [
+"RD8",
+"IC1",
+"AEMDIO",
+"EMDIO",
+"RTCC"
+]
+},
+{
+"num": 69,
+"names": [
+"RD9",
+"IC2",
+"SS1"
+]
+},
+{
+"num": 70,
+"names": [
+"RD10",
+"PMA15",
+"PMCS2",
+"IC3",
+"SCK1"
+]
+},
+{
+"num": 71,
+"names": [
+"RD11",
+"PMA14",
+"PMCS1",
+"IC4",
+"AEMDC",
+"EMDC"
+]
+},
+{
+"num": 72,
+"names": [
+"RD0",
+"INT0",
+"OC1",
+"SDO1"
+]
+},
+{
+"num": 73,
+"names": [
+"RC13",
+"CN1",
+"SOSCI"
+]
+},
+{
+"num": 74,
+"names": [
+"RC14",
+"CN0",
+"T1CK",
+"SOSCO"
+]
+},
+{
+"num": 75,
+"names": [
+"VSS"
+]
+},
+{
+"num": 76,
+"names": [
+"RD1",
+"OC2"
+]
+},
+{
+"num": 77,
+"names": [
+"RD2",
+"OC3"
+]
+},
+{
+"num": 78,
+"names": [
+"RD3",
+"OC4"
+]
+},
+{
+"num": 79,
+"names": [
+"RD12",
+"PMD12",
+"IC5",
+"ETXD2"
+]
+},
+{
+"num": 80,
+"names": [
+"RD13",
+"CN19",
+"PMD13",
+"ETXD3"
+]
+},
+{
+"num": 81,
+"names": [
+"RD4",
+"CN13",
+"PMWR",
+"OC5"
+]
+},
+{
+"num": 82,
+"names": [
+"RD5",
+"CN14",
+"PMRD"
+]
+},
+{
+"num": 83,
+"names": [
+"RD6",
+"CN15",
+"PMD14",
+"ETXEN"
+]
+},
+{
+"num": 84,
+"names": [
+"RD7",
+"CN16",
+"PMD15",
+"ETXCLK"
+]
+},
+{
+"num": 85,
+"names": [
+"VCAP"
+]
+},
+{
+"num": 86,
+"names": [
+"VDD"
+]
+},
+{
+"num": 87,
+"names": [
+"RF0",
+"PMD11",
+"ETXD1",
+"C1RX"
+]
+},
+{
+"num": 88,
+"names": [
+"RF1",
+"PMD10",
+"ETXD0",
+"C1TX"
+]
+},
+{
+"num": 89,
+"names": [
+"RG1",
+"PMD9",
+"ETXERR",
+"C2TX"
+]
+},
+{
+"num": 90,
+"names": [
+"RG0",
+"PMD8",
+"C2RX"
+]
+},
+{
+"num": 91,
+"names": [
+"RA6",
+"TRCLK"
+]
+},
+{
+"num": 92,
+"names": [
+"RA7",
+"TRD3"
+]
+},
+{
+"num": 93,
+"names": [
+"RE0",
+"PMD0"
+]
+},
+{
+"num": 94,
+"names": [
+"RE1",
+"PMD1"
+]
+},
+{
+"num": 95,
+"names": [
+"RG14",
+"TRD2"
+]
+},
+{
+"num": 96,
+"names": [
+"RG12",
+"TRD1"
+]
+},
+{
+"num": 97,
+"names": [
+"RG13",
+"TRD0"
+]
+},
+{
+"num": 98,
+"names": [
+"RE2",
+"PMD2"
+]
+},
+{
+"num": 99,
+"names": [
+"RE3",
+"PMD3"
+]
+},
+{
+"num": 100,
+"names": [
+"RE4",
+"PMD4"
+]
+},
+{
+"num": 101,
+"names": [
+"NC"
+]
+},
+{
+"num": 102,
+"names": [
+"NC"
+]
+},
+{
+"num": 103,
+"names": [
+"NC"
+]
+},
+{
+"num": 104,
+"names": [
+"NC"
+]
+},
+{
+"num": 105,
+"names": [
+"VSS"
+]
+},
+{
+"num": 106,
+"names": [
+"NC"
+]
+},
+{
+"num": 107,
+"names": [
+"NC"
+]
+},
+{
+"num": 108,
+"names": [
+"VSS"
+]
+},
+{
+"num": 109,
+"names": [
+"NC"
+]
+},
+{
+"num": 110,
+"names": [
+"VSS"
+]
+},
+{
+"num": 111,
+"names": [
+"VSS"
+]
+},
+{
+"num": 112,
+"names": [
+"NC"
+]
+},
+{
+"num": 113,
+"names": [
+"VSS"
+]
+},
+{
+"num": 114,
+"names": [
+"VDD"
+]
+},
+{
+"num": 115,
+"names": [
+"NC"
+]
+},
+{
+"num": 116,
+"names": [
+"VDD"
+]
+},
+{
+"num": 117,
+"names": [
+"NC"
+]
+},
+{
+"num": 118,
+"names": [
+"NC"
+]
+},
+{
+"num": 119,
+"names": [
+"NC"
+]
+},
+{
+"num": 120,
+"names": [
+"NC"
+]
+},
+{
+"num": 121,
+"names": [
+"VDD"
+]
+}
+]
+}
