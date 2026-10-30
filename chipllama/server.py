@@ -53,6 +53,8 @@ class BlocksReq(BaseModel):
 class CircuitReq(BaseModel):
     circuit: dict
     compile: bool = False
+    part: str = ""
+    fmt: str = "kicad"
 
 
 class CalcReq(BaseModel):
@@ -181,6 +183,32 @@ def create_app(settings: Settings | None = None, model_factory: Callable | None 
             if cr.hex_path and Path(cr.hex_path).is_file():
                 res["hex"] = Path(cr.hex_path).read_text(errors="replace")
         return {k: v for k, v in res.items() if k != "amalg"}
+
+    # ------------------------------------------------------------ schematic (M7, KiCad-style)
+    @app.post("/api/circuit/netlist")
+    def circuit_netlist(req: CircuitReq):
+        from . import schematic as sch
+        d = sch.migrate(req.circuit)
+        if req.fmt == "json":
+            return sch.netlist_json(d, cur().mplab_packs_dir)
+        name = (d.get("name") or "circuit").replace(" ", "_")
+        return Response(sch.kicad_net(d, cur().mplab_packs_dir), media_type="text/plain",
+                        headers={"Content-Disposition": f'attachment; filename="{name}.net"'})
+
+    @app.post("/api/circuit/autowire")
+    def circuit_autowire(req: CircuitReq):
+        from . import schematic as sch
+        return sch.autowire(req.circuit, req.part, cur().mplab_packs_dir)
+
+    @app.post("/api/circuit/checklist")
+    def circuit_checklist(req: CircuitReq):
+        from . import schematic as sch
+        return sch.mcu_checklist(sch.migrate(req.circuit), cur().mplab_packs_dir)
+
+    @app.post("/api/circuit/migrate")
+    def circuit_migrate(req: CircuitReq):
+        from . import schematic as sch
+        return sch.migrate(req.circuit)
 
     @app.post("/api/circuit/to_blocks")
     def circuit_to_blocks(req: CircuitReq):

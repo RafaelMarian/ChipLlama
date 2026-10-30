@@ -1,4 +1,5 @@
 {
+ "schema": 2,
  "title": "Servo on OC1 (RP2/RD8) follows a pot on AN2",
  "name": "servo_pot",
  "device": "PIC24FJ256GB110",
@@ -7,68 +8,76 @@
    "id": "U1",
    "type": "mcu",
    "x": 420,
-   "y": 60
+   "y": 60,
+   "params": {}
   },
   {
    "id": "POT1",
    "type": "pot",
    "params": {},
-   "x": 80,
-   "y": 140
+   "x": 160,
+   "y": 200
   },
   {
    "id": "SV1",
    "type": "servo",
    "params": {},
-   "x": 80,
-   "y": 340
+   "x": 160,
+   "y": 440
   },
   {
-   "id": "V5",
-   "type": "v5",
-   "params": {},
-   "x": 40,
-   "y": 40
-  },
-  {
-   "id": "VDD",
-   "type": "vdd33",
-   "params": {},
-   "x": 200,
-   "y": 40
-  },
-  {
-   "id": "GND",
+   "id": "PWR1",
    "type": "gnd",
    "params": {},
-   "x": 40,
-   "y": 520
+   "x": 200,
+   "y": 260
+  },
+  {
+   "id": "PWR2",
+   "type": "vdd33",
+   "params": {},
+   "x": 160,
+   "y": 140
+  },
+  {
+   "id": "PWR3",
+   "type": "v5",
+   "params": {},
+   "x": 200,
+   "y": 380
+  },
+  {
+   "id": "PWR4",
+   "type": "gnd",
+   "params": {},
+   "x": 160,
+   "y": 500
   }
  ],
  "wires": [
   {
    "a": "U1.23",
-   "b": "POT1.W"
+   "b": "POT1.2"
   },
   {
    "a": "POT1.1",
-   "b": "GND.-"
+   "b": "PWR1.1"
   },
   {
-   "a": "POT1.2",
-   "b": "VDD.+"
+   "a": "POT1.3",
+   "b": "PWR2.1"
   },
   {
    "a": "U1.68",
-   "b": "SV1.SIG"
+   "b": "SV1.3"
   },
   {
-   "a": "SV1.V+",
-   "b": "V5.+"
+   "a": "SV1.2",
+   "b": "PWR3.1"
   },
   {
-   "a": "SV1.GND",
-   "b": "GND.-"
+   "a": "SV1.1",
+   "b": "PWR4.1"
   }
  ]
 }

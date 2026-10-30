@@ -1,4 +1,5 @@
 {
+ "schema": 2,
  "title": "PIC18F45K22: LED, button, pot, TMP102 (MSSP1), EUSART1 logger, CCP1 buzzer",
  "name": "k22_logger",
  "device": "PIC18F45K22",
@@ -7,7 +8,8 @@
    "id": "U1",
    "type": "mcu",
    "x": 420,
-   "y": 60
+   "y": 60,
+   "params": {}
   },
   {
    "id": "R1",
@@ -15,66 +17,141 @@
    "params": {
     "ohms": 330
    },
-   "x": 60,
-   "y": 60
+   "x": 260,
+   "y": 80,
+   "rot": 90
   },
   {
    "id": "LED1",
    "type": "led",
    "params": {},
-   "x": 20,
-   "y": 140
+   "x": 160,
+   "y": 120
   },
   {
    "id": "SW1",
    "type": "button",
    "params": {},
-   "x": 60,
-   "y": 230
+   "x": 260,
+   "y": 280
   },
   {
    "id": "POT1",
    "type": "pot",
    "params": {},
-   "x": 60,
-   "y": 330
+   "x": 260,
+   "y": 420
   },
   {
    "id": "BZ1",
    "type": "buzzer_passive",
    "params": {},
-   "x": 60,
-   "y": 460
+   "x": 260,
+   "y": 600
   },
   {
    "id": "S1",
    "type": "tmp102",
    "params": {
-    "pullups": true
+    "pullups": false
    },
    "x": 820,
-   "y": 80
+   "y": 160
   },
   {
    "id": "USB1",
    "type": "uart_usb",
    "params": {},
    "x": 820,
-   "y": 300
+   "y": 400
   },
   {
-   "id": "VDD",
+   "id": "R10",
+   "type": "resistor",
+   "params": {
+    "ohms": 4700
+   },
+   "x": 900,
+   "y": 60
+  },
+  {
+   "id": "R11",
+   "type": "resistor",
+   "params": {
+    "ohms": 4700
+   },
+   "x": 940,
+   "y": 60
+  },
+  {
+   "id": "PWR1",
+   "type": "gnd",
+   "params": {},
+   "x": 200,
+   "y": 180
+  },
+  {
+   "id": "PWR2",
+   "type": "gnd",
+   "params": {},
+   "x": 260,
+   "y": 340
+  },
+  {
+   "id": "PWR3",
+   "type": "gnd",
+   "params": {},
+   "x": 300,
+   "y": 480
+  },
+  {
+   "id": "PWR4",
    "type": "vdd33",
    "params": {},
-   "x": 240,
+   "x": 260,
+   "y": 360
+  },
+  {
+   "id": "PWR5",
+   "type": "gnd",
+   "params": {},
+   "x": 300,
+   "y": 660
+  },
+  {
+   "id": "PWR6",
+   "type": "vdd33",
+   "params": {},
+   "x": 820,
+   "y": 100
+  },
+  {
+   "id": "PWR7",
+   "type": "gnd",
+   "params": {},
+   "x": 860,
+   "y": 220
+  },
+  {
+   "id": "PWR8",
+   "type": "gnd",
+   "params": {},
+   "x": 820,
+   "y": 460
+  },
+  {
+   "id": "PWR9",
+   "type": "vdd33",
+   "params": {},
+   "x": 940,
    "y": 0
   },
   {
-   "id": "GND",
-   "type": "gnd",
+   "id": "PWR10",
+   "type": "vdd33",
    "params": {},
-   "x": 240,
-   "y": 600
+   "x": 940,
+   "y": 0
   }
  ],
  "wires": [
@@ -84,67 +161,83 @@
   },
   {
    "a": "R1.2",
-   "b": "LED1.A"
+   "b": "LED1.2"
   },
   {
-   "a": "LED1.K",
-   "b": "GND.-"
+   "a": "LED1.1",
+   "b": "PWR1.1"
   },
   {
    "a": "U1.33",
    "b": "SW1.1"
   },
   {
-   "a": "SW1.2",
-   "b": "GND.-"
+   "a": "SW1.3",
+   "b": "PWR2.1"
   },
   {
    "a": "U1.2",
-   "b": "POT1.W"
+   "b": "POT1.2"
   },
   {
    "a": "POT1.1",
-   "b": "GND.-"
+   "b": "PWR3.1"
   },
   {
-   "a": "POT1.2",
-   "b": "VDD.+"
+   "a": "POT1.3",
+   "b": "PWR4.1"
   },
   {
    "a": "U1.17",
-   "b": "BZ1.+"
+   "b": "BZ1.1"
   },
   {
-   "a": "BZ1.-",
-   "b": "GND.-"
+   "a": "BZ1.2",
+   "b": "PWR5.1"
   },
   {
    "a": "U1.18",
-   "b": "S1.SCL"
+   "b": "S1.3"
   },
   {
    "a": "U1.23",
-   "b": "S1.SDA"
+   "b": "S1.4"
   },
   {
-   "a": "S1.VCC",
-   "b": "VDD.+"
+   "a": "S1.1",
+   "b": "PWR6.1"
   },
   {
-   "a": "S1.GND",
-   "b": "GND.-"
+   "a": "S1.2",
+   "b": "PWR7.1"
   },
   {
    "a": "U1.25",
-   "b": "USB1.RX"
+   "b": "USB1.2"
   },
   {
    "a": "U1.26",
-   "b": "USB1.TX"
+   "b": "USB1.3"
   },
   {
-   "a": "USB1.GND",
-   "b": "GND.-"
+   "a": "USB1.1",
+   "b": "PWR8.1"
+  },
+  {
+   "a": "R10.1",
+   "b": "PWR9.1"
+  },
+  {
+   "a": "R10.2",
+   "b": "S1.3"
+  },
+  {
+   "a": "R11.1",
+   "b": "PWR10.1"
+  },
+  {
+   "a": "R11.2",
+   "b": "S1.4"
   }
  ]
 }

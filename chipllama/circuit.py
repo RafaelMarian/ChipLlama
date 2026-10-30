@@ -18,6 +18,7 @@ from collections import defaultdict
 
 from . import components as C
 from . import pinout as PO
+from . import symbols as S
 
 PIN_ABS_MAX_MA = 25.0      # p.311 absolute maximum: max current sunk/sourced by any I/O pin
 VOH_SPEC_MA = 6.0          # p.319 Table 29-8 DO20: VOH >= 2.4 V at IOH = -6 mA (VDD 3.6 V)
@@ -59,7 +60,11 @@ class Circuit:
         self.pins = {str(p["num"]): p for p in self.info["pins"]}
         self.parts = {p["id"]: p for p in d.get("parts", [])}
         self.mcu = next((p["id"] for p in d.get("parts", []) if p.get("type") == "mcu"), "U1")
-        self.nl = Netlist([w for w in d.get("wires", []) if w.get("a") and w.get("b")])
+        self.schema = int(d.get("schema") or 1)
+        self.pre: list[tuple] = []          # findings raised while normalising endpoints
+        self.wires = [w2 for w2 in (self.norm_wire(w) for w in d.get("wires", []) if w.get("a") and w.get("b")) if w2]
+        self.nl = Netlist(self.wires)
+        self.join_symbols()
         groups = self.nl.nets()
         self.net_of: dict[str, frozenset] = {}
         for members in groups.values():
@@ -69,6 +74,41 @@ class Circuit:
         self.findings: list[dict] = []
         self.assign: dict[str, str] = {}
         self.bindings: list[dict] = []
+
+    # ------------------------------------------------------------ schema 2 (KiCad-style: <ref>.<pin number>)
+    def norm_ep(self, ep: str) -> str | None:
+        """Schema-2 endpoints name a physical pin; map it to the part's logical port (internal shorts collapse)."""
+        if self.schema < 2 or "." not in str(ep):
+            return ep
+        pid, num = str(ep).split(".", 1)
+        pd = self.parts.get(pid)
+        if not pd or pd.get("type") == "mcu":
+            return ep
+        port = S.port_of(pd.get("type"), num)
+        if port is None:
+            self.pre.append(("error", "BAD_ENDPOINT", f"wire end {ep}: {pd.get('type')} {pid} has no pin {num}", [pid]))
+            return None
+        return f"{pid}.{port}"
+
+    def norm_wire(self, w):
+        a, b = self.norm_ep(w["a"]), self.norm_ep(w["b"])
+        return {"a": a, "b": b} if a and b else None
+
+    def join_symbols(self):
+        """Power symbols of one kind and net labels with the same name are one net (KiCad semantics)."""
+        groups = defaultdict(list)
+        for pid, pd in self.parts.items():
+            t = pd.get("type")
+            if t in C.POWER_SYM:
+                groups["pwr:" + t].append(f"{pid}.{C.LIB[t].ports[0][0]}")
+            elif t in ("label", "glabel"):
+                name = str((pd.get("params") or {}).get("name") or "").strip()
+                if name:
+                    groups["lbl:" + name.upper()].append(f"{pid}.1")
+        for g in groups.values():
+            for x in g[1:]:
+                self.nl.union(g[0], x)
+        self.label_groups = groups
 
     # ------------------------------------------------------------ helpers
     def add(self, sev, code, msg, parts=(), pins=(), page=None):
@@ -102,8 +142,8 @@ class Circuit:
         """Voltage of a net when it is tied to a supply symbol (None = signal net)."""
         for pid, port in self.others(net):
             t = self.ptype(pid)
-            if t in ("vdd33", "v5"):
-                return float(self.param(pid, "v", 3.3 if t == "vdd33" else 5.0))
+            if t in ("vdd33", "v5", "vdd"):
+                return float(self.param(pid, "v", 5.0 if t == "v5" else 3.3))
             if t == "gnd" or (t == "battery" and port == "-") or (t == "regulator" and port == "GND"):
                 return 0.0
             if t == "battery" and port == "+":
@@ -206,7 +246,9 @@ class Circuit:
         if not self.info or self.info.get("generic"):
             self.add("warning", "DEVICE_GENERIC", f"No pin table for {self.device}: showing a generic block. Install its DFP "
                      "(MPLAB X packs) so the real pinout is read from edc/<device>.PIC.")
-        for w in self.d.get("wires", []):
+        for sev, code, msg, parts in self.pre:
+            self.add(sev, code, msg, parts)
+        for w in self.wires:
             for ep in (w.get("a"), w.get("b")):
                 if not ep or "." not in str(ep):
                     continue
@@ -234,7 +276,7 @@ class Circuit:
         for pid, pd in self.parts.items():
             t = pd.get("type")
             lib = C.LIB.get(t)
-            if t == "mcu" or not lib:
+            if t == "mcu" or not lib or t in C.ANNOT or t in C.POWER_SYM or t in ("conn2", "conn4", "conn6", "icsp", "spdt", "ecap"):
                 continue
             b = {"id": pid, "type": t, "drv": lib.drv, "params": {k: self.param(pid, k) for k in lib.params}, "pins": {}}
             if t in ("led", "buzzer_active", "relay", "dc_motor"):
@@ -470,11 +512,19 @@ class Circuit:
             for port, pb in b["pins"].items():
                 if pb["role"] in ("an",) and len(self.net(f"{b['id']}.{port}")) < 2:
                     self.add("warning", "FLOATING", f"{b['id']}.{port} is not wired.", [b["id"]])
+        for key, g in self.label_groups.items():
+            if key.startswith("lbl:") and len(g) == 1 and len(self.net(g[0])) < 2:
+                self.add("warning", "LABEL_DANGLING", f"label '{key[4:]}' ({g[0].split('.')[0]}) touches no wire.", [g[0].split(".")[0]])
+        ncs = {ep for pid, pd in self.parts.items() if pd.get("type") == "noconnect" for ep in self.net(f"{pid}.1")}
         for pid, pd in self.parts.items():
             lib = C.LIB.get(pd.get("type"))
-            if not lib:
+            if not lib or pd.get("type") in C.ANNOT:
                 continue
             for port, role in lib.ports:
+                if f"{pid}.{port}" in ncs:
+                    if len(self.net(f"{pid}.{port}")) > 2:
+                        self.add("warning", "NC_CONNECTED", f"{pid}.{port} has a no-connect flag but is wired.", [pid])
+                    continue
                 if f"{pid}.{port}" not in self.net_of and role not in ("p",):
                     self.add("info", "UNCONNECTED", f"{pid}.{port} is not connected.", [pid])
         # power pins
@@ -523,7 +573,7 @@ class Circuit:
             elif pw == "vcap":
                 if v is not None and v > 0:
                     self.add("error", "VCAP_VDD", "VCAP/VDDCORE (pin 85) must NOT be connected to VDD (p.29).", [], [num], 29)
-                caps = [x for x, port in self.others(net) if self.ptype(x) == "capacitor"]
+                caps = [x for x, port in self.others(net) if self.ptype(x) in ("capacitor", "ecap")]
                 uf = max([float(self.param(c, "farads", 0)) * 1e6 for c in caps] or [0])
                 if uf < 4.7:
                     self.add("error", "VCAP", f"VCAP (pin 85) needs a {VCAP_UF:g} uF, ESR < 5 ohm, >= 6.3 V capacitor to GND "

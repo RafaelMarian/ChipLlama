@@ -1,0 +1,298 @@
+"""Real component pinouts for the KiCad-style schematic editor (M7).
+
+For every library part: the physical pins (number, name, logical port, what to connect it to), the schematic
+symbol kind the editor draws, and a connection guide with recommended values.  Several physical pins may map
+to the same logical port: that is an internal short (4-pin tactile switch 1-2 / 3-4, A4988 GND 9/15, LCD ...).
+Wire endpoints in schema-2 circuits are ``<ref>.<pin number>``; :func:`port_of` maps them to the logical
+port used by the netlist / ERC / code generator.
+"""
+from __future__ import annotations
+
+# kind -> how the editor draws it.  Primitives have fixed pin geometry in circuit.js; "dip" = IC body with pins
+# 1..n/2 down the left and the rest up the right (package order); "module" = breakout board, one pin header.
+_T = tuple
+
+
+def _p(*rows):
+    out = []
+    for r in rows:
+        num, name, port, desc = r
+        out.append({"num": str(num), "name": name, "port": port or name, "desc": desc or ""})
+    return out
+
+
+MCU_HINT = "MCU pin"
+SYM: dict[str, dict] = {
+    # ------------------------------------------------------------------ power symbols / annotation
+    "vdd33": {"kind": "pwr", "pins": _p(("1", "+3V3", "+", "Global +3V3 power net: every +3V3 symbol is the same net.")),
+              "guide": "Power symbol. All +3V3 symbols join one net (MCU VDD, sensor VCC, pull-ups)."},
+    "v5": {"kind": "pwr", "pins": _p(("1", "+5V", "+", "Global +5V net: servos, relays, 5 V modules.")),
+           "guide": "Power symbol for the 5 V rail. Never tie it to an MCU pin that is not 5 V tolerant."},
+    "vdd": {"kind": "pwr", "pins": _p(("1", "VDD", "+", "Global VDD net (3.3 V).")), "guide": "Power symbol for VDD (3.3 V)."},
+    "gnd": {"kind": "gnd", "pins": _p(("1", "GND", "-", "Global ground: every GND symbol is the same net.")),
+            "guide": "Ground symbol. Every GND symbol is one net, so you never have to draw long ground wires."},
+    "label": {"kind": "label", "pins": _p(("1", "~", "1", "Net label: wires touching labels with the same name are connected.")),
+              "guide": "Local net label (L). Give two wires the same label name to connect them without drawing a wire."},
+    "glabel": {"kind": "glabel", "pins": _p(("1", "~", "1", "Global label: same name = same net.")),
+               "guide": "Global label. Same behaviour as a net label on this single-sheet schematic."},
+    "junction": {"kind": "junction", "pins": _p(("1", "~", "1", "Junction: joins every wire that ends here.")),
+                 "guide": "Junction dot - placed automatically when a wire ends on another wire."},
+    "noconnect": {"kind": "nc", "pins": _p(("1", "~", "1", "No-connect flag: tells the ERC this pin is unused on purpose.")),
+                  "guide": "No-connect flag (Q in KiCad). Put it on pins you leave open on purpose."},
+    # ------------------------------------------------------------------ power parts
+    "battery": {"kind": "battery", "pins": _p(("1", "+", "+", "Positive terminal -> regulator VIN or the load supply."),
+                                              ("2", "-", "-", "Negative terminal -> GND.")),
+                "guide": "Battery: + to the regulator input, - to GND. A Li-ion (3.7-4.2 V) needs an LDO before the 3.6 V MCU."},
+    "regulator": {"kind": "reg", "pins": _p(("1", "GND", "GND", "GND."), ("2", "VOUT", "VOUT", "Regulated output -> +3V3 net, 1 uF to GND."),
+                                            ("3", "VIN", "VIN", "Input (battery / 5 V) with 1 uF to GND.")),
+                  "guide": "LDO (AMS1117 / MCP1700 style IN-GND-OUT): 1 uF ceramic on VIN and on VOUT, both to GND."},
+    "usb_conn": {"kind": "module", "pins": _p(("1", "VBUS", "VBUS", "5 V from the host -> MCU VBUS sense pin / 5 V rail."),
+                                             ("2", "D-", "D-", "MCU D- pin (fixed)."), ("3", "D+", "D+", "MCU D+ pin (fixed)."),
+                                             ("4", "GND", "GND", "GND.")),
+                 "guide": "USB-B / micro-B: D+/D- straight to the MCU USB pins, VBUS to the VBUS sense pin, shield/GND to GND."},
+    # ------------------------------------------------------------------ passives
+    "resistor": {"kind": "res", "pins": _p(("1", "~", "1", "Either end (resistors are not polarised)."), ("2", "~", "2", "Other end.")),
+                 "guide": "Series R for LEDs: (3.3 V - Vf) / I, e.g. 330 ohm = ~4 mA red. Pull-ups 4.7-10 k to +3V3. Base R 1 k."},
+    "capacitor": {"kind": "cap", "pins": _p(("1", "~", "1", "Either side."), ("2", "~", "2", "Other side (usually GND).")),
+                  "guide": "Decoupling: 100 nF as close as possible to every VDD pin, other side to GND."},
+    "ecap": {"kind": "ecap", "pins": _p(("1", "+", "1", "Positive (long leg) -> the higher voltage (VCAP, rail)."),
+                                        ("2", "-", "2", "Negative (stripe) -> GND.")),
+             "guide": "Electrolytic / tantalum: + to the supply or VCAP pin, - to GND. VCAP needs 10 uF, ESR < 5 ohm (p.29)."},
+    "diode": {"kind": "diode", "pins": _p(("1", "K", "K", "Cathode (band). Flyback: to the + side of the coil/motor."),
+                                          ("2", "A", "A", "Anode. Flyback: to the transistor side (coil -).")),
+              "guide": "Flyback diode across a coil/motor: cathode (band) to +supply side, anode to the transistor collector/drain."},
+    "zener": {"kind": "zener", "pins": _p(("1", "K", "K", "Cathode -> the line to clamp."), ("2", "A", "A", "Anode -> GND.")),
+              "guide": "Zener clamp: cathode on the signal, anode to GND, with a series resistor in front."},
+    "crystal": {"kind": "xtal", "pins": _p(("1", "~", "1", "SOSCI (MCU) + 22 pF to GND."), ("2", "~", "2", "SOSCO (MCU) + 22 pF to GND.")),
+                "guide": "32.768 kHz crystal between SOSCI and SOSCO, each pin with 12-22 pF to GND."},
+    "pot": {"kind": "pot", "pins": _p(("1", "1", "1", "End 1 -> GND."), ("2", "W", "W", "Wiper -> an MCU analog pin (ANx)."),
+                                      ("3", "3", "2", "End 2 -> +3V3 (never 5 V on a 3.3 V ADC).")),
+            "guide": "10 k pot as a divider: ends to GND and +3V3, wiper to an ANx pin."},
+    # ------------------------------------------------------------------ semis
+    "npn": {"kind": "npn", "pins": _p(("1", "E", "E", "Emitter -> GND (low-side switch)."),
+                                      ("2", "B", "B", "Base -> 1 k resistor -> MCU output pin."),
+                                      ("3", "C", "C", "Collector -> the low side of the load (relay coil -, buzzer -).")),
+            "guide": "2N2222 (TO-92 E-B-C): B through 1 k to the MCU, E to GND, C to the load's low side; load + to the supply."},
+    "pnp": {"kind": "pnp", "pins": _p(("1", "E", "E", "Emitter -> supply (+3V3)."), ("2", "B", "B", "Base -> 1 k -> MCU pin (low = on)."),
+                                      ("3", "C", "C", "Collector -> load high side.")),
+            "guide": "PNP high-side switch: E to the supply, B through 1 k to the MCU (drive low to turn on), C to the load."},
+    "nmos": {"kind": "nmos", "pins": _p(("1", "G", "G", "Gate -> 100 ohm -> MCU pin, plus 10 k gate-to-source pull-down."),
+                                        ("2", "D", "D", "Drain -> low side of the load (motor -)."), ("3", "S", "S", "Source -> GND.")),
+             "guide": "Logic-level N-MOSFET (IRLZ44N G-D-S): 100 ohm gate R from the MCU, 10 k G->S, S to GND, D to the load."},
+    "pmos": {"kind": "pmos", "pins": _p(("1", "G", "G", "Gate -> MCU pin (low = on), 10 k to source."), ("2", "S", "S", "Source -> supply."),
+                                        ("3", "D", "D", "Drain -> load.")),
+             "guide": "P-MOSFET high-side switch (AO3401 SOT-23 G-S-D)."},
+    "opto": {"kind": "dip", "pins": _p(("1", "A", "A", "LED anode -> 330 ohm -> MCU pin."), ("2", "K", "K", "LED cathode -> GND."),
+                                       ("3", "E", "E", "Transistor emitter -> isolated GND."), ("4", "C", "C", "Collector -> isolated load / pull-up.")),
+             "guide": "PC817 (DIP4): LED side from the MCU through 330 ohm (~5 mA), transistor side on the isolated circuit."},
+    "relay": {"kind": "relay", "pins": _p(("1", "COIL+", "COIL+", "Coil + -> +5V and diode cathode."),
+                                          ("2", "COIL-", "COIL-", "Coil - -> NPN collector and diode anode."),
+                                          ("3", "COM", "COM", "Common contact of the switched circuit."),
+                                          ("4", "NC", "NC", "Normally closed: connected to COM when the coil is off."),
+                                          ("5", "NO", "NO", "Normally open: connected to COM when the coil is on.")),
+              "guide": "SRD-05VDC: coil from +5V through an NPN (1 k base R) to GND, 1N4148 across the coil (band to +)."},
+    "relay_module": {"kind": "module", "pins": _p(("1", "VCC", "VCC", "+5V."), ("2", "GND", "GND", "GND."),
+                                                 ("3", "IN", "IN", "MCU output (most modules are active-low)."),
+                                                 ("4", "COM", "COM", "Switched circuit common."), ("5", "NO", "NO", "Normally open."),
+                                                 ("6", "NC", "NC", "Normally closed.")),
+                     "guide": "Relay module: VCC 5 V, GND, IN straight to an MCU output (transistor and diode are on the board)."},
+    # ------------------------------------------------------------------ outputs
+    "led": {"kind": "led", "pins": _p(("1", "K", "K", "Cathode (short leg, flat side) -> GND."),
+                                      ("2", "A", "A", "Anode (long leg) -> series resistor (330 ohm) -> MCU output pin.")),
+            "guide": "MCU pin -> 330 ohm -> A (anode, long leg); K (cathode) -> GND. ~4 mA, inside the 6 mA VOH spec (p.319)."},
+    "rgb_led": {"kind": "module", "pins": _p(("1", "R", "R", "Red anode -> 330 ohm -> MCU pin (PWM for mixing)."),
+                                            ("2", "K", "K", "Common cathode (longest leg) -> GND."),
+                                            ("3", "G", "G", "Green anode -> 330 ohm -> MCU pin."), ("4", "B", "B", "Blue anode -> 330 ohm -> MCU pin.")),
+                "guide": "Common-cathode RGB: one 330 ohm per colour from three MCU pins, longest leg to GND."},
+    "led_bar": {"kind": "dip", "pins": _p(*[(str(i + 1), f"D{i}", f"D{i}", f"Segment {i} anode -> MCU pin (array resistor).") for i in range(8)],
+                                          ("9", "K", "K", "Common cathode -> GND.")),
+                "guide": "LED bar: eight anodes to MCU outputs through a resistor array, cathodes to GND."},
+    "seg7": {"kind": "dip", "pins": _p(("1", "E", "E", "Segment e -> R -> MCU"), ("2", "D", "D", "Segment d -> R -> MCU"),
+                                       ("3", "COM", "COM", "Common cathode -> GND"), ("4", "C", "C", "Segment c -> R -> MCU"),
+                                       ("5", "DP", "DP", "Decimal point -> R -> MCU"), ("6", "B", "B", "Segment b -> R -> MCU"),
+                                       ("7", "A", "A", "Segment a -> R -> MCU"), ("8", "COM2", "COM", "Common (shorted to 3) -> GND"),
+                                       ("9", "F", "F", "Segment f -> R -> MCU"), ("10", "G", "G", "Segment g -> R -> MCU")),
+             "guide": "5161AS common cathode: each segment through 330 ohm to an MCU pin, pins 3 and 8 (COM) to GND."},
+    "hc595": {"kind": "dip", "pins": _p(("1", "QB", "QB", "Output B -> 330 ohm -> segment/LED."), ("2", "QC", "QC", "Output C."),
+                                        ("3", "QD", "QD", "Output D."), ("4", "QE", "QE", "Output E."), ("5", "QF", "QF", "Output F."),
+                                        ("6", "QG", "QG", "Output G."), ("7", "QH", "QH", "Output H."), ("8", "GND", "GND", "GND."),
+                                        ("9", "QH'", "QH'", "Serial out -> SER of the next 595 (daisy chain)."),
+                                        ("10", "~SRCLR", "SRCLR", "Shift-register clear, active low -> +VCC."),
+                                        ("11", "SRCLK", "SRCLK", "Shift clock -> MCU SCK."), ("12", "RCLK", "RCLK", "Latch -> MCU GPIO (chip select)."),
+                                        ("13", "~OE", "OE", "Output enable, active low -> GND (or PWM for dimming)."),
+                                        ("14", "SER", "SER", "Serial data -> MCU SDO (MOSI)."), ("15", "QA", "QA", "Output A."),
+                                        ("16", "VCC", "VCC", "+3V3 (or 5 V) with 100 nF to GND.")),
+              "guide": "74HC595 DIP16: SER<-SDO, SRCLK<-SCK, RCLK<-GPIO, ~OE->GND, ~SRCLR->VCC, 100 nF on VCC."},
+    "lcd1602": {"kind": "module", "pins": _p(("1", "VSS", "GND", "GND."), ("2", "VDD", "VCC", "+5V (most modules)."),
+                                            ("3", "VO", "VO", "Contrast -> 10 k pot wiper (pot ends to VDD and GND)."),
+                                            ("4", "RS", "RS", "Register select -> MCU GPIO."), ("5", "RW", "RW", "Read/Write -> GND (write only)."),
+                                            ("6", "E", "E", "Enable strobe -> MCU GPIO."),
+                                            *[(str(7 + i), f"D{i}", f"D{i}", "Not used in 4-bit mode: leave open.") for i in range(4)],
+                                            *[(str(11 + i), f"D{4 + i}", f"D{4 + i}", "4-bit data -> MCU GPIO.") for i in range(4)],
+                                            ("15", "A", "A", "Backlight anode -> +5V (via 100 ohm if the module has none)."),
+                                            ("16", "K", "K", "Backlight cathode -> GND.")),
+                "guide": "HD44780 16-pin: RS, E, D4-D7 to MCU GPIO; VO to a 10 k pot wiper; RW to GND; A to 5 V, K to GND."},
+    "ssd1306": {"kind": "module", "pins": _p(("1", "GND", "GND", "GND."), ("2", "VCC", "VCC", "+3V3."),
+                                            ("3", "SCL", "SCL", "MCU SCLx (I2C clock), 4.7 k pull-up to +3V3."),
+                                            ("4", "SDA", "SDA", "MCU SDAx (I2C data), 4.7 k pull-up to +3V3.")),
+                "guide": "0.96\" OLED, I2C address 0x3C. Most boards include the pull-ups."},
+    "buzzer_active": {"kind": "buzzer", "pins": _p(("1", "+", "+", "+ -> supply (+5V/+3V3)."), ("2", "-", "-", "- -> NPN collector (or MCU pin if <= 6 mA).")),
+                      "guide": "Active buzzer ~25 mA: drive its - side with an NPN (1 k base), + to the supply."},
+    "buzzer_passive": {"kind": "buzzer", "pins": _p(("1", "+", "+", "+ -> PWM-capable MCU pin (OCx / CCPx)."), ("2", "-", "-", "- -> GND.")),
+                       "guide": "Passive piezo: square wave from an OC/CCP pin, - to GND."},
+    "ws2812": {"kind": "module", "pins": _p(("1", "VCC", "VCC", "+5V, 1000 uF across the strip supply."),
+                                           ("2", "DIN", "DIN", "Data in <- 330 ohm <- MCU pin (level shifter for 5 V strips)."),
+                                           ("3", "GND", "GND", "GND, common with the MCU.")),
+               "guide": "WS2812: 330 ohm in series with DIN, big cap on 5 V, GND common with the MCU."},
+    # ------------------------------------------------------------------ motion
+    "servo": {"kind": "module", "pins": _p(("1", "GND", "GND", "Brown wire -> GND."), ("2", "V+", "V+", "Red wire -> +5V."),
+                                          ("3", "SIG", "SIG", "Orange wire -> PWM pin (OCx), 50 Hz 1-2 ms.")),
+              "guide": "Servo: brown GND, red +5V, orange to an OC/PWM pin. 3.3 V signal works."},
+    "dc_motor": {"kind": "motor", "pins": _p(("1", "+", "+", "+ -> +5V and diode cathode."), ("2", "-", "-", "- -> MOSFET drain and diode anode.")),
+                 "guide": "DC motor: low-side N-MOSFET (100 ohm gate, 10 k G-S), flyback diode across the motor."},
+    "hbridge": {"kind": "module", "pins": _p(("1", "ENA", "EN", "Enable A -> PWM pin (remove the jumper)."), ("2", "IN1", "IN1", "MCU GPIO."),
+                                            ("3", "IN2", "IN2", "MCU GPIO."), ("4", "IN3", "IN3", "Second motor: MCU GPIO."),
+                                            ("5", "IN4", "IN4", "Second motor: MCU GPIO."), ("6", "ENB", "ENB", "Enable B -> PWM pin."),
+                                            ("7", "OUT1", "OUT1", "Motor A terminal."), ("8", "OUT2", "OUT2", "Motor A terminal."),
+                                            ("9", "OUT3", "OUT3", "Motor B terminal."), ("10", "OUT4", "OUT4", "Motor B terminal."),
+                                            ("11", "+12V", "VM", "Motor supply 5-12 V."), ("12", "GND", "GND", "GND, common with the MCU."),
+                                            ("13", "+5V", "+5V", "5 V regulator out (jumper on) - do not feed 5 V in with VM > 12 V.")),
+                "guide": "L298N: IN1/IN2 to GPIO, ENA to PWM, OUT1/OUT2 to the motor, +12V motor supply, GND common."},
+    "stepper_uln": {"kind": "module", "pins": _p(("1", "IN1", "IN1", "MCU GPIO."), ("2", "IN2", "IN2", "MCU GPIO."), ("3", "IN3", "IN3", "MCU GPIO."),
+                                                ("4", "IN4", "IN4", "MCU GPIO."), ("5", "+", "VM", "+5V (28BYJ-48)."), ("6", "-", "GND", "GND.")),
+                    "guide": "ULN2003 board: IN1-IN4 to four GPIO, + to 5 V, - to GND, motor on the white connector."},
+    "stepper_a4988": {"kind": "dip", "pins": _p(("1", "~ENABLE", "EN", "Active-low enable -> MCU GPIO (or GND)."),
+                                                ("2", "MS1", "MS1", "Microstep select -> GND / VDD."), ("3", "MS2", "MS2", "Microstep select."),
+                                                ("4", "MS3", "MS3", "Microstep select."), ("5", "~RESET", "RST", "Tie to ~SLEEP."),
+                                                ("6", "~SLEEP", "SLP", "Tie to ~RESET (pulled up on the board)."),
+                                                ("7", "STEP", "STEP", "MCU GPIO: one pulse = one step."), ("8", "DIR", "DIR", "MCU GPIO."),
+                                                ("9", "GND", "GND", "Logic GND."), ("10", "VDD", "VDD", "Logic supply +3V3."),
+                                                ("11", "1B", "1B", "Coil 1."), ("12", "1A", "1A", "Coil 1."), ("13", "2A", "2A", "Coil 2."),
+                                                ("14", "2B", "2B", "Coil 2."), ("15", "GND", "GND", "Motor GND (shorted to 9)."),
+                                                ("16", "VMOT", "VM", "8-35 V motor supply with 100 uF across it.")),
+                      "guide": "A4988: STEP/DIR/~EN to GPIO, VDD 3.3 V, VMOT with 100 uF, ~RESET tied to ~SLEEP."},
+    # ------------------------------------------------------------------ inputs
+    "button": {"kind": "btn4", "pins": _p(("1", "1", "1", "Shorted to pin 2 inside. -> MCU input (internal pull-up / 10 k to +3V3)."),
+                                          ("2", "2", "1", "Shorted to pin 1 inside."),
+                                          ("3", "3", "2", "Shorted to pin 4 inside. -> GND."), ("4", "4", "2", "Shorted to pin 3 inside.")),
+               "shorts": [["1", "2"], ["3", "4"]],
+               "guide": "6 mm tactile switch: 1-2 and 3-4 are joined inside; pressing joins the pairs. One pair to an MCU input "
+                        "(enable the pull-up), the other pair to GND. Reads 0 when pressed."},
+    "switch": {"kind": "spst", "pins": _p(("1", "1", "1", "-> MCU input with pull-up."), ("2", "2", "2", "-> GND.")),
+               "guide": "SPST: one side to an MCU input (pull-up on), the other to GND."},
+    "spdt": {"kind": "spdt", "pins": _p(("1", "A", "A", "Throw A (e.g. +3V3)."), ("2", "COM", "COM", "Common -> MCU input."), ("3", "B", "B", "Throw B (e.g. GND).")),
+             "guide": "SPDT slide switch: COM to the MCU input, A to +3V3 and B to GND - no pull-up needed."},
+    "keypad": {"kind": "module", "pins": _p(*[(str(i), f"R{i}", f"R{i}", "Row -> MCU output (driven low one at a time).") for i in range(1, 5)],
+                                           *[(str(4 + i), f"C{i}", f"C{i}", "Column -> MCU input with pull-up.") for i in range(1, 5)]),
+               "guide": "4x4 membrane keypad: 8-pin ribbon, rows to outputs, columns to inputs with pull-ups."},
+    "encoder": {"kind": "module", "pins": _p(("1", "CLK", "A", "Channel A -> MCU input (change-notification pin)."),
+                                            ("2", "DT", "B", "Channel B -> MCU input."), ("3", "SW", "SW", "Push switch -> MCU input with pull-up."),
+                                            ("4", "+", "+", "+3V3 (board pull-ups)."), ("5", "GND", "GND", "GND.")),
+                "guide": "KY-040: CLK/DT to CN-capable inputs, SW to an input, + to 3.3 V."},
+    "joystick": {"kind": "module", "pins": _p(("1", "GND", "GND", "GND."), ("2", "+5V", "VCC", "+3V3 (so the ADC never sees 5 V)."),
+                                             ("3", "VRx", "X", "-> analog pin ANx."), ("4", "VRy", "Y", "-> analog pin ANx."),
+                                             ("5", "SW", "SW", "-> MCU input with pull-up.")),
+                 "guide": "Power the joystick from 3.3 V, not 5 V: VRx/VRy go straight to the 3.3 V ADC."},
+    # ------------------------------------------------------------------ sensors
+    "ldr": {"kind": "ldr", "pins": _p(("1", "~", "1", "-> +3V3."), ("2", "~", "2", "-> ANx and 10 k to GND (divider).")),
+            "guide": "LDR divider: LDR from +3V3 to the ANx pin, 10 k from that pin to GND."},
+    "ntc": {"kind": "ntc", "pins": _p(("1", "~", "1", "-> +3V3."), ("2", "~", "2", "-> ANx and 10 k to GND.")),
+            "guide": "NTC 10 k divider: NTC from +3V3 to ANx, 10 k to GND."},
+    "lm35": {"kind": "module", "pins": _p(("1", "+VS", "VS", "+5V (needs >= 4 V)."), ("2", "VOUT", "VOUT", "-> ANx (10 mV/degC)."),
+                                         ("3", "GND", "GND", "GND.")),
+             "guide": "LM35 TO-92 (flat side front, left to right): +VS 5 V, VOUT to ANx, GND."},
+    "dht22": {"kind": "module", "pins": _p(("1", "VCC", "VCC", "+3V3."), ("2", "DATA", "DATA", "-> MCU GPIO, 10 k pull-up to VCC."),
+                                          ("3", "NC", "NC", "Not connected."), ("4", "GND", "GND", "GND.")),
+              "guide": "DHT22 4-pin: VCC, DATA (10 k pull-up to VCC), NC, GND."},
+    "ds18b20": {"kind": "module", "pins": _p(("1", "GND", "GND", "GND."), ("2", "DQ", "DQ", "-> MCU GPIO, 4.7 k pull-up to VDD."),
+                                            ("3", "VDD", "VDD", "+3V3.")),
+                "guide": "DS18B20 TO-92: GND, DQ (4.7 k pull-up), VDD."},
+    "tmp102": {"kind": "module", "pins": _p(("1", "VCC", "VCC", "+3V3."), ("2", "GND", "GND", "GND."),
+                                           ("3", "SCL", "SCL", "-> MCU SCLx, 4.7 k pull-up."), ("4", "SDA", "SDA", "-> MCU SDAx, 4.7 k pull-up.")),
+               "guide": "I2C 0x48: SCL/SDA to the MCU's fixed I2C pins with 4.7 k pull-ups to 3.3 V."},
+    "bme280": {"kind": "module", "pins": _p(("1", "VIN", "VCC", "+3V3."), ("2", "GND", "GND", "GND."),
+                                           ("3", "SCL", "SCL", "-> MCU SCLx (4.7 k pull-up)."), ("4", "SDA", "SDA", "-> MCU SDAx (4.7 k pull-up).")),
+               "guide": "BME280 breakout (I2C 0x76): VIN 3.3 V, GND, SCL, SDA."},
+    "mpu6050": {"kind": "module", "pins": _p(("1", "VCC", "VCC", "+3V3."), ("2", "GND", "GND", "GND."), ("3", "SCL", "SCL", "-> MCU SCLx."),
+                                            ("4", "SDA", "SDA", "-> MCU SDAx."), ("5", "XDA", "XDA", "Aux I2C - leave open."),
+                                            ("6", "XCL", "XCL", "Aux I2C - leave open."), ("7", "AD0", "AD0", "GND = address 0x68."),
+                                            ("8", "INT", "INT", "Optional -> MCU interrupt input.")),
+                "guide": "GY-521: VCC, GND, SCL, SDA (address 0x68 with AD0 low)."},
+    "i2c_sensor": {"kind": "module", "pins": _p(("1", "VCC", "VCC", "+3V3."), ("2", "GND", "GND", "GND."), ("3", "SCL", "SCL", "-> SCLx."),
+                                               ("4", "SDA", "SDA", "-> SDAx.")),
+                   "guide": "Generic I2C breakout: SCL/SDA to the MCU I2C pins with 4.7 k pull-ups."},
+    # ------------------------------------------------------------------ memory / bus
+    "eeprom24": {"kind": "dip", "pins": _p(("1", "A0", "A0", "Address bit -> GND (0x50)."), ("2", "A1", "A1", "-> GND."),
+                                           ("3", "A2", "A2", "-> GND."), ("4", "VSS", "GND", "GND."),
+                                           ("5", "SDA", "SDA", "-> MCU SDAx, 4.7 k pull-up."), ("6", "SCL", "SCL", "-> MCU SCLx, 4.7 k pull-up."),
+                                           ("7", "WP", "WP", "Write protect -> GND to allow writes."), ("8", "VCC", "VCC", "+3V3, 100 nF to GND.")),
+                 "guide": "24LC256 DIP8: A0-A2 and WP to GND, SDA/SCL with 4.7 k pull-ups, 100 nF on VCC."},
+    "flash25": {"kind": "dip", "pins": _p(("1", "~CS", "CS", "-> MCU GPIO (chip select)."), ("2", "SO", "SO", "-> MCU SDI (MISO)."),
+                                          ("3", "~WP", "WP", "-> VCC."), ("4", "VSS", "GND", "GND."), ("5", "SI", "SI", "<- MCU SDO (MOSI)."),
+                                          ("6", "SCK", "SCK", "<- MCU SCK."), ("7", "~HOLD", "HOLD", "-> VCC."), ("8", "VCC", "VCC", "+3V3, 100 nF.")),
+                "guide": "25LC/W25Q DIP8: SPI to SDO/SDI/SCK, ~CS on a GPIO, ~WP and ~HOLD to VCC."},
+    "sdcard": {"kind": "module", "pins": _p(("1", "CS", "CS", "-> MCU GPIO."), ("2", "SCK", "SCK", "<- MCU SCK."), ("3", "MOSI", "MOSI", "<- MCU SDO."),
+                                           ("4", "MISO", "MISO", "-> MCU SDI."), ("5", "VCC", "VCC", "+3V3."), ("6", "GND", "GND", "GND.")),
+               "guide": "SD card (SPI): 3.3 V only, init at <= 400 kHz."},
+    "spi_dev": {"kind": "module", "pins": _p(("1", "SCK", "SCK", "<- MCU SCK."), ("2", "MOSI", "MOSI", "<- MCU SDO."), ("3", "MISO", "MISO", "-> MCU SDI."),
+                                            ("4", "CS", "CS", "<- MCU GPIO."), ("5", "VCC", "VCC", "+3V3."), ("6", "GND", "GND", "GND.")),
+                "guide": "Generic SPI slave."},
+    "mcp2515": {"kind": "module", "pins": _p(("1", "INT", "INT", "-> MCU input (interrupt)."), ("2", "SCK", "SCK", "<- MCU SCK."),
+                                            ("3", "SI", "SI", "<- MCU SDO."), ("4", "SO", "SO", "-> MCU SDI (5 V module: check tolerance)."),
+                                            ("5", "CS", "CS", "<- MCU GPIO."), ("6", "GND", "GND", "GND."), ("7", "VCC", "VCC", "+5V (TJA1050).")),
+                "guide": "MCP2515 + TJA1050 module: SPI + INT; 5 V supply, SO is 5 V - use a 5 V tolerant SDI pin."},
+    # ------------------------------------------------------------------ comms
+    "uart_usb": {"kind": "module", "pins": _p(("1", "GND", "GND", "GND."), ("2", "RXD", "RX", "<- MCU UxTX."), ("3", "TXD", "TX", "-> MCU UxRX."),
+                                             ("4", "3V3", "3V3", "3.3 V out - leave open if the board is powered."), ("5", "5V", "5V", "Leave open.")),
+                 "guide": "CP2102 / FT232 at 3.3 V: adapter RXD <- MCU TX, adapter TXD -> MCU RX, GND common."},
+    "hc05": {"kind": "module", "pins": _p(("1", "STATE", "STATE", "Connected status -> optional MCU input."),
+                                         ("2", "RXD", "RXD", "<- MCU UxTX (3.3 V logic)."), ("3", "TXD", "TXD", "-> MCU UxRX."),
+                                         ("4", "GND", "GND", "GND."), ("5", "VCC", "VCC", "+5V (on-board 3.3 V regulator)."),
+                                         ("6", "EN", "EN", "AT-mode key - leave open.")),
+             "guide": "HC-05 6-pin: crossed UART (MCU TX -> RXD, TXD -> MCU RX), VCC 5 V, GND."},
+    "esp01": {"kind": "module", "pins": _p(("1", "GND", "GND", "GND."), ("2", "GPIO2", "GPIO2", "Pull-up 10 k (boot)."),
+                                          ("3", "GPIO0", "GPIO0", "10 k pull-up (low = flash mode)."), ("4", "RX", "RX", "<- MCU UxTX."),
+                                          ("5", "TX", "TX", "-> MCU UxRX."), ("6", "CH_PD", "EN", "Enable -> 10 k to +3V3 or MCU GPIO."),
+                                          ("7", "RST", "RST", "10 k to +3V3."), ("8", "VCC", "VCC", "+3V3 ONLY, 300 mA peaks, 10 uF + 100 nF.")),
+              "guide": "ESP-01: 3.3 V only (needs its own 300 mA supply), crossed UART, CH_PD/RST/GPIO0/GPIO2 pulled up."},
+    "gps": {"kind": "module", "pins": _p(("1", "VCC", "VCC", "+3V3/5V."), ("2", "RX", "RX", "<- MCU UxTX."), ("3", "TX", "TX", "-> MCU UxRX."),
+                                        ("4", "GND", "GND", "GND.")),
+            "guide": "NEO-6M: NMEA at 9600 baud, crossed UART."},
+    "rs485": {"kind": "dip", "pins": _p(("1", "RO", "RO", "Receiver out -> MCU UxRX."), ("2", "~RE", "RE", "Receiver enable (low) - tie to DE."),
+                                        ("3", "DE", "DE", "Driver enable -> MCU GPIO (high = transmit)."),
+                                        ("4", "DI", "DI", "Driver in <- MCU UxTX."), ("5", "GND", "GND", "GND."),
+                                        ("6", "A", "A", "Bus A (120 ohm termination at the ends)."), ("7", "B", "B", "Bus B."),
+                                        ("8", "VCC", "VCC", "+5V (MAX3485 for 3.3 V).")),
+              "guide": "MAX485 DIP8: DI<-TX, RO->RX, DE and ~RE together on one GPIO, A/B to the bus with 120 ohm termination."},
+    # ------------------------------------------------------------------ connectors
+    "conn2": {"kind": "conn", "pins": _p(("1", "1", "1", "Header pin 1."), ("2", "2", "2", "Header pin 2.")),
+              "guide": "2-pin header / screw terminal (power in, external load)."},
+    "conn4": {"kind": "conn", "pins": _p(*[(str(i), str(i), str(i), f"Header pin {i}.") for i in range(1, 5)]),
+              "guide": "1x04 pin header."},
+    "conn6": {"kind": "conn", "pins": _p(*[(str(i), str(i), str(i), f"Header pin {i}.") for i in range(1, 7)]),
+              "guide": "1x06 pin header."},
+    "icsp": {"kind": "conn", "pins": _p(("1", "~MCLR", "MCLR", "-> MCU MCLR (with its 10 k pull-up)."), ("2", "VDD", "VDD", "+3V3."),
+                                        ("3", "VSS", "VSS", "GND."), ("4", "PGD", "PGD", "-> MCU PGEDx (the pair selected by ICS)."),
+                                        ("5", "PGC", "PGC", "-> MCU PGECx."), ("6", "NC", "NC", "Not connected (LVP on some PICs).")),
+             "guide": "PICkit / ICD 6-pin header: MCLR, VDD, VSS, PGD, PGC (pair selected by the ICS config bit), NC."},
+}
+
+
+def entry(t: str) -> dict | None:
+    return SYM.get(t)
+
+
+def port_of(t: str, num: str) -> str | None:
+    """Logical port for physical pin ``num`` of part type ``t`` (None if the pin does not exist)."""
+    e = SYM.get(t)
+    if not e:
+        return None
+    for p in e["pins"]:
+        if p["num"] == str(num):
+            return p["port"]
+    return None
+
+
+def pins_of_port(t: str, port: str) -> list[str]:
+    e = SYM.get(t)
+    return [p["num"] for p in e["pins"] if p["port"] == port] if e else []

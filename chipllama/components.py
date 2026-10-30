@@ -31,7 +31,7 @@ class Part:
     def to_dict(self):
         return {"type": self.type, "label": self.label, "cat": self.cat, "prefix": self.prefix,
                 "ports": [{"name": n, "role": r} for n, r in self.ports], "params": self.params, "drv": self.drv,
-                "doc": self.doc, "logic_v": self.logic_v, "i2c_addr": self.i2c_addr}
+                "doc": self.doc, "logic_v": self.logic_v, "i2c_addr": self.i2c_addr, **_sym(self.type)}
 
 
 P = Part
@@ -39,7 +39,12 @@ _LIB = [
     # ---- power
     P("vdd33", "3.3 V rail", "Power", "VDD", [("+", "p")], {"v": 3.3}, None, "Logic supply (VDD 2.0-3.6 V, DS39897C p.311)."),
     P("v5", "5 V rail", "Power", "V5_", [("+", "p")], {"v": 5.0}, None, "5 V supply for motors, relays, 5 V modules."),
+    P("vdd", "VDD power symbol", "Power", "#PWR", [("+", "p")], {"v": 3.3}, None, "VDD power flag (3.3 V)."),
     P("gnd", "GND", "Power", "GND", [("-", "p")], {}, None),
+    P("label", "Net label", "Power", "#LBL", [("1", "p")], {"name": "NET"}, None, "Same name = same net."),
+    P("glabel", "Global label", "Power", "#GLB", [("1", "p")], {"name": "NET"}, None, "Same name = same net."),
+    P("junction", "Junction", "Power", "#J", [("1", "p")], {}, None),
+    P("noconnect", "No-connect flag", "Power", "#NC", [("1", "p")], {}, None),
     P("battery", "Battery", "Power", "BT", [("+", "p"), ("-", "p")], {"v": 3.7, "mah": 1000}, None),
     P("regulator", "LDO regulator", "Power", "U", [("VIN", "p"), ("VOUT", "p"), ("GND", "p")], {"vout": 3.3, "part": "MCP1700-3302E"}, None,
       "Add 1 uF in / out ceramics."),
@@ -48,6 +53,8 @@ _LIB = [
     # ---- passives
     P("resistor", "Resistor", "Passive", "R", [("1", "p"), ("2", "p")], {"ohms": 330}, None),
     P("capacitor", "Capacitor", "Passive", "C", [("1", "p"), ("2", "p")], {"farads": 1e-7, "kind": "ceramic"}, None),
+    P("ecap", "Electrolytic capacitor", "Passive", "C", [("1", "p"), ("2", "p")], {"farads": 1e-5, "kind": "tantalum"}, None,
+      "Polarised: + to the higher voltage."),
     P("diode", "Diode", "Passive", "D", [("A", "p"), ("K", "p")], {"part": "1N4148"}, None, "Flyback / protection diode."),
     P("zener", "Zener diode", "Passive", "DZ", [("A", "p"), ("K", "p")], {"vz": 3.3}, None, "Clamp to the VDD rail."),
     P("crystal", "32.768 kHz crystal (SOSC)", "Passive", "Y", [("1", "p"), ("2", "p")], {"hz": 32768, "cl_pf": 12.5}, None,
@@ -96,6 +103,7 @@ _LIB = [
     # ---- inputs
     P("button", "Push button", "Input", "BTN", [("1", "p"), ("2", "p")], {"pullup": "internal", "debounce_ms": 20}, "button"),
     P("switch", "Switch (SPST)", "Input", "SW", [("1", "p"), ("2", "p")], {"pullup": "internal"}, "button"),
+    P("spdt", "Switch (SPDT)", "Input", "SW", [("A", "p"), ("COM", "p"), ("B", "p")], {}, None, "Changeover switch."),
     P("keypad", "Keypad 4x4", "Input", "KP", [(f"R{i}", "out") for i in range(1, 5)] + [(f"C{i}", "in") for i in range(1, 5)],
       {"keys": "123A456B789C*0#D"}, "keypad", "Columns use internal pull-ups; rows driven low one at a time."),
     P("encoder", "Rotary encoder", "Input", "ENC", [("A", "in"), ("B", "in"), ("SW", "in"), ("GND", "gnd")], {}, "encoder"),
@@ -140,6 +148,49 @@ _LIB = [
     P("rs485", "RS485 (MAX485)", "Comms", "U", [("DI", "rx"), ("RO", "tx"), ("DE", "out"), ("VCC", "vcc"), ("GND", "gnd")],
       {"baud": 9600}, "uart_dev", "MAX485 is 5 V; use MAX3485 for 3.3 V.", 5.0),
 ]
+_LIB += [
+    P("conn2", "Conn 1x02 / screw terminal", "Connector", "J", [("1", "p"), ("2", "p")], {}, None),
+    P("conn4", "Conn 1x04 header", "Connector", "J", [(str(i), "p") for i in range(1, 5)], {}, None),
+    P("conn6", "Conn 1x06 header", "Connector", "J", [(str(i), "p") for i in range(1, 7)], {}, None),
+    P("icsp", "ICSP header (PICkit 6-pin)", "Connector", "J", [("MCLR", "p"), ("VDD", "p"), ("VSS", "p"), ("PGD", "p"), ("PGC", "p"),
+      ("NC", "p")], {}, None, "In-circuit programming header."),
+]
+ANNOT = {"label", "glabel", "junction", "noconnect"}        # no electrical part, not in the BOM
+POWER_SYM = {"vdd33": "+3V3", "v5": "+5V", "vdd": "VDD", "gnd": "GND"}
+FOOTPRINT = {"resistor": "Resistor_THT:R_Axial_DIN0207_P10.16mm", "capacitor": "Capacitor_THT:C_Disc_D5.0mm_W2.5mm_P5.00mm",
+             "ecap": "Capacitor_THT:CP_Radial_D5.0mm_P2.00mm", "led": "LED_THT:LED_D5.0mm", "diode": "Diode_THT:D_DO-35_SOD27_P7.62mm",
+             "zener": "Diode_THT:D_DO-35_SOD27_P7.62mm", "button": "Button_Switch_THT:SW_PUSH_6mm", "npn": "Package_TO_SOT_THT:TO-92_Inline",
+             "pnp": "Package_TO_SOT_THT:TO-92_Inline", "nmos": "Package_TO_SOT_THT:TO-220-3_Vertical", "pmos": "Package_TO_SOT_SMD:SOT-23",
+             "pot": "Potentiometer_THT:Potentiometer_Bourns_3386P_Vertical", "crystal": "Crystal:Crystal_C26-LF_D2.1mm_L6.5mm_Horizontal",
+             "hc595": "Package_DIP:DIP-16_W7.62mm", "eeprom24": "Package_DIP:DIP-8_W7.62mm", "flash25": "Package_DIP:DIP-8_W7.62mm",
+             "rs485": "Package_DIP:DIP-8_W7.62mm", "opto": "Package_DIP:DIP-4_W7.62mm", "relay": "Relay_THT:Relay_SPDT_SANYOU_SRD_Series_Form_C",
+             "icsp": "Connector_PinHeader_2.54mm:PinHeader_1x06_P2.54mm_Vertical",
+             "conn2": "TerminalBlock:TerminalBlock_bornier-2_P5.08mm", "conn4": "Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical",
+             "conn6": "Connector_PinHeader_2.54mm:PinHeader_1x06_P2.54mm_Vertical"}
+
+
+def _sym(t):
+    from . import symbols as S
+    e = S.entry(t) or {}
+    return {"sym": e.get("kind", "module"), "pins": e.get("pins", []), "guide": e.get("guide", ""), "shorts": e.get("shorts", []),
+            "footprint": FOOTPRINT.get(t, "Module:" + t if t not in POWER_SYM and t not in ANNOT else ""),
+            "power_name": POWER_SYM.get(t)}
+
+
+def _complete_ports():
+    """Every physical pin's logical port must exist on the part: extra pins (LCD VO, relay NC, 74HC595 QA..)
+    become passive ports so they can be wired and show up in the netlist."""
+    from . import symbols as S
+    for p in _LIB:
+        have = {n for n, _ in p.ports}
+        e = S.entry(p.type)
+        for pin in (e or {}).get("pins", []):
+            if pin["port"] not in have:
+                p.ports.append((pin["port"], "p"))
+                have.add(pin["port"])
+
+
+_complete_ports()
 LIB = {p.type: p for p in _LIB}
 
 ROLE_FN = {   # MCU-side function a device port role needs

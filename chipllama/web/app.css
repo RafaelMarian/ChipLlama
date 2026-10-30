@@ -145,7 +145,7 @@ button:focus{outline:none}button:focus-visible{outline:2px solid rgba(124,140,25
 .xl{border-bottom:1px solid rgba(255,255,255,.05);padding:8px 0}.xl code{font-family:var(--mono);font-size:12.5px;color:#dfe3ff}.xl .ln{color:var(--mut);font-family:var(--mono);font-size:11px;margin-right:8px}.xl ul{margin:4px 0 0 18px;padding:0;font-size:13px;color:var(--mut)}
 
 /* ---------- circuit (M6) */
-.cgrid{display:grid;grid-template-columns:190px minmax(0,1fr) 380px;gap:14px;align-items:start}
+.cgrid{display:grid;grid-template-columns:190px minmax(0,1fr) 400px;gap:14px;align-items:start}
 .cpalc{max-height:calc(100vh - 150px);overflow:auto;position:sticky;top:12px}
 .cpal-c{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;margin:10px 0 4px}
 .cpal-i{display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:8px;cursor:grab;color:var(--tx2);font-size:12.5px;border:1px solid transparent;user-select:none}
@@ -177,3 +177,27 @@ button:focus{outline:none}button:focus-visible{outline:2px solid rgba(124,140,25
 #cfile{max-height:300px;overflow:auto;font-size:11px;margin:0}
 .ctab{width:100%;border-collapse:collapse;font-size:12px}.ctab th{text-align:left;color:var(--mut);font-weight:600;font-size:11px}.ctab td,.ctab th{padding:4px 6px;border-bottom:1px solid var(--line)}
 @media(max-width:1400px){.cgrid{grid-template-columns:170px minmax(0,1fr)}.cside{grid-column:1/-1}}
+
+/* ---- M7 KiCad-style schematic */
+#csvg{cursor:default}.cpart{cursor:pointer}
+.chit{fill:transparent;stroke:none}.cpart.sel .chit{fill:rgba(245,184,75,.07);stroke:#f5b84b;stroke-dasharray:3 3;stroke-width:1}
+.csl{stroke:#e06c75;stroke-width:1.6;fill:none;stroke-linecap:round}.csl.w{stroke-width:2.4}.csl.dash{stroke-dasharray:3 3;stroke-width:1}.csl.nc{stroke:#5b8dff;stroke-width:2}
+.csb{stroke:#e06c75;stroke-width:1.6;fill:none}.csb.f,.csd{fill:#e06c75;stroke:#e06c75}.csb.f2{fill:rgba(255,255,194,.05)}.csb.mcu{fill:rgba(255,255,194,.04);stroke-width:2}.csb.glab{fill:rgba(255,255,255,.03);stroke:#e8e8e8}
+.cpart.sel .csl,.cpart.sel .csb{stroke:#f5b84b}.cpart.sel .csb.f{fill:#f5b84b}.cpart.bad .csb{stroke:#ff4d5e}
+.cspin{stroke:#c47b7b;stroke-width:1.4}.cspin.pw{stroke:#f5b84b}.cspin.used{stroke:#3ddc97}.cspin.bad{stroke:#ff4d5e;stroke-width:2}
+.cep{fill:transparent;stroke:transparent;stroke-width:1.2;cursor:crosshair}.cep:hover{fill:rgba(61,220,151,.25);stroke:#3ddc97}
+.cjn{fill:#3ddc97}.cw{fill:none;stroke:#3ddc97;stroke-width:1.8;stroke-linejoin:miter;pointer-events:none}.cw.sel{stroke:#f5b84b;stroke-width:2.6}.cw.hl{stroke:#9cffd0;stroke-width:2.6}.cw.tmp{stroke:#f5b84b;stroke-dasharray:6 4}
+.cw-hit{stroke-width:9}.ccur{stroke:#f5b84b;stroke-width:1}.cwl{stroke:#3ddc97;stroke-width:1.6}
+.cbox{fill:rgba(124,140,255,.08);stroke:#7c8cff;stroke-dasharray:4 3}.cbox.cross{fill:rgba(61,220,151,.07);stroke:#3ddc97}
+.cpl{font-size:9px;fill:#5fd7d7}.cpl.s{font-size:8px;fill:#c49a9a}.cpl.mp{fill:#5fd7d7}.cpl.fn{fill:#f5b84b;font-weight:600}.cpn{font-size:7.5px;fill:#a46a6a}
+.cref{font-size:11px;font-weight:700;fill:#5fd7d7}.cval{font-size:10px;fill:#9fb7b7}.cpwr{font-size:10px;font-weight:700;fill:#e06c75}.clab{font-size:11px;font-weight:600;fill:#e8e8e8}.cmod{font-size:10px;fill:#9aa1b2}
+.csym-t{font-size:16px;font-weight:700;fill:#e06c75;text-anchor:middle}
+.cerc{cursor:pointer}.cerc path{fill:#ff4d5e;stroke:#000;stroke-width:.6}.cerc.warning path{fill:#f5b84b}.cerc-t{font-size:10px;font-weight:800;fill:#000}
+#csvg .cerc text{pointer-events:none}#csvg .cpl.mp[data-pin]{pointer-events:auto;cursor:pointer}
+.cpinhl{fill:none;stroke:#f5b84b;stroke-width:2.5}
+.ctools{display:flex;gap:4px;flex-wrap:wrap}.ctools button.on,#cpkg.on{border-color:var(--acc);color:var(--acc)}
+.cpal-n{margin-left:auto;font:10px var(--mono);color:var(--mut)}
+.cscroll2{max-height:420px;overflow:auto}.cgt td{vertical-align:top;font-size:11.5px}.cgt td:first-child{font:600 11px var(--mono)}.cgt td.ok{color:#3ddc97}.cgt tr.nc td:first-child{color:#f5b84b}
+.ccl .ok{color:#3ddc97}.ccl .todo{color:#f5b84b}
+.cadd{max-height:240px;overflow:auto;margin-top:6px}.cadd-i{padding:4px 6px;border-radius:6px;cursor:pointer;font-size:12px}.cadd-i:hover{background:var(--panel2)}
+#cpop{width:290px}

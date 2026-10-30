@@ -39,25 +39,30 @@
 </div></section>
 <!-- ================= CIRCUIT ================= -->
 <section id="p-cir" class="hide"><div class="cgrid">
- <div class="card cpalc"><h3>Parts</h3><input id="cq" placeholder="Search parts…" oninput="Circuit.palette(this.value)"><div id="cpal"></div><div class="mut f" style="margin-top:8px">Drag onto the canvas (or double-click).</div></div>
+ <div class="card cpalc"><h3>Parts</h3><input id="cq" placeholder="Search parts…" oninput="Circuit.palette(this.value)"><div id="cpal"></div><div class="mut f" style="margin-top:8px">Drag onto the canvas, double-click, or press A on the canvas. The number is the real pin count.</div></div>
  <div class="card" style="padding:0;overflow:hidden;display:flex;flex-direction:column"><div class="ctb">
   <select id="cdev" onchange="Circuit.setDevice(this.value)" title="Device (pinout from its EDC data)"></select>
   <input id="cname" placeholder="project name" onchange="Circuit.rename(this.value)" style="width:150px">
   <select id="cex" onchange="Circuit.loadEx(this.value);this.value=''" style="width:auto"></select>
   <span class="sp"></span>
+  <span class="ctools"><button class="s" title="Wire (W)" onclick="Circuit.tool('wire')">⌐ Wire</button><button class="s" title="Net label (L)" onclick="Circuit.tool('label')">Label</button><button class="s" title="Power symbol (P)" onclick="Circuit.tool('power')">⏚ Power</button><button class="s" title="Add symbol (A)" onclick="Circuit.tool('add')">+ Add</button>
+  <button class="s" title="Rotate (R)" onclick="Circuit.rotate()">⟳</button><button class="s" title="Undo (Ctrl+Z)" onclick="Circuit.undo()">↶</button><button class="s" title="Redo (Ctrl+Y)" onclick="Circuit.redo()">↷</button>
+  <button class="s" title="Renumber references top-left to bottom-right" onclick="Circuit.annotate()">Annotate</button><button class="s" id="cpkg" title="Toggle the MCU between the KiCad-style symbol and the real package pin order" onclick="Circuit.pkg()">Package</button></span>
   <button class="s" onclick="Circuit.zoom(1/1.2)">−</button><span id="czoom" class="mut" style="min-width:40px;text-align:center">100%</span><button class="s" onclick="Circuit.zoom(1.2)">+</button><button class="s" onclick="Circuit.fit()">Fit</button>
   <button class="s" onclick="Circuit.saveFile()">Save</button><label class="s cbtn">Load<input type="file" accept=".json" class="hide" onchange="this.files[0]&&Circuit.loadFile(this.files[0])"></label>
+  <button class="s" title="KiCad netlist (.net)" onclick="Circuit.netlist('kicad')">.net</button><button class="s" title="Netlist JSON" onclick="Circuit.netlist('json')">Netlist JSON</button>
   <button class="s" onclick="Circuit.exportPng()">PNG</button><button class="s" onclick="Circuit.exportSvg()">SVG</button><button class="s" onclick="Circuit.clear()">Clear</button></div>
   <div id="cwrap"><svg id="csvg"></svg><div id="ctip"></div><div id="cpop"></div>
-   <div class="chelp mut">drag port→port to wire · click a pin for its functions · drag to pan · shift-drag to select · wheel to zoom · Del removes</div></div></div>
+   <div class="chelp mut" id="cstat"></div></div></div>
  <div class="cside">
+  <div class="card"><h3>Connection guide <span class="mut f">what goes where</span></h3><div id="cguide" class="cscroll2"></div></div>
   <div class="card"><h3>ERC <span id="cerc" class="pill info">…</span></h3><div id="cfind" class="cscroll"></div></div>
   <div class="card" id="cprj"><h3>MPLAB X project <span id="cpbadge" class="pill info">not generated</span></h3>
    <div class="row" style="flex-wrap:wrap;gap:6px"><button class="p" onclick="Circuit.generate()">Generate project</button><label class="mut" style="display:flex;align-items:center;gap:6px;text-transform:none;letter-spacing:0;margin:0"><input type="checkbox" id="ccomp" style="width:auto">compile with XC</label></div>
    <div id="cpinfo"></div>
    <div class="ctreebox"><div id="ctree" class="mut f">Generate to see config/ hal/ drivers/ board/ app/.</div><div><div id="cfname" class="mut f"></div><pre id="cfile"></pre></div></div>
    <div class="row" style="flex-wrap:wrap;gap:6px"><button class="s" onclick="Circuit.zip()">Download .X.zip</button><button class="s" onclick="Circuit.hex()">Download .hex</button><button class="s" onclick="Circuit.toBlocks()">Open in Blocks</button></div></div>
-  <div class="card"><h3>BOM <span class="row" style="flex:0 0 auto;gap:6px"><button class="s" onclick="Circuit.bomCsv()">CSV</button><button class="s" onclick="Circuit.bomMd()">Markdown</button></span></h3><table class="ctab"><thead><tr><th>Ref</th><th>Qty</th><th>Part</th></tr></thead><tbody id="cbom"></tbody></table></div>
+  <div class="card"><h3>BOM <span class="row" style="flex:0 0 auto;gap:6px"><button class="s" onclick="Circuit.bomCsv()">CSV</button><button class="s" onclick="Circuit.bomMd()">Markdown</button></span></h3><table class="ctab"><thead><tr><th>Ref</th><th>Qty</th><th>Value</th><th>Footprint</th></tr></thead><tbody id="cbom"></tbody></table></div>
  </div>
 </div></section>
 <!-- ================= AUDIT ================= -->
