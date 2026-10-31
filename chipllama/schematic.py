@@ -212,6 +212,11 @@ class _Auto:
         for num, p in self.c.pins.items():
             if p.get("power") or not p.get("port") or num in self.used or num in self.reserved:
                 continue
+            note = str(p.get("note") or "").lower()
+            if "do not use" in note or ("input only" in note and role not in ("in", "an", "rx")):
+                continue  # e.g. ESP32 SPI-flash pins, input-only GPIO34..39
+            if prefer_cn and p.get("pullup") is False:
+                continue  # a button needs a pin with an internal pull-up
             v = self.c.valid_functions(num)
             if role in ROLE_NEED:
                 ok = True
@@ -342,7 +347,13 @@ def autowire(d: dict, pid: str, packs: str = "") -> dict:
         _auto_module(A, pd, x, y, free)
     A.d["schema"] = 2
     from . import geometry as GM
-    A.d = GM.tidy(A.d, set(A.added), packs)
+    base = A.d
+    for mv in (set(A.added) | {pid}, set(A.added), None):
+        # least-disruptive first: move only the new helpers, then the part itself, then everything but the MCU
+        A.d = GM.tidy(base, mv, packs)
+        au = GM.audit(A.d, packs)
+        if not au["problems"] and not au["dangling"] and not A.d.get("unrouted"):
+            break
     res = check(A.d, packs)
     return {"ok": True, "circuit": A.d, "added": A.added, "notes": A.notes, "check": {"ok": res["ok"], "findings": res["findings"]}}
 

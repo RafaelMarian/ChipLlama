@@ -11,6 +11,7 @@ import sys
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from chipllama.families import boards  # noqa: E402
+from chipllama import geometry as GM, schematic as sch  # noqa: E402
 
 OUT = ROOT / "examples" / "circuit" / "families"
 # pin choices per board: led, button, tx, rx, adc, pwm, scl, sda
@@ -107,7 +108,10 @@ def main():
     n = 0
     for bid in PICK:
         for kind in TITLES:
-            d = make(bid, kind)
+            d = GM.tidy(sch.migrate(make(bid, kind)))
+            a = GM.audit(d)
+            if a["problems"] or d.get("unrouted"):
+                print("GEOMETRY", d["name"], d.get("unrouted"), a["problems"][:4])
             (OUT / f"{d['name']}.json").write_text(json.dumps(d, indent=1))
             n += 1
     print(f"wrote {n} examples to {OUT}")

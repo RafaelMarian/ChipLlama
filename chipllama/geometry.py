@@ -611,8 +611,10 @@ def route_all(d: dict, packs: str = "", only_unrouted: bool = False) -> dict:
                     for q in grid_points(pj)[1:-1]:
                         if q in R.pin_tips or (R.blocked_by.get(q) and not (R.blocked_by[q] <= {pid} and k in ("junction", "nc"))):
                             continue
-                        hz = any(pj[k2][1] == pj[k2 + 1][1] == q[1] and min(pj[k2][0], pj[k2 + 1][0]) <= q[0] <= max(pj[k2][0], pj[k2 + 1][0]) for k2 in range(len(pj) - 1))
-                        out.append((q, [(0, GRID), (0, -GRID)] if hz else [(GRID, 0), (-GRID, 0)]))
+                        gp = grid_points(pj)
+                        kq = gp.index(q)
+                        used_d = {(gp[kq + s2][0] - q[0], gp[kq + s2][1] - q[1]) for s2 in (-1, 1) if 0 <= kq + s2 < len(gp)}
+                        out.append((q, [dd for dd in ((GRID, 0), (-GRID, 0), (0, GRID), (0, -GRID)) if dd not in used_d]))
             return out, (pid if k in ("junction", "nc") else None)
 
         src, pa = term(w["a"], A)
@@ -630,6 +632,11 @@ def route_all(d: dict, packs: str = "", only_unrouted: bool = False) -> dict:
             failed.append(i)
             continue
         s, e = path[0], path[-1]
+        plen = sum(abs(p2[0] - p1[0]) + abs(p2[1] - p1[1]) for p1, p2 in zip(path, path[1:]))
+        man = abs(e[0] - s[0]) + abs(e[1] - s[1])
+        if (plen > 400 and plen > 1.5 * man + 200 and s == (A[0], A[1]) and e == (B[0], B[1])
+                and _label_pair(d, R, G, polys, i)):
+            continue  # KiCad habit: a long way round becomes a pair of net labels
         a_ep, b_ep = w["a"], w["b"]
         if s != (A[0], A[1]):
             a_ep = _split_at(d, polys, R, G, w["a"], s)
@@ -640,12 +647,99 @@ def route_all(d: dict, packs: str = "", only_unrouted: bool = False) -> dict:
         w["pts"] = [{"x": x, "y": y} for x, y in poly[1:-1]]
         polys[i] = poly
         R.occupy(i, poly)
+    # KiCad habit: a connection that cannot be drawn cleanly becomes a pair of net labels (short stub + label)
+    still = []
+    for i in failed:
+        if not _label_pair(d, R, G, polys, i):
+            still.append(i)
+    failed = still
     for i in failed:
         wires[i].pop("pts", None)
     d["unrouted"] = [f"{wires[i]['a']}-{wires[i]['b']}" for i in failed]
     if not d["unrouted"]:
         d.pop("unrouted")
     return d
+
+
+def _net_name(d, G, ep, other):
+    for e in (ep, other):
+        pt = G.parts.get(e.split(".")[0])
+        if pt and pt.get("type") == "mcu":
+            try:
+                pins = {str(x["num"]): x for x in PO.get(d.get("device") or "PIC24FJ256GB110")["pins"]}
+            except Exception:
+                pins = {}
+            lab = str((pins.get(e.split(".")[1]) or {}).get("label") or "")
+            if lab:
+                return re.sub(r"[^A-Za-z0-9_+-]", "_", lab.split("·")[0].split(" ")[0].split("/")[0])[:16]
+    return "N_" + ep.replace(".", "_")
+
+
+def _lbl_rot(dx, dy):
+    """Rotation that makes a net label's body extend along (dx,dy) (its pin faces back to the wire)."""
+    for r in (0, 90, 180, 270):
+        if xd({"rot": r}, -1, 0) == (-dx, -dy):
+            return r
+    return 0
+
+
+def _label_pair(d, R, G, polys, i):
+    """Replace wire i by a stub + net label at each end.  Returns True if both stubs could be routed."""
+    wires = d["wires"]
+    w = wires[i]
+    name = _net_name(d, G, w["a"], w["b"])
+    used = {str((p.get("params") or {}).get("name")) for p in d["parts"] if p.get("type") == "label"}
+    base, n = name, 1
+    while name in used:
+        n += 1
+        name = f"{base}_{n}"
+    made = []
+    for ep in (w["a"], w["b"]):
+        P = G.pin(ep)
+        if not P:
+            return False
+        dirs = [(P[2], P[3])] if (P[2] or P[3]) else [(-1, 0), (1, 0), (0, -1), (0, 1)]
+        ok = False
+        for dx, dy in dirs:
+            for ln in (20, 30, 40, 60, 80):
+                lid = _new_id(d, "LBL")
+                lp = {"id": lid, "type": "label", "params": {"name": name}, "x": P[0] + dx * ln, "y": P[1] + dy * ln,
+                      "rot": _lbl_rot(dx, dy)}
+                d["parts"].append(lp)
+                G.parts[lid] = lp
+                b = G.box(lp)
+                clash = any(_hit([b[0] + 1, b[1] + 1, b[2] - 1, b[3] - 1], r) for q in d["parts"] if q is not lp and G.kind(q) not in ("junction",)
+                            for r in _rects(G, q, 4))
+                L = G.pin(f"{lid}.1")
+                path = None if clash else R.route([((P[0], P[1]), [(dx * GRID, dy * GRID)])], [((L[0], L[1]), [(L[2] * GRID, L[3] * GRID)])])
+                if path:
+                    made.append((lid, ep, corners(path), lp))
+                    R.occupy(i if len(made) == 1 else len(wires), made[-1][2])
+                    ok = True
+                    break
+                d["parts"].remove(lp)
+                del G.parts[lid]
+            if ok:
+                break
+        if not ok:
+            for lid, _, poly, lp in made:
+                R.release(i, poly)
+                d["parts"].remove(lp)
+                del G.parts[lid]
+            return False
+        # block the label box for later routes
+        b = G.box(made[-1][3])
+        for x in range(snap_dn(b[0] - 10) + GRID, snap_up(b[2] + 10), GRID):
+            for y in range(snap_dn(b[1] - 10) + GRID, snap_up(b[3] + 10), GRID):
+                R.blocked_by.setdefault((x, y), set()).add(made[-1][0])
+    (lid1, ep1, p1, _), (lid2, ep2, p2, _) = made
+    w["a"], w["b"], w["pts"] = ep1, f"{lid1}.1", [{"x": x, "y": y} for x, y in p1[1:-1]]
+    polys[i] = p1
+    R.occupy(i, p1)
+    wires.append({"a": ep2, "b": f"{lid2}.1", "pts": [{"x": x, "y": y} for x, y in p2[1:-1]]})
+    polys[len(wires) - 1] = p2
+    R.occupy(len(wires) - 1, p2)
+    return True
 
 
 def _split_at(d, polys, R, G, ep, q):
@@ -714,7 +808,39 @@ def _pwr_rot(kind, dx, dy):
     return 0
 
 
+_NO_MIRROR = False
+
+
 def tidy(d: dict, movable=None, packs: str = "") -> dict:
+    """Layout + route; never returns a result worse than an already-clean input."""
+    import copy
+    global _NO_MIRROR
+    out = _tidy(copy.deepcopy(d), movable, packs)
+    try:
+        def bad(x):
+            b_ = audit(x, packs)
+            return len(b_["problems"]) + len(b_["dangling"]) + 10 * len(x.get("unrouted") or [])
+        if bad(out):
+            # second opinion: same layout without the mirroring heuristic; keep whichever is cleaner
+            _NO_MIRROR = True
+            try:
+                alt = _tidy(copy.deepcopy(d), movable, packs)
+            finally:
+                _NO_MIRROR = False
+            if bad(alt) < bad(out):
+                out = alt
+        a = audit(d, packs)
+        if a["problems"] or a["dangling"] or d.get("unrouted"):
+            return out
+        b = audit(out, packs)
+        if b["problems"] or b["dangling"] or out.get("unrouted"):
+            return d
+    except Exception:
+        pass
+    return out
+
+
+def _tidy(d: dict, movable=None, packs: str = "") -> dict:
     """KiCad-style clean layout for the given parts (default: everything but the MCU): one power symbol per
     connection placed one pin-length (100 mil) off the pin it feeds and facing it, other parts moved to the
     nearest free spot; then every wire is re-routed."""
@@ -806,6 +932,18 @@ def tidy(d: dict, movable=None, packs: str = "") -> dict:
         tgt = (nbr.get(pt["id"]) or [None])[0]
         P = G.pin(tgt) if tgt else None
         k = G.kind(pt)
+        if P and P[2] and not P[3] and tgt.split(".")[0] in movable:
+            # KiCad habit on a part's side pin: short stub, then the symbol upright (GND hangs below, supply stands
+            # above) so it never sits in the signal lanes beside the part
+            up = -1 if k == "pwr" else 1
+            for dist in (20, 30, 40):
+                for dy in (30, 40, 50, 60):
+                    pt["rot"] = _pwr_rot(k, 0, up)
+                    pt.pop("mx", None), pt.pop("my", None)
+                    pt["x"], pt["y"] = P[0] + P[2] * dist, P[1] + up * dy
+                    if fits(pt, (tgt, tgt.split(".")[0])):
+                        commit(pt)
+                        return True
         if P and (P[2] or P[3]):
             for dist, off in [(20, 0), (40, 0), (60, 0)] + [(dd, o) for dd in (80, 100, 120, 140, 160, 200) for o in (0, 20, -20, 40, -40, 60, -60, 80, -80)]:
                 pt["rot"] = _pwr_rot(k, P[2], P[3])
@@ -825,9 +963,89 @@ def tidy(d: dict, movable=None, packs: str = "") -> dict:
         t = (nbr.get(pt["id"]) or ["?"])[0].split(".")[0]
         if t not in movable and place_pwr(pt):
             pdone.add(pt["id"])
+    # pull-ups / pull-downs: 2-pin part between its own rail symbol and a signal net (drawn vertically above the
+    # signal wire, KiCad style); placed after the parts they hang between
+    pull = {}
+    for pt in others:
+        eps = G.pins_of(pt)
+        if len(eps) != 2 or G.kind(pt) in ("label", "glabel", "led", "diode", "zener"):
+            continue
+        rail = sig = None
+        for ep in eps:
+            for o in nbr_ep.get(ep, []):
+                q = G.parts.get(o.split(".")[0])
+                if q and G.kind(q) == "pwr" and q in pwrs:
+                    rail = ep
+                elif q and G.kind(q) not in ("pwr", "gnd"):
+                    sig = (ep, o)
+        if rail and sig and rail != sig[0]:
+            pull[pt["id"]] = (rail, sig[0], sig[1])
+    pull_of = {}
+    for pid, (_, _, o) in pull.items():
+        pull_of.setdefault(o.split(".")[0], []).append(pid)
+    slot = {}
+
+    def drv_of(pid):
+        rail, sig, o = pull[pid]
+        for w in d["wires"]:
+            for x, y in ((w["a"], w["b"]), (w["b"], w["a"])):
+                if x == o and y != sig and G.parts.get(y.split(".")[0]) and G.kind(G.parts[y.split(".")[0]]) not in ("pwr", "gnd") \
+                        and y.split(".")[0] not in pull:
+                    return y
+        return None
+
+    def place_pull(pid):
+        """Pull-up: vertical, signal pin down onto the wire between the driver pin and the part pin."""
+        rail, sig, o = pull[pid]
+        tops = [min(G.pin(drv_of(q))[1], G.pin(pull[q][2])[1]) for q in pull_of.get(o.split(".")[0], [])
+                if drv_of(q) and G.pin(drv_of(q)) and G.pin(pull[q][2])]
+        pt = G.parts[pid]
+        Q = G.pin(o)
+        drv = None
+        for w in d["wires"]:
+            for x, y in ((w["a"], w["b"]), (w["b"], w["a"])):
+                if x == o and y != sig and G.parts.get(y.split(".")[0]) and G.kind(G.parts[y.split(".")[0]]) not in ("pwr", "gnd") \
+                        and y.split(".")[0] not in pull:
+                    drv = drv or y
+        P = G.pin(drv) if drv else None
+        done = False
+        if P and Q and P[3] == 0 and Q[3] == 0:
+            for r in (0, 90, 180, 270):
+                pt["rot"] = r
+                pt.pop("mx", None), pt.pop("my", None)
+                pt["x"], pt["y"] = 0, 0
+                S_ = G.pin(sig)
+                if (S_[2], S_[3]) == (0, 1):
+                    break
+            k = slot.get((P[0], P[2]), 0)
+            top = min(tops + [P[1], Q[1]])
+            for kk in range(k, k + 6):
+                x = snap(P[0] + P[2] * (80 + 40 * kk))
+                if P[2] and Q[2] and not (min(P[0], Q[0]) < x < max(P[0], Q[0])):
+                    break
+                pt["x"], pt["y"] = 0, 0
+                S_ = G.pin(sig)
+                pt["x"], pt["y"] = x - S_[0], top - 40 - S_[1]
+                if fits(pt):
+                    slot[(P[0], P[2])] = kk + 1
+                    done = True
+                    break
+        if not done:
+            ep = sig
+            Qd = Q or (0, 0, 1, 0)
+            pt["x"], pt["y"] = snap(Qd[0] + Qd[2] * 80), snap(Qd[1] + Qd[3] * 80 - 60)
+            spiral(pt)
+        commit(pt)
+        placed.add(pid)
+        for ep in G.pins_of(pt):
+            for o2 in list(nbr_ep.get(ep, [])):
+                q = G.parts.get(o2.split(".")[0])
+                if q in pwrs and q["id"] not in pdone and place_pwr(q):
+                    pdone.add(q["id"])
+
     # BFS from the fixed parts: each part goes next to the pin it hangs on
     placed = {p["id"] for p in fixed}
-    left = list(others)
+    left = [p for p in others if p["id"] not in pull]
     while left:
         best = None
         for pt in left:
@@ -882,16 +1100,67 @@ def tidy(d: dict, movable=None, packs: str = "") -> dict:
             Q = G.pin(ep)
             n = len(G.pins_of(pt))
             gap = 60 if n <= 3 else min(260, 100 + 12 * n)
+            if pull_of.get(pt["id"]):
+                gap = max(gap, 160 + 40 * len(pull_of[pt["id"]]))
             pt["x"], pt["y"] = P[0] + P[2] * gap - Q[0], P[1] + P[3] * gap - Q[1]
+            if n > 2 and not _NO_MIRROR and G.kind(pt) in ("module", "dip", "conn"):
+                # mirror the part if that untangles its wires to already placed parts (KiCad: no needless crossings)
+                def tangles():
+                    prs = []
+                    for e in G.pins_of(pt):
+                        for o in nbr_ep.get(e, []):
+                            if o.split(".")[0] in placed:
+                                A_, B_ = G.pin(o), G.pin(e)
+                                prs.append((A_[1] if P[3] == 0 else A_[0], B_[1] if P[3] == 0 else B_[0]))
+                    t_ = 2 * sum(1 for i_ in range(len(prs)) for j_ in range(i_ + 1, len(prs))
+                                 if (prs[i_][0] - prs[j_][0]) * (prs[i_][1] - prs[j_][1]) < 0)
+                    if P[3] == 0:
+                        # KiCad habit: GND below the signals, supplies above (power symbols then never block a signal lane)
+                        sigy, pw_ = [], []
+                        for e in G.pins_of(pt):
+                            ks = {G.kind(G.parts[o.split(".")[0]]) for o in nbr_ep.get(e, []) if o.split(".")[0] in G.parts}
+                            (pw_.append((G.pin(e)[1], "gnd" in ks)) if ks & {"pwr", "gnd"} else sigy.append(G.pin(e)[1]) if ks else None)
+                        for y_, isg in pw_:
+                            t_ += sum(3 for sy in sigy if sy > y_) if isg else sum(1 for sy in sigy if sy < y_)
+                    # pins wired to placed parts should face them (KiCad: no wire wrapping round its own symbol)
+                    for e in G.pins_of(pt):
+                        if any(o.split(".")[0] in placed for o in nbr_ep.get(e, [])):
+                            B_ = G.pin(e)
+                            if (B_[2], B_[3]) == (P[2], P[3]):
+                                t_ += 4
+                    return t_
+
+                def put(flags):
+                    for f_ in ("mx", "my"):
+                        pt.pop(f_, None)
+                    for f_ in flags:
+                        pt[f_] = True
+                    pt["x"], pt["y"] = 0, 0
+                    Q2 = G.pin(ep)
+                    pt["x"], pt["y"] = P[0] + P[2] * gap - Q2[0], P[1] + P[3] * gap - Q2[1]
+                orig = tuple(f_ for f_ in ("mx", "my") if pt.get(f_))
+                best_ = None
+                for flags in (orig, ("my",), ("mx",), ("mx", "my"), ()):
+                    put(flags)
+                    sc = tangles()
+                    if best_ is None or sc < best_[0]:
+                        best_ = (sc, flags)
+                put(best_[1])
         spiral(pt)
         commit(pt)
         placed.add(pt["id"])
         left.remove(pt)
+        for q in pull_of.get(pt["id"], []):
+            if q not in placed and all(x.split(".")[0] in placed for x in [drv_of(q) or "?"]):
+                place_pull(q)
         for ep in G.pins_of(pt):
             for o in list(nbr_ep.get(ep, [])):
                 q = G.parts.get(o.split(".")[0])
                 if q in pwrs and q["id"] not in pdone and place_pwr(q):
                     pdone.add(q["id"])
+    for pid in pull:
+        if pid not in placed:
+            place_pull(pid)
     # power symbols of fixed parts first (MCU pins), then the rest
     for pt in pwrs:
         if pt["id"] in pdone:

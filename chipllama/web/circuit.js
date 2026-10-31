@@ -235,7 +235,9 @@ function render(){
   else if(k==='glabel'){const t=xf(pt,12,4);txt(tg,t.x,t.y,val,'clab g',(((pt.rot||0)%360+360)%360===180)!==!!pt.mx?'end':'start')}
   else if(!ANN.has(k)){
    const f=fieldPlace(pt);txt(tg,f.ref.x,f.ref.y,pt.id,'cref',f.ref.a);txt(tg,f.val.x,f.val.y,val,'cval',f.val.a);
-   if(k==='module'){const c=xf(pt,0,0);txt(tg,c.x+5,c.y+4,lib.label,'cmod','middle')}}}
+   if(k==='module'){const sg=symGeo(pt),bw=sg.body[2]-sg.body[0],nm=Math.max(0,...(lib.pins||[]).map(p=>(p.name||'').length))*6+12,lw=(lib.label||'').length*5.6;
+    // body caption only where it cannot collide with the pin names (KiCad keeps body text clear of pin text)
+    if(lib.label&&lw+10<=bw-nm){const c=xf(pt,sg.body[0]+nm+(bw-nm)/2,4);txt(tg,c.x,c.y,lib.label,'cmod','middle')}}}}
  // ERC markers
  ((CHK&&CHK.findings)||[]).forEach((f,i)=>{if(f.severity==='info')return;let p=null;
   if(f.pins&&f.pins.length){const u=D.parts.find(x=>x.type==='mcu');p=u&&pinPos(u.id+'.'+f.pins[0])}
