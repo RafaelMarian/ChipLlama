@@ -56,6 +56,10 @@ class Circuit:
     def __init__(self, d: dict, packs: str = ""):
         self.d = d
         self.device = (d.get("device") or "PIC24FJ256GB110").upper()
+        from . import families as FAM
+        self.fam = FAM.board(self.device)
+        if self.fam:
+            self.device = self.fam["id"]
         self.info = PO.get(self.device, packs)
         self.pins = {str(p["num"]): p for p in self.info["pins"]}
         self.parts = {p["id"]: p for p in d.get("parts", [])}
@@ -152,6 +156,11 @@ class Circuit:
                 return float(self.param(pid, "vout", 3.3))
         for pin in self.mcu_pins(net):
             pw = self.pins.get(pin, {}).get("power")
+            if self.fam and pw:
+                from . import families as FAM
+                if FAM.rail(pw) is not None:
+                    return FAM.rail(pw)
+                continue
             if pw in ("vdd",):
                 return 3.3
             if pw == "vss":
@@ -179,6 +188,8 @@ class Circuit:
     # ------------------------------------------------------------ pin functions
     def valid_functions(self, num: str) -> list[str]:
         p = self.pins.get(str(num))
+        if self.fam:
+            return list(p.get("fns", [])) if p and not p["power"] else []
         if not p or p["power"] or not p["port"]:
             return []
         up = [n.upper() for n in p["names"]]
@@ -332,6 +343,13 @@ class Circuit:
                 pb.update(rp=p.get("rp") if p.get("rp") is not None else p.get("rpi"), an=p.get("an"), cn=p.get("cn"),
                           port_name=p.get("port"), tol5v=p.get("tol5v"))
         self.assign = used_fn
+        if self.fam:
+            for b in self.bindings:
+                if b["drv"] == "uart_dev":
+                    fns = [pb.get("fn", "") for pb in b["pins"].values()]
+                    m = next((re.match(r"U(\d)", f) for f in fns if re.match(r"U\d(TX|RX)$", f)), None)
+                    if m:
+                        b["uart"] = int(m.group(1))
         self.erc()
         if self.verified and self.info.get("pps"):
             self.plan_check()
@@ -346,6 +364,9 @@ class Circuit:
         return f"{p['label']} (pin {pin})" if p else f"pin {pin}"
 
     def auto_fn(self, pin, role, b, counters):
+        if self.fam:
+            from . import families as FAM
+            return FAM.auto_fn(self, pin, role, b)
         valid = self.valid_functions(pin)
         p = self.pins.get(pin, {})
         if role in ("out", "cs"):
@@ -380,6 +401,15 @@ class Circuit:
     def erc(self):
         pg = (lambda n: n) if self.verified else (lambda n: None)
         note = "" if self.verified else " (PIC24FJ256GB110 figure; check your device's DC characteristics)"
+        VDD, ABS, SPEC = 3.3, PIN_ABS_MAX_MA, VOH_SPEC_MA
+        r_abs, r_spec, spec_txt, ok_txt = "p.311", "p.319", "VOH 2.4 V @ 6 mA, VOL 0.4 V @ 8.5 mA, p.319", \
+            "within the 6 mA output spec (p.319)"
+        if self.fam:
+            from . import families as FAM
+            lm = FAM.limits(self.device)
+            VDD, ABS, SPEC, note = lm["vdd"], lm["abs"], lm["spec"], ""
+            r_abs, r_spec = lm["ref_abs"], lm["ref_spec"]
+            spec_txt, ok_txt = f"{lm['spec_txt']}, {r_spec}", f"within the {SPEC:g} mA output spec ({r_spec})"
         total_ma = 0.0
         for b in self.bindings:
             pid, t = b["id"], b["type"]
@@ -389,30 +419,30 @@ class Circuit:
                     vf = float(self.param(pid, "vf", 2.0) if t == "led" else 2.5)
                     if pb["via"] == "direct":
                         self.add("error", "LED_NO_R", f"{pid}: LED on {self.label(pb['pin'])} has no series resistor - the pin "
-                                 f"would source/sink far more than {PIN_ABS_MAX_MA:g} mA (absolute maximum, p.311){note}. "
-                                 f"Add ~{max(68, round((3.3 - vf) / 0.005, -1)):.0f} ohm for 5 mA.", [pid], [pb["pin"]], pg(311))
+                                 f"would source/sink far more than {ABS:g} mA (absolute maximum, {r_abs}){note}. "
+                                 f"Add ~{max(68, round((VDD - vf) / 0.005, -1)):.0f} ohm for 5 mA.", [pid], [pb["pin"]], pg(311))
                         continue
                     if pb["via"] == "resistor":
-                        i = max(0.0, (3.3 - vf) / max(pb["ohms"], 1) * 1000)
+                        i = max(0.0, (VDD - vf) / max(pb["ohms"], 1) * 1000)
                         total_ma += i
                         b.setdefault("current_ma", round(i, 2))
-                        if i > PIN_ABS_MAX_MA:
+                        if i > ABS:
                             self.add("error", "LED_CURRENT", f"{pid}: {i:.1f} mA through {self.label(pb['pin'])} exceeds the "
-                                     f"{PIN_ABS_MAX_MA:g} mA per-pin absolute maximum (p.311){note}. Raise R or drive it with "
+                                     f"{ABS:g} mA per-pin absolute maximum ({r_abs}){note}. Raise R or drive it with "
                                      "an NPN / N-MOSFET.", [pid], [pb["pin"]], pg(311))
-                        elif i > VOH_SPEC_MA:
-                            self.add("warning", "LED_CURRENT", f"{pid}: {i:.1f} mA is above the {VOH_SPEC_MA:g} mA the output is "
-                                     f"specified at (VOH 2.4 V @ 6 mA, VOL 0.4 V @ 8.5 mA, p.319){note}; the LED will be dimmer "
+                        elif i > SPEC:
+                            self.add("warning", "LED_CURRENT", f"{pid}: {i:.1f} mA is above the {SPEC:g} mA the output is "
+                                     f"specified at ({spec_txt}){note}; the LED will be dimmer "
                                      "than calculated. Use >= "
-                                     f"{round((3.3 - vf) / VOH_SPEC_MA * 1000 + 5, -1):.0f} ohm or a transistor.",
+                                     f"{round((VDD - vf) / SPEC * 1000 + 5, -1):.0f} ohm or a transistor.",
                                      [pid], [pb["pin"]], pg(319))
                         else:
                             self.add("info", "LED_OK", f"{pid}: ~{i:.1f} mA from {self.label(pb['pin'])} (Vf {vf:g} V, "
-                                     f"R {pb['ohms']:g} ohm) - within the 6 mA output spec (p.319).", [pid], [pb["pin"]], pg(319))
+                                     f"R {pb['ohms']:g} ohm) - {ok_txt}.", [pid], [pb["pin"]], pg(319))
             if t in ("relay", "dc_motor") and ctl:
                 if ctl["via"] in ("direct", "resistor"):
                     self.add("error", "INDUCTIVE_DIRECT", f"{pid}: a {'relay coil' if t == 'relay' else 'motor'} cannot be driven "
-                             f"from {self.label(ctl['pin'])} ({PIN_ABS_MAX_MA:g} mA max, p.311). Use an NPN/N-MOSFET low-side "
+                             f"from {self.label(ctl['pin'])} ({ABS:g} mA max, {r_abs}). Use an NPN/N-MOSFET low-side "
                              "switch with a flyback diode.", [pid], [ctl["pin"]], pg(311))
                 a, k = ("COIL+", "COIL-") if t == "relay" else ("+", "-")
                 na, nk = self.net(f"{pid}.{a}"), self.net(f"{pid}.{k}")
@@ -435,7 +465,13 @@ class Circuit:
                 elif not self.has_pullup(net):
                     if self.param(pid, "pullup", "internal") == "internal":
                         p = self.pins.get(pb["pin"], {})
-                        if p.get("cn"):
+                        if self.fam and p.get("pullup"):
+                            self.add("info", "BTN_PULLUP", f"{pid}: using the internal pull-up on {self.label(pb['pin'])} "
+                                     "(enabled by the generated board_init).", [pid], [pb["pin"]])
+                        elif self.fam:
+                            self.add("warning", "BTN_PULLUP", f"{pid}: {self.label(pb['pin'])} has no internal pull-up; add a "
+                                     "10 k resistor to VDD.", [pid], [pb["pin"]])
+                        elif p.get("cn"):
                             self.add("info", "BTN_PULLUP", f"{pid}: using the internal weak pull-up {p['cn']}PUE on "
                                      f"{self.label(pb['pin'])} (50-400 uA, p.318).", [pid], [pb["pin"]], pg(318))
                         elif self.info["family"] in ("pic24", "dspic33") or not self.weak_pullup_ok(pb["pin"]):
@@ -449,7 +485,7 @@ class Circuit:
                 if pb["role"] in ("scl", "sda"):
                     if not self.has_pullup(self.net(f"{pid}.{port}")) and not self.d.get("module_pullups", {}).get(pid) and not self.param(pid, "pullups"):
                         self.add("warning", "I2C_PULLUP", f"{pid}.{port} ({self.label(pb['pin'])}): I2C needs a pull-up "
-                                 "(2.2-4.7 k to 3.3 V). Breakout boards often have one - tick 'module has pull-ups' if so.",
+                                 f"(2.2-4.7 k to {VDD:g} V). Breakout boards often have one - tick 'module has pull-ups' if so.",
                                  [pid], [pb["pin"]], pg(191))
             for port, role in (C.LIB[t].ports if t in C.LIB else []):
                 if role == "vcc":
@@ -465,7 +501,7 @@ class Circuit:
                         self.add("warning", "SERVO_SUPPLY", f"{pid}: hobby servos want 4.8-6 V on V+ (on {v:g} V).", [pid])
             # 5 V on a non-tolerant pin
             vio = self.module_voltage(pid)
-            if vio and vio > 3.6:
+            if vio and vio > VDD + 0.3:
                 for port, pb in b["pins"].items():
                     if pb["role"] in ("tx", "out", "io", "miso", "sda", "scl") or (pb["role"] == "in" and t in ("mcp2515",)):
                         drives = pb["role"] in ("tx", "io", "miso", "sda", "scl") or t == "mcp2515"
@@ -474,8 +510,10 @@ class Circuit:
                         tol = self.pins.get(pb["pin"], {}).get("tol5v")
                         if tol is False:
                             self.add("error", "NOT_5V_TOLERANT", f"{pid}.{port} drives {vio:g} V into {self.label(pb['pin'])}, "
-                                     "which is not 5 V tolerant (analog-capable pin, Table 10-1 p.134). Move it to a 5.5 V "
-                                     "tolerant digital pin or add a divider/level shifter.", [pid], [pb["pin"]], 134)
+                                     + ("which is not 5 V tolerant (analog-capable pin, Table 10-1 p.134). Move it to a 5.5 V "
+                                        "tolerant digital pin or add a divider/level shifter." if not self.fam else
+                                        f"which is not 5 V tolerant ({VDD:g} V I/O). Use a 5 V tolerant (FT) pin or a "
+                                        "divider/level shifter."), [pid], [pb["pin"]], None if self.fam else 134)
                         elif tol is None:
                             self.add("warning", "NOT_5V_TOLERANT", f"{pid}.{port} drives {vio:g} V into {self.label(pb['pin'])}: "
                                      "5 V tolerance unknown for this device - check the datasheet I/O table.", [pid], [pb["pin"]])
@@ -485,11 +523,14 @@ class Circuit:
                 continue
             net = self.net(f"{self.mcu}.{num}")
             v = self.rail(net)
-            if v and v > 3.6 and len(net) > 1:
+            if v and v > VDD + 0.3 and len(net) > 1:
                 tol = self.pins[num]["tol5v"]
                 self.add("error" if tol is False else "warning", "NOT_5V_TOLERANT",
-                         f"{self.label(num)} is tied to the {v:g} V rail" + (" and is not 5 V tolerant (p.134)." if tol is False else
-                         " - only digital-only pins tolerate 5.5 V on input (p.134)."), [], [num], 134 if self.verified else None)
+                         f"{self.label(num)} is tied to the {v:g} V rail" + ((" and is not 5 V tolerant." if tol is False else
+                                                                              " - 5 V tolerance unknown, check the datasheet.")
+                                                                             if self.fam else
+                         (" and is not 5 V tolerant (p.134)." if tol is False else
+                         " - only digital-only pins tolerate 5.5 V on input (p.134).")), [], [num], 134 if self.verified else None)
             if v is not None and len(net) > 1 and num in self.assign and self.assign[num].startswith("GPIO_OUT"):
                 self.add("error", "OUTPUT_SHORT", f"{self.label(num)} is an output wired straight to a rail.", [], [num])
         # crystal
@@ -534,9 +575,14 @@ class Circuit:
                 if f"{pid}.{port}" not in self.net_of and role not in ("p",):
                     self.add("info", "UNCONNECTED", f"{pid}.{port} is not connected.", [pid])
         # power pins
-        if total_ma > 0:
+        if total_ma > 0 and self.fam:
+            self.add("info" if total_ma < lm["total"] else "error", "IO_BUDGET", f"I/O current budget: ~{total_ma:.1f} mA from "
+                     f"LEDs (total VCC/GND max {lm['total']:g} mA, {r_abs}).", [], [])
+        elif total_ma > 0:
             self.add("info", "IO_BUDGET", f"I/O current budget: ~{total_ma:.1f} mA from LEDs (VDD max {VDD_MAX_MA:g} mA, "
                      f"VSS max {VSS_MAX_MA:g} mA, p.311).", [], [], pg(311))
+        if self.fam:
+            FAM.erc_extra(self)
         if self.verified:
             if (self.d.get("power") or "board") == "board":
                 self.add("info", "POWER_BOARD", "Supply assumed from the dev board: all VDD (2,16,37,46,62) + AVDD 30 to 3.3 V, all "
@@ -631,5 +677,6 @@ def meta(device: str, packs: str = "") -> dict:
     for p in info["pins"]:
         p["functions"] = c.valid_functions(str(p["num"]))
     from . import geometry as GM
-    return {"device": info, "library": C.library(), "bundled": PO.bundled(),
+    from . import families as FAM
+    return {"device": info, "library": C.library(), "bundled": PO.bundled(), "families": FAM.device_list(),
             "geo": {"grid": GM.GRID, "mcu": GM.mcu_geo(device, packs, info), "sym": GM.library_geo()}}

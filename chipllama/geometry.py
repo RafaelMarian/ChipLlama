@@ -145,6 +145,8 @@ def label_width(name: str, kind: str) -> int:
 def mcu_geo(device: str, packs: str = "", info: dict | None = None) -> dict:
     info = info or PO.get(device, packs)
     pins = info["pins"]
+    if info.get("board"):
+        return _board_geo(info)
     top, bot, ports, other = [], [], {}, []
     for p in pins:
         pw = p.get("power")
@@ -190,6 +192,24 @@ def mcu_geo(device: str, packs: str = "", info: dict | None = None) -> dict:
         g["pins"][str(p["num"])] = {"x": W // 2 - (len(top) - 1) * PP + i * PP * 2, "y": 0, "dx": 0, "dy": -1}
     for i, p in enumerate(bot):
         g["pins"][str(p["num"])] = {"x": W // 2 - (len(bot) - 1) * PP + i * PP * 2, "y": H, "dx": 0, "dy": 1}
+    return g
+
+
+def _board_geo(info: dict) -> dict:
+    """Dev-board symbol (M8 families): header pins on the sides they sit on, supplies on top, GND at the bottom."""
+    side = {k: sorted([p for p in info["pins"] if p.get("side") == k], key=lambda p: p.get("row", 0)) for k in "LRTB"}
+    rows = max(len(side["L"]), len(side["R"]), 1)
+    W = max(380, (max(len(side["T"]), len(side["B"])) + 1) * PP * 2 + 40)
+    H = rows * PP + 80
+    g = {"w": W, "h": H, "pins": {}}
+    for i, p in enumerate(side["L"]):
+        g["pins"][str(p["num"])] = {"x": 0, "y": 60 + i * PP, "dx": -1, "dy": 0}
+    for i, p in enumerate(side["R"]):
+        g["pins"][str(p["num"])] = {"x": W, "y": 60 + i * PP, "dx": 1, "dy": 0}
+    for k, y, dy in (("T", 0, -1), ("B", H, 1)):
+        n = len(side[k])
+        for i, p in enumerate(side[k]):
+            g["pins"][str(p["num"])] = {"x": W // 2 - (n - 1) * PP + i * PP * 2, "y": y, "dx": 0, "dy": dy}
     return g
 
 

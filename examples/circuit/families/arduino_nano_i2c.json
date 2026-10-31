@@ -1,0 +1,137 @@
+{
+ "schema": 2,
+ "name": "arduino_nano_i2c",
+ "title": "Arduino Nano 3: TMP102 I2C temperature",
+ "device": "ARDUINO-NANO",
+ "family": "avr",
+ "power": "board",
+ "parts": [
+  {
+   "id": "U1",
+   "type": "mcu",
+   "x": 0,
+   "y": 0,
+   "rot": 0,
+   "params": {}
+  },
+  {
+   "id": "PWR1",
+   "type": "gnd",
+   "x": -320,
+   "y": 40,
+   "rot": 0,
+   "params": {}
+  },
+  {
+   "id": "S1",
+   "type": "tmp102",
+   "x": -320,
+   "y": 150,
+   "rot": 0,
+   "params": {
+    "addr": "0x48",
+    "pullups": false
+   }
+  },
+  {
+   "id": "R10",
+   "type": "resistor",
+   "x": -320,
+   "y": 260,
+   "rot": 0,
+   "params": {
+    "ohms": 4700
+   }
+  },
+  {
+   "id": "R11",
+   "type": "resistor",
+   "x": -320,
+   "y": 370,
+   "rot": 0,
+   "params": {
+    "ohms": 4700
+   }
+  },
+  {
+   "id": "PWR2",
+   "type": "vdd33",
+   "x": -320,
+   "y": 480,
+   "rot": 0,
+   "params": {}
+  },
+  {
+   "id": "PWR3",
+   "type": "gnd",
+   "x": -320,
+   "y": 590,
+   "rot": 0,
+   "params": {}
+  },
+  {
+   "id": "PWR4",
+   "type": "vdd33",
+   "x": -480,
+   "y": 40,
+   "rot": 0,
+   "params": {}
+  },
+  {
+   "id": "PWR5",
+   "type": "vdd33",
+   "x": -480,
+   "y": 150,
+   "rot": 0,
+   "params": {}
+  }
+ ],
+ "wires": [
+  {
+   "a": "U1.26",
+   "b": "PWR1.1",
+   "pts": []
+  },
+  {
+   "a": "S1.1",
+   "b": "PWR2.1",
+   "pts": []
+  },
+  {
+   "a": "S1.2",
+   "b": "PWR3.1",
+   "pts": []
+  },
+  {
+   "a": "U1.20",
+   "b": "S1.3",
+   "pts": []
+  },
+  {
+   "a": "U1.19",
+   "b": "S1.4",
+   "pts": []
+  },
+  {
+   "a": "R10.2",
+   "b": "S1.3",
+   "pts": []
+  },
+  {
+   "a": "R11.2",
+   "b": "S1.4",
+   "pts": []
+  },
+  {
+   "a": "R10.1",
+   "b": "PWR4.1",
+   "pts": []
+  },
+  {
+   "a": "R11.1",
+   "b": "PWR5.1",
+   "pts": []
+  }
+ ],
+ "assign": {}
+}

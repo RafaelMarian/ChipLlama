@@ -1,0 +1,79 @@
+{
+ "schema": 2,
+ "name": "arduino_uno_blink",
+ "title": "Arduino Uno R3: Blink LED",
+ "device": "ARDUINO-UNO",
+ "family": "avr",
+ "power": "board",
+ "parts": [
+  {
+   "id": "U1",
+   "type": "mcu",
+   "x": 0,
+   "y": 0,
+   "rot": 0,
+   "params": {}
+  },
+  {
+   "id": "PWR1",
+   "type": "gnd",
+   "x": -320,
+   "y": 40,
+   "rot": 0,
+   "params": {}
+  },
+  {
+   "id": "R1",
+   "type": "resistor",
+   "x": -320,
+   "y": 150,
+   "rot": 0,
+   "params": {
+    "ohms": 470
+   }
+  },
+  {
+   "id": "LED1",
+   "type": "led",
+   "x": -320,
+   "y": 260,
+   "rot": 0,
+   "params": {
+    "color": "red",
+    "vf": 2.0,
+    "if_ma": 5
+   }
+  },
+  {
+   "id": "PWR2",
+   "type": "gnd",
+   "x": -320,
+   "y": 370,
+   "rot": 0,
+   "params": {}
+  }
+ ],
+ "wires": [
+  {
+   "a": "U1.24",
+   "b": "PWR1.1",
+   "pts": []
+  },
+  {
+   "a": "U1.14",
+   "b": "R1.1",
+   "pts": []
+  },
+  {
+   "a": "R1.2",
+   "b": "LED1.2",
+   "pts": []
+  },
+  {
+   "a": "LED1.1",
+   "b": "PWR2.1",
+   "pts": []
+  }
+ ],
+ "assign": {}
+}

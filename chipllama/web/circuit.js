@@ -85,6 +85,12 @@ function fieldPlace(pt){const bb=bbox(pt),ref=pt.id,val=valueOf(pt),w=Math.max(r
 /* ---------------- MCU: KiCad-style rectangle, VDD on top, VSS at the bottom, ports grouped left/right (or the real package) */
 function mcuGeo(){
  const pins=META.device.pins,n=pins.length,g={pins:{}};
+ if(META.device.board){/* M8 dev board: header pins where they sit on the board */
+  const sd={L:[],R:[],T:[],B:[]};pins.forEach(p=>(sd[p.side]||sd.L).push(p));for(const k in sd)sd[k].sort((a,b)=>(a.row||0)-(b.row||0));
+  const rows=Math.max(sd.L.length,sd.R.length,1),W=Math.max(380,(Math.max(sd.T.length,sd.B.length)+1)*PP*2+40),H=rows*PP+80;g.w=W;g.h=H;
+  sd.L.forEach((p,i)=>g.pins[p.num]={p,x:0,y:60+i*PP,dx:-1,dy:0});sd.R.forEach((p,i)=>g.pins[p.num]={p,x:W,y:60+i*PP,dx:1,dy:0});
+  sd.T.forEach((p,i)=>g.pins[p.num]={p,x:W/2-(sd.T.length-1)*PP+i*PP*2,y:0,dx:0,dy:-1});
+  sd.B.forEach((p,i)=>g.pins[p.num]={p,x:W/2-(sd.B.length-1)*PP+i*PP*2,y:H,dx:0,dy:1});return g}
  if(PKG){const quad=META.device.layout==='quad';
   if(quad){const s=Math.ceil(n/4),W=s*PP+40;g.w=W;g.h=W;
    pins.forEach((p,i)=>{const side=Math.floor(i/s),k=i%s;let x,y,dx,dy;
@@ -246,7 +252,7 @@ function drawMcu(pg,pt,bad,used,ends){const m=GEO.mcu;
  const g=el('g',{transform:`translate(${pt.x},${pt.y})`,class:'cpart mcu'+(SEL.has(pt.id)?' sel':''),'data-id':pt.id},pg);
  el('rect',{x:0,y:0,width:m.w,height:m.h,class:'csb f2 mcu'},g);
  txt(g,m.w/2,PKG?m.h/2-6:30,META.device.device,'cmcu-t','middle');
- txt(g,m.w/2,PKG?m.h/2+12:46,`${META.device.count} pins · ${META.device.family}${META.device.verified?' · datasheet-verified':''}`,'cmcu-s','middle');
+ txt(g,m.w/2,PKG?m.h/2+12:46,META.device.board?`${META.device.mcu} · ${META.device.family.toUpperCase()} board · ${META.device.vdd} V`:`${META.device.count} pins · ${META.device.family}${META.device.verified?' · datasheet-verified':''}`,'cmcu-s','middle');
  txt(g,8,16,pt.id,'cref','start');
  for(const num in m.pins){const q=m.pins[num],p=q.p,pw=!!p.power;const s=String(num);
   const cls='cspin'+(pw?' pw':'')+(bad.has(s)?' bad':used.has(s)?' used':'');
@@ -544,7 +550,9 @@ async function init(){if(READY){render();return}READY=true;
  let d=null;try{d=JSON.parse(localStorage.getItem('cl_circuit')||'null')}catch(e){}
  bind();
  if(d&&d.parts){try{await setCircuit(d)}catch(e){await loadEx('led_button')}}else await loadEx('led_button');
- $('cdev').replaceChildren(...META.bundled.map(b=>new Option(b,b)));$('cdev').value=META.device.device;palette()}
+ {const og=(l,xs)=>{const g=document.createElement('optgroup');g.label=l;xs.forEach(o=>g.append(o));return g};
+  $('cdev').replaceChildren(og('Microchip PIC',META.bundled.map(b=>new Option(b,b))),
+   ...['avr','stm32','esp32'].map(f=>og({avr:'Arduino AVR',stm32:'STM32',esp32:'ESP32'}[f],(META.families||[]).filter(d=>d.family===f).map(d=>new Option(d.title,d.id)))))}$('cdev').value=META.device.device;palette()}
 window.Circuit={init,fit,zoom,generate,zip,hex,toBlocks,exportSvg,exportPng,saveFile,loadFile,bomCsv,bomMd,loadEx,setDevice,palette,
  undo,redo,annotate,netlist,autowire,reroute,place,addPart,rotate,mirror,duplicate,
  tool:t=>{if(t==='wire'){MODE={t:'wire',from:null,pts:[]};render()}else if(t==='label'){const n=prompt('Net label name:',LASTLABEL);if(n){LASTLABEL=n.toUpperCase();place('label',{name:LASTLABEL})}}else if(t==='power')powerPop(null);else if(t==='add')addPop(null)},

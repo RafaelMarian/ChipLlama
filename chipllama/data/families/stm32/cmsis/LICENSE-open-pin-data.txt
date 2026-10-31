@@ -1,0 +1,1 @@
+STM32_open_pin_data - BSD-3-Clause, Copyright (c) 2020 STMicroelectronics

@@ -1,0 +1,76 @@
+{
+ "schema": 2,
+ "name": "stm32f030f4p6_servo",
+ "title": "STM32F030F4P6 TSSOP-20 module: Servo sweep (PWM)",
+ "device": "STM32F030F4P6",
+ "family": "stm32",
+ "power": "board",
+ "parts": [
+  {
+   "id": "U1",
+   "type": "mcu",
+   "x": 0,
+   "y": 0,
+   "rot": 0,
+   "params": {}
+  },
+  {
+   "id": "PWR1",
+   "type": "gnd",
+   "x": -320,
+   "y": 40,
+   "rot": 0,
+   "params": {}
+  },
+  {
+   "id": "M1",
+   "type": "servo",
+   "x": -320,
+   "y": 150,
+   "rot": 0,
+   "params": {
+    "min_us": 1000,
+    "max_us": 2000
+   }
+  },
+  {
+   "id": "PWR2",
+   "type": "gnd",
+   "x": -320,
+   "y": 260,
+   "rot": 0,
+   "params": {}
+  },
+  {
+   "id": "PWR3",
+   "type": "v5",
+   "x": -320,
+   "y": 370,
+   "rot": 0,
+   "params": {}
+  }
+ ],
+ "wires": [
+  {
+   "a": "U1.17",
+   "b": "PWR1.1",
+   "pts": []
+  },
+  {
+   "a": "M1.1",
+   "b": "PWR2.1",
+   "pts": []
+  },
+  {
+   "a": "M1.2",
+   "b": "PWR3.1",
+   "pts": []
+  },
+  {
+   "a": "U1.7",
+   "b": "M1.3",
+   "pts": []
+  }
+ ],
+ "assign": {}
+}

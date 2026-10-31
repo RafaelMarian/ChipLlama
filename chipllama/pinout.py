@@ -106,6 +106,9 @@ def classify(names: list[str], device: str) -> dict:
 
 def get(device: str, packs: str = "") -> dict:
     """{device, family, arch, pps, source, verified, count, layout, pins:[{num, label, names, ...}]}"""
+    from . import families as FAM
+    if FAM.is_family(device):
+        return FAM.info(device)
     r = raw(device, packs)
     if r is None:
         n = 40

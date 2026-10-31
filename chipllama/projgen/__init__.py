@@ -503,13 +503,17 @@ def tree(files: dict) -> list[dict]:
     return out
 
 
-def build(d: dict, ics: str = "PGx2", packs: str = "") -> dict:
+def build(d: dict, ics: str = "PGx2", packs: str = "", mode: str | None = None) -> dict:
+    from .. import families as FAM
+    if FAM.is_family(d.get("device", "")):
+        from ..families.project import build as fbuild
+        return fbuild(d, ics, packs, mode or d.get("gen_mode"))
     return Project(d, ics, packs).run()
 
 
 def zip_bytes(res: dict) -> bytes:
     buf = io.BytesIO()
-    root = res.get("name", "chipllama_circuit") + ".X"
+    root = res.get("name", "chipllama_circuit") + ("" if res.get("family") else ".X")
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
         for p, t in sorted(res["files"].items()):
             z.writestr(f"{root}/{p}", t)
