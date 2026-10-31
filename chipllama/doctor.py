@@ -62,4 +62,14 @@ def doctor(s: Settings) -> list[dict]:
          "ok" if sp.is_file() else "info", str(sp)),
     ]
     _ = key
-    return [{"label": a, "value": b, "ok": c, "level": d, "path": e} for a, b, c, d, e in rows]
+    out = [{"label": a, "value": b, "ok": c, "level": d, "path": e} for a, b, c, d, e in rows]
+    try:  # M8: other MCU families (optional; read-only detection, never installs anything)
+        from .families import toolchain as fam_tc
+        for r in fam_tc.status():
+            out.append({"label": f"[{r['family']}] {r['name']}",
+                        "value": r["path"] or f"not found (optional, for {r['need']}) — install: {r['fix']}",
+                        "ok": True, "level": "ok" if r["ok"] else "info", "path": r["path"] or None,
+                        "fix": r["fix"], "family": r["family"]})
+    except Exception:
+        pass
+    return out

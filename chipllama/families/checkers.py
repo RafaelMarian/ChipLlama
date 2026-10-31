@@ -17,6 +17,11 @@ def avr_names(mcu: str) -> frozenset:
     base: dict = {}
     for name, r in sorted(d["registers"].items(), key=lambda kv: kv[1]["addr"]):
         out.add(name)
+        m = re.fullmatch(r"(PORT|DDR|PIN)([A-L])", name)
+        if m:   # ATDF has no bitfields for port registers; avr-libc names them PORTB5 / DDB5 / PINB5
+            px = {"PORT": "PORT", "DDR": "DD", "PIN": "PIN"}[m.group(1)] + m.group(2)
+            out.update(f"{px}{i}" for i in range(8))
+            out.update(f"{name}{i}" for i in range(8))
         for b, mask in (r.get("bits") or {}).items():
             out.add(b)
             n = bin(int(mask)).count("1")

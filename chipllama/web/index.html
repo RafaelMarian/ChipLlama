@@ -58,7 +58,7 @@
   <div class="card"><h3>Connection guide <span class="mut f">what goes where</span></h3><div id="cguide" class="cscroll2"></div></div>
   <div class="card"><h3>ERC <span id="cerc" class="pill info">…</span></h3><div id="cfind" class="cscroll"></div></div>
   <div class="card" id="cprj"><h3>MPLAB X project <span id="cpbadge" class="pill info">not generated</span></h3>
-   <div class="row" style="flex-wrap:wrap;gap:6px"><button class="p" onclick="Circuit.generate()">Generate project</button><label class="mut" style="display:flex;align-items:center;gap:6px;text-transform:none;letter-spacing:0;margin:0"><input type="checkbox" id="ccomp" style="width:auto">compile with XC</label></div>
+   <div class="row" style="flex-wrap:wrap;gap:6px"><button class="p" onclick="Circuit.generate()">Generate project</button><select id="cmode" title="Arduino AVR: bare-metal C (avr-gcc) or Arduino sketch (.ino via arduino-cli)" style="width:auto"><option value="baremetal">AVR: bare-metal C</option><option value="arduino">AVR: Arduino sketch</option></select><label class="mut" style="display:flex;align-items:center;gap:6px;text-transform:none;letter-spacing:0;margin:0"><input type="checkbox" id="ccomp" style="width:auto">compile with XC</label></div>
    <div id="cpinfo"></div>
    <div class="ctreebox"><div id="ctree" class="mut f">Generate to see config/ hal/ drivers/ board/ app/.</div><div><div id="cfname" class="mut f"></div><pre id="cfile"></pre></div></div>
    <div class="row" style="flex-wrap:wrap;gap:6px"><button class="s" onclick="Circuit.zip()">Download .X.zip</button><button class="s" onclick="Circuit.hex()">Download .hex</button><button class="s" onclick="Circuit.toBlocks()">Open in Blocks</button></div></div>
@@ -98,7 +98,7 @@
 <!-- ================= SETTINGS ================= -->
 <section id="p-set" class="hide"><div class="grid"><div>
  <div class="card"><h3>Target &amp; board</h3>
-  <div class="row"><div><label>Device (type to search MPLAB packs)</label><input id="s-device" list="devlist" autocomplete="off" oninput="devSearch()" onchange="devInfo()"><datalist id="devlist"></datalist><div id="devinfo" class="muted" style="font-size:12px"></div></div><div><label>Debug/program pin pair (ICS) - match your wiring</label><select id="s-ics"></select></div></div>
+  <div class="row"><div><label>Device / board (MPLAB packs, or Arduino Uno/Nano/Mega, STM32 Blue Pill/Nucleo/F030, ESP32 DevKitC/C3)</label><input id="s-device" list="devlist" autocomplete="off" oninput="devSearch()" onchange="devInfo()"><datalist id="devlist"></datalist><div id="devinfo" class="muted" style="font-size:12px"></div></div><div><label>Debug/program pin pair (ICS) - match your wiring</label><select id="s-ics"></select><label style="margin-top:6px">AVR code style (Arduino boards)</label><select id="s-family_mode"></select></div></div>
   <div class="row"><div><label>Clock profile</label><select id="s-clock_profile"></select></div><div><label>Crystal frequency, Hz (external crystal profile only)</label><input id="s-crystal_hz" type="number"></div></div>
  </div>
  <div class="card"><h3>Model</h3>

@@ -148,6 +148,11 @@ def run_agent(request: str, model: ChatModel, settings: Settings, *, max_iters: 
               compile_fn: Callable[..., CompileResult] = compile_c,
               on_event: Callable[[str, dict], None] | None = None, inject_fault: bool = False,
               context: str = "", context_kind: str = "debug") -> AgentResult:
+    from . import families as FAM
+    if FAM.is_family(settings.device):   # M8: AVR / STM32 / ESP32 plugin loop (PIC path below untouched)
+        from .families.fam_agent import run_family_agent
+        return run_family_agent(request, model, settings, max_iters=max_iters, on_event=on_event,
+                                context=context, context_kind=context_kind)
     emit = on_event or (lambda *_: None)
     res = AgentResult("error", request, backend=getattr(model, "name", "?"))
     builtin = chipdb.is_builtin_family(settings.device)

@@ -150,14 +150,17 @@ def create_app(settings: Settings | None = None, model_factory: Callable | None 
     @app.get("/api/circuit/examples")
     def circuit_examples():
         out = []
-        for f in sorted(EXAMPLES.glob("circuit/*.json")):
+        for f in sorted(EXAMPLES.glob("circuit/*.json")) + sorted(EXAMPLES.glob("circuit/families/*.json")):
             d = json.loads(f.read_text(encoding="utf-8"))
-            out.append({"name": f.stem, "title": d.get("title", f.stem), "device": d.get("device", "")})
+            out.append({"name": f.stem, "title": d.get("title", f.stem), "device": d.get("device", ""),
+                        "family": d.get("family") or ("pic" if f.parent.name == "circuit" else f.parent.name)})
         return out
 
     @app.get("/api/circuit/example/{name}")
     def circuit_example(name: str):
         f = EXAMPLES / "circuit" / f"{name}.json"
+        if not f.is_file():
+            f = EXAMPLES / "circuit" / "families" / f"{name}.json"
         if not name.replace("_", "").isalnum() or not f.is_file():
             raise HTTPException(404)
         return json.loads(f.read_text(encoding="utf-8"))
@@ -175,6 +178,15 @@ def create_app(settings: Settings | None = None, model_factory: Callable | None 
         s = cur()
         res = projgen.build(req.circuit, getattr(s, "ics", "PGx2") or "PGx2", s.mplab_packs_dir)
         if not res.get("erc_ok", True):
+            return {k: v for k, v in res.items() if k != "amalg"}
+        if res.get("family"):  # M8: AVR / STM32 / ESP32 -> box/PC toolchain, no XC16 syntax pass
+            if req.compile:
+                from .families import toolchain as fam_tc
+                cr = fam_tc.compile_result(res)
+                hx = cr.pop("hex", None)
+                res["compile"] = cr
+                if hx and cr.get("hex_name", "").endswith(".hex"):
+                    res["hex"] = hx.decode(errors="replace")
             return {k: v for k, v in res.items() if k != "amalg"}
         res["syntax"] = syntax.syntax_check(res, projgen.load_dev(res["device"]))
         if req.compile:
@@ -236,7 +248,7 @@ def create_app(settings: Settings | None = None, model_factory: Callable | None 
         if not res.get("erc_ok") or not res.get("files"):
             raise HTTPException(400, "circuit has ERC errors; fix them before generating a project")
         return Response(projgen.zip_bytes(res), media_type="application/zip",
-                        headers={"Content-Disposition": f'attachment; filename="{res["name"]}.X.zip"'})
+                        headers={"Content-Disposition": 'attachment; filename="%s%s.zip"' % (res["name"], "" if res.get("family") else ".X")})
 
     @app.get("/api/status")
     def status():
@@ -283,6 +295,16 @@ def create_app(settings: Settings | None = None, model_factory: Callable | None 
                 ann["explanation_error"] = str(e)
         return ann
 
+    def _fam_boards():
+        from . import families as FAM
+        return FAM.device_list()
+
+    @app.get("/api/families")
+    def families_ep():
+        from . import families as FAM
+        from .families import toolchain as fam_tc
+        return {"families": FAM.FAMILIES, "boards": FAM.device_list(), "toolchains": fam_tc.status()}
+
     @app.get("/api/doctor")
     def doctor_ep():
         return {"rows": doctor(cur())}
@@ -293,6 +315,7 @@ def create_app(settings: Settings | None = None, model_factory: Callable | None 
         profiles = [{"key": k, "title": get_profile(k, s.crystal_hz).title} for k in PROFILE_KEYS]
         return {"settings": public_view(s), "file": str(sfile),
                 "options": {"clock_profile": profiles, "ics": list(ICS_PAIRS), "backend": ["meta", "baseten"],
+                            "family_mode": ["baremetal", "arduino"], "family_boards": _fam_boards(),
                             "ipecmd_tool": ["PK5", "PK4", "PK3", "ICD4", "ICD5", "SNAP", "PKOB4"],
                             "reasoning_effort": ["minimal", "low", "medium", "high", "xhigh", "max"]}}
 
@@ -319,13 +342,22 @@ def create_app(settings: Settings | None = None, model_factory: Callable | None 
     @app.get("/api/devices")
     def devices(q: str = "", limit: int = 200):
         s = cur()
+        from . import families as FAM
+        qq = q.strip().lower()
+        fam = [{"name": d["id"], "family": d["title"], "compiler": d["family"]} for d in FAM.device_list()
+               if not qq or qq in (d["id"] + d["title"]).lower()]
         return {"roots": edcmod.pack_roots(s.mplab_packs_dir),
-                "devices": [{k: v for k, v in d.items() if k != "path"}
+                "devices": fam + [{k: v for k, v in d.items() if k != "path"}
                             for d in edcmod.search_devices(q, s.mplab_packs_dir, max(1, min(limit, 2000)))]}
 
     @app.get("/api/device")
     def device_ep(name: str = ""):
         s = cur()
+        from . import families as FAM
+        if FAM.is_family(name or s.device):
+            b = FAM.board(name or s.device)
+            return {"name": b["id"], "family": b["family"].upper() + " · " + b["mcu"], "compiler": b["family"] == "stm32" and "arm-gcc" or "avr-gcc/arduino-cli",
+                    "source": "family plugin", "settings": 0, "sfrs": 0, "board": True, "title": b["title"], "pragmas": ""}
         dev = chipdb.get_device(name or s.device, s.mplab_packs_dir, s.cache_dir)
         if dev is None:
             raise HTTPException(404, f"no EDC data for {name or s.device} (check MPLAB_PACKS_DIR)")

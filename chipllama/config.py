@@ -57,6 +57,7 @@ class Settings:
     clock_profile: str = "frcpll"
     crystal_hz: float = 8_000_000
     ics: str = "PGx2"
+    family_mode: str = "baremetal"     # M8: AVR code style for Generate - "baremetal" (avr-gcc) or "arduino" (.ino)
     max_iters: int = 4
     vision_passes: int = 2           # 1..3 independent reads of a debug image (2 = read + verify, 3 = + tie-break)
 
@@ -113,7 +114,7 @@ SECRET_FIELDS = ("meta_api_key", "baseten_api_key")
 UI_FIELDS = ("device", "clock_profile", "crystal_hz", "ics", "xc16_gcc", "xc16_bin2hex", "xc8_cc", "xc32_gcc", "xc_dsc_gcc", "dspic_compiler", "mplab_packs_dir", "ipecmd_path",
              "ipecmd_tool", "ipecmd_serial", "ipecmd_power_target", "enable_flash", "backend", "meta_model",
              "meta_reasoning_effort", "baseten_model", "baseten_reasoning_effort", "max_iters", "max_tokens",
-             "vision_passes", "datasheet_pdf") + SECRET_FIELDS
+             "vision_passes", "datasheet_pdf", "family_mode") + SECRET_FIELDS
 
 
 def settings_path() -> Path:
@@ -174,6 +175,8 @@ def save_settings(update: dict, path: Path | None = None) -> dict:
             raise ValueError(f"clock_profile must be one of {PROFILE_KEYS}")
         if k == "backend" and v not in ("meta", "baseten"):
             raise ValueError("backend must be meta or baseten")
+        if k == "family_mode" and v not in ("baremetal", "arduino"):
+            raise ValueError("family_mode must be baremetal or arduino")
         if k == "max_iters" and not 1 <= v <= 10:
             raise ValueError("max_iters must be 1..10")
         if k == "vision_passes" and not 1 <= v <= 3:
@@ -181,7 +184,10 @@ def save_settings(update: dict, path: Path | None = None) -> dict:
         if k == "device":
             import re as _re
             v = v.strip().upper()
-            if not _re.fullmatch(r"(DS)?PIC[0-9A-Z]{3,20}", v):
+            from .families import resolve as _fam_resolve
+            if _fam_resolve(v):
+                v = _fam_resolve(v)
+            elif not _re.fullmatch(r"(DS)?PIC[0-9A-Z]{3,20}", v):
                 raise ValueError("device must look like PIC18F45K22 / PIC24FJ256GB110 / DSPIC33CK256MP506")
         if k == "crystal_hz" and not 1e6 <= v <= 48e6:
             raise ValueError("crystal_hz out of range")

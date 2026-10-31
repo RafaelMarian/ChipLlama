@@ -492,25 +492,28 @@ function bomMd(){dl((D.name||'circuit')+'_bom.md',new Blob([`# BOM - ${D.name||'
 /* ================================================================ MPLAB X project */
 async function generate(){
  const b=$('cpbadge');b.className='pill info';b.textContent='…';$('cprj').classList.remove('stale');
- const r=await fetch('/api/circuit/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({circuit:D,compile:$('ccomp').checked})});PRJ=await r.json();
+ const r=await fetch('/api/circuit/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({circuit:Object.assign({},D,FAMMODE()?{gen_mode:FAMMODE()}:{}),compile:$('ccomp').checked})});PRJ=await r.json();
  if(!PRJ.files){b.className='pill bad';b.textContent='FIX ERC';$('ctree').replaceChildren(h('div',{cls:'mut f'},'The circuit has ERC errors; fix them first.'));return}
- const comp=PRJ.compile;b.className='pill '+(PRJ.verified&&(!comp||comp.status!=='error')?'ok':'bad');
- b.textContent=PRJ.verified?(comp&&comp.status==='ok'?'VERIFIED · .hex built':'VERIFIED'):'CHECK FAILED';
- $('cpinfo').replaceChildren(h('div',{cls:'f'},`${PRJ.device} · ${PRJ.compiler.toUpperCase()} · backend ${PRJ.backend} · ${PRJ.clock}`),
+ const comp=PRJ.compile;if(comp&&PRJ.family)comp.status=comp.ok?'ok':comp.ok===false?'error':'skipped';b.className='pill '+(PRJ.verified&&(!comp||comp.status!=='error')?'ok':'bad');
+ b.textContent=PRJ.verified?(comp&&comp.status==='ok'?'VERIFIED · '+(PRJ.family&&comp.hex_name&&comp.hex_name.endsWith('.bin')?'.bin':'.hex')+' built':'VERIFIED'):'CHECK FAILED';
+ $('cpinfo').replaceChildren(h('div',{cls:'f'},`${PRJ.device}${PRJ.mcu?' ('+PRJ.mcu+')':''} · ${PRJ.compiler.toUpperCase()} · backend ${PRJ.backend} · ${PRJ.clock}`),
   h('div',{cls:'f mut'},`checker: ${PRJ.check.scope||''}`),
-  h('div',{cls:'f mut'},`host syntax check (gcc, stand-in <xc.h> from EDC): ${PRJ.syntax.status}${PRJ.syntax.files?` · ${PRJ.syntax.files} files`:''}`),
-  ...(comp?[h('div',{cls:'f'},`XC compile: ${comp.status}${comp.reason?' - '+comp.reason:''}`)]:[]),
+  ...(PRJ.syntax?[h('div',{cls:'f mut'},`host syntax check (gcc, stand-in <xc.h> from EDC): ${PRJ.syntax.status}${PRJ.syntax.files?` · ${PRJ.syntax.files} files`:''}`)]:[]),
+  ...(comp&&!PRJ.family?[h('div',{cls:'f'},`XC compile: ${comp.status}${comp.reason?' - '+comp.reason:''}`)]:[]),
+  ...(comp&&PRJ.family?[h('div',{cls:'f'},`${comp.tool}: ${comp.status}${comp.hex_name?' · '+comp.hex_name:''}`),...(comp.ok?[]:[h('pre',{cls:'f mut',style:'white-space:pre-wrap;max-height:160px;overflow:auto'},(comp.log||'').slice(-1500))])]:[]),
   ...PRJ.notes.map(n=>h('div',{cls:'f'},h('span',{cls:'pill warn'},'note'),' '+n)),
   ...PRJ.check.findings.filter(x=>x.severity!=='info').map(x=>h('div',{cls:'f'},h('span',{cls:'pill '+(x.severity==='error'?'bad':'warn')},x.severity),' '+x.message)));
- renderTree();showFile('app/main.c')}
+ renderTree();showFile(PRJ.files['app/main.c']?'app/main.c':Object.keys(PRJ.files).find(p=>p.endsWith('.ino'))||Object.keys(PRJ.files)[0])}
 function renderTree(){const dirs={};PRJ.tree.forEach(f=>{const i=f.path.lastIndexOf('/');const d=i<0?'':f.path.slice(0,i);(dirs[d]=dirs[d]||[]).push(f)});
- const out=[h('div',{cls:'ct-d'},'▾ '+PRJ.name+'.X/')];
+ const out=[h('div',{cls:'ct-d'},'▾ '+PRJ.name+(PRJ.family?'/':'.X/'))];
  Object.keys(dirs).sort((a,b)=>(a===''?'~':a).localeCompare(b===''?'~':b)).forEach(d=>{if(d)out.push(h('div',{cls:'ct-d',style:'padding-left:14px'},'▾ '+d+'/'));
   dirs[d].forEach(f=>out.push(h('div',{cls:'ct-f'+(f.path===FILE?' on':''),style:`padding-left:${d?30:14}px`,on:{click:()=>showFile(f.path)}},f.path.split('/').pop(),h('span',{cls:'mut'},` ${f.lines} lines`))))});
  $('ctree').replaceChildren(...out)}
 function showFile(p){FILE=p;if(!PRJ||!PRJ.files[p])return;$('cfname').textContent=p;$('cfile').textContent=PRJ.files[p];renderTree()}
-async function zip(){const r=await fetch('/api/circuit/project.zip',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({circuit:D})});
- if(!r.ok){window.toast&&toast('Fix the ERC errors first');return}dl((D.name||'chipllama_circuit').replace(/[^A-Za-z0-9_]+/g,'_')+'.X.zip',await r.blob())}
+async function zip(){const r=await fetch('/api/circuit/project.zip',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({circuit:Object.assign({},D,FAMMODE()?{gen_mode:FAMMODE()}:{})})});
+ if(!r.ok){window.toast&&toast('Fix the ERC errors first');return}dl((D.name||'chipllama_circuit').replace(/[^A-Za-z0-9_]+/g,'_')+(isFam()?'.zip':'.X.zip'),await r.blob())}
+function isFam(){return (META&&META.families||[]).some(d=>d.id===D.device)}
+function FAMMODE(){const f=(META&&META.families||[]).find(d=>d.id===D.device);const el=document.getElementById('cmode');return f&&f.family==='avr'&&el?el.value:''}
 function hex(){if(PRJ&&PRJ.hex)dl((D.name||'app')+'.hex',new Blob([PRJ.hex],{type:'text/plain'}))}
 async function toBlocks(){const r=await (await fetch('/api/circuit/to_blocks',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({circuit:D})})).json();
  if(!r.ok){window.toast&&toast(r.reason);return}tab('blk');await Blocks.init();Blocks.loadWs(r.workspace)}
