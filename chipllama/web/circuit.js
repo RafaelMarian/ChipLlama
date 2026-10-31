@@ -253,8 +253,6 @@ function render(){
 function drawMcu(pg,pt,bad,used,ends){const m=GEO.mcu;
  const g=el('g',{transform:`translate(${pt.x},${pt.y})`,class:'cpart mcu'+(SEL.has(pt.id)?' sel':''),'data-id':pt.id},pg);
  el('rect',{x:0,y:0,width:m.w,height:m.h,class:'csb f2 mcu'},g);
- txt(g,m.w/2,PKG?m.h/2-6:30,META.device.device,'cmcu-t','middle');
- txt(g,m.w/2,PKG?m.h/2+12:46,META.device.board?`${META.device.mcu} · ${META.device.family.toUpperCase()} board · ${META.device.vdd} V`:`${META.device.count} pins · ${META.device.family}${META.device.verified?' · datasheet-verified':''}`,'cmcu-s','middle');
  txt(g,8,16,pt.id,'cref','start');
  for(const num in m.pins){const q=m.pins[num],p=q.p,pw=!!p.power;const s=String(num);
   const cls='cspin'+(pw?' pw':'')+(bad.has(s)?' bad':used.has(s)?' used':'');
@@ -266,7 +264,21 @@ function drawMcu(pg,pt,bad,used,ends){const m=GEO.mcu;
   else{lab.setAttribute('transform',`translate(${q.x+3.5},${q.y-q.dy*5}) rotate(-90)`);lab.setAttribute('text-anchor',q.dy<0?'end':'start')}
   const nt=el('text',{class:'cpn'},g);nt.textContent=num;
   if(q.dx){nt.setAttribute('x',q.x+q.dx*MCU_PIN/2);nt.setAttribute('y',q.y-3);nt.setAttribute('text-anchor','middle')}
-  else{nt.setAttribute('transform',`translate(${q.x-3},${q.y+q.dy*MCU_PIN/2}) rotate(-90)`);nt.setAttribute('text-anchor','middle')}}}
+  else{nt.setAttribute('transform',`translate(${q.x-3},${q.y+q.dy*MCU_PIN/2}) rotate(-90)`);nt.setAttribute('text-anchor','middle')}}
+ mcuTitle(g,m)}
+/* device name + subtitle centred in the free interior (between the pin-name columns/rows), auto-sized */
+const CW=0.6;/* conservative em-width per char for the 9px pin names / title fonts */
+function mcuInterior(m){const ins={L:0,R:0,T:0,B:0};
+ for(const num in m.pins){const q=m.pins[num],p=q.p,fn=fnOf(String(num)),t=(fn&&fn!==p.label&&!fn.startsWith('GPIO')?p.label+' · '+fn:p.label)||'';
+  const w=5+t.length*9*CW*(fn?1.08:1)+6,side=q.dx<0?'L':q.dx>0?'R':q.dy<0?'T':'B';ins[side]=Math.max(ins[side],w)}
+ // the cref sits in the top-left corner
+ ins.T=Math.max(ins.T,22);return{x0:ins.L,x1:m.w-ins.R,y0:ins.T,y1:m.h-ins.B}}
+function mcuTitle(g,m){const b=mcuInterior(m),iw=Math.max(10,b.x1-b.x0-8),ih=Math.max(10,b.y1-b.y0-6),cx=(b.x0+b.x1)/2,cy=(b.y0+b.y1)/2;
+ const T=META.device.device,S=META.device.board?`${META.device.mcu} · ${META.device.family.toUpperCase()} board · ${META.device.vdd} V`:`${META.device.count} pins · ${META.device.family}${META.device.verified?' · datasheet-verified':''}`;
+ let ft=Math.min(15,iw/(T.length*0.7),ih/2.1),fs=Math.min(10,ft*0.68,iw/(S.length*CW));ft=Math.max(5,ft);fs=Math.max(4,fs);
+ const tot=ft+fs*1.35,y0=cy-tot/2;
+ const t=txt(g,cx,y0+ft*0.8,T,'cmcu-t','middle');t.setAttribute('style','font-size:'+ft.toFixed(1)+'px');t.dataset.title='1';
+ const u=txt(g,cx,y0+ft+fs*1.1,S,'cmcu-s','middle');u.setAttribute('style','font-size:'+fs.toFixed(1)+'px');u.dataset.title='1'}
 
 /* ================================================================ history */
 function snapshot(){UNDO.push(JSON.stringify(D));if(UNDO.length>200)UNDO.shift();REDO=[]}
