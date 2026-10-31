@@ -48,6 +48,9 @@ class GenerateReq(BaseModel):
 
 class BlocksReq(BaseModel):
     workspace: dict
+    device: str | None = None      # M8: family board (with circuit)
+    circuit: str | None = None     # M8: circuit example the blocks drive
+    gen_mode: str | None = None
 
 
 class CircuitReq(BaseModel):
@@ -124,11 +127,27 @@ def create_app(settings: Settings | None = None, model_factory: Callable | None 
         ex = []
         for f in sorted(EXAMPLES.glob("blocks/*.json")):
             ex.append({"name": f.stem, "title": json.loads(f.read_text(encoding="utf-8")).get("title", f.stem)})
+        for f in sorted(EXAMPLES.glob("blocks/families/*.json")):
+            j = json.loads(f.read_text(encoding="utf-8"))
+            ex.append({"name": f.stem, "title": j.get("title", f.stem), "family": True,
+                       "device": j.get("device"), "circuit": j.get("circuit")})
         return {"pins": bl.pin_meta(), "examples": ex}
+
+    @app.get("/api/blocks/parts")
+    def blocks_parts(circuit: str):
+        from .families import blocks_fam as bf
+        from . import projgen
+        try:
+            d = bf.load_circuit(circuit)
+        except ValueError as e:
+            raise HTTPException(404, str(e))
+        return {"device": d.get("device"), "parts": bf.parts_of(projgen.build(d))}
 
     @app.get("/api/blocks/example/{name}")
     def blocks_example(name: str):
         f = EXAMPLES / "blocks" / f"{name}.json"
+        if not f.is_file():
+            f = EXAMPLES / "blocks" / "families" / f"{name}.json"
         if not name.replace("_", "").isalnum() or not f.is_file():
             raise HTTPException(404)
         return json.loads(f.read_text(encoding="utf-8"))
@@ -136,6 +155,17 @@ def create_app(settings: Settings | None = None, model_factory: Callable | None 
     @app.post("/api/blocks/generate")
     def blocks_generate(req: BlocksReq):
         from . import blocks as bl
+        from . import families as FAM
+        if req.circuit or FAM.is_family(req.device):
+            from .families import blocks_fam as bf
+            ws = dict(req.workspace, device=req.device, circuit=req.circuit, gen_mode=req.gen_mode)
+            fam = FAM.family_of(req.device or "")
+            # AVR/STM32 builds take ~1 s: compile on every edit; ESP32 (arduino-cli, slow) = checker only here
+            r = bf.generate(ws, cur(), compile=fam in ("avr", "stm32"))
+            r.pop("project", None)
+            if fam == "esp32" and not r.get("error"):
+                r["warnings"].append("ESP32: checked only here; Circuit tab > Compile runs arduino-cli")
+            return r
         return bl.generate(req.workspace, cur())
 
     # ------------------------------------------------------------ circuit (M6)
@@ -269,7 +299,16 @@ def create_app(settings: Settings | None = None, model_factory: Callable | None 
     @app.post("/api/pins/plan")
     def pins_plan(body: dict):
         from . import pins as pn, power as pw
+        from . import families as FAM
         s = cur()
+        dev = body.get("device") or s.device
+        if FAM.is_family(dev):
+            # M8: family boards - pin functions come from the board table; assignment is done by the Circuit tab
+            inf = FAM.info(dev)
+            return {"family": FAM.family_of(dev), "device": dev, "rows": [], "board": inf, "power": None,
+                    "notes": [f"{dev}: the PIC24 PPS planner does not apply. Use the Circuit tab (auto pin functions "
+                              f"from the {FAM.family_of(dev).upper()} board table, with ERC for conflicts, "
+                              f"input-only/flash pins and per-pin current limits)."]}
         r = pn.plan(body.get("items") or [], ics=body.get("ics") or s.ics, jtag=bool(body.get("jtag")))
         per = pn.peripherals(r["rows"])
         p = body.get("power") or {}
@@ -511,7 +550,7 @@ def create_app(settings: Settings | None = None, model_factory: Callable | None 
                 except Exception as e:
                     raise HTTPException(422, f"bad zip: {e}")
                 kind = "zip"
-            elif f.filename.lower().endswith((".c", ".h", ".xml")):
+            elif f.filename.lower().endswith((".c", ".h", ".xml", ".ino", ".cpp")):
                 src[Path(f.filename).name] = data.decode("utf-8", "replace")
         if code.strip():
             src[Path(filename or "main.c").name] = code
@@ -535,7 +574,7 @@ def create_app(settings: Settings | None = None, model_factory: Callable | None 
                 m = re.search(r"<targetDevice>([^<]+)</targetDevice>", t)
                 device, kind = (m.group(1).strip() if m else device), "mplabx"
                 src.pop(n)
-        src = {k: v for k, v in src.items() if k.lower().endswith((".c", ".h"))}
+        src = {k: v for k, v in src.items() if k.lower().endswith((".c", ".h", ".ino", ".cpp"))}
         if not src:
             raise HTTPException(422, "paste code, or drop .c/.h files, a project .zip or a screenshot")
         rep = au.audit_files(src, ics=ics or s.ics, crystal_hz=s.crystal_hz, device=device, project=kind)

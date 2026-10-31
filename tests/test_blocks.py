@@ -127,7 +127,7 @@ def test_control_and_math():
 def test_api_meta_example_generate():
     c = TestClient(create_app(Settings()))
     m = c.get("/api/blocks/meta").json()
-    assert len(m["examples"]) == 5 and any(p["pin"] == "RA0" for p in m["pins"])
+    assert len([e for e in m["examples"] if not e.get("family")]) == 5 and sum(1 for e in m["examples"] if e.get("family")) == 24 and any(p["pin"] == "RA0" for p in m["pins"])
     w = c.get("/api/blocks/example/blink").json()
     r = c.post("/api/blocks/generate", json={"workspace": w}).json()
     assert r["verified"]

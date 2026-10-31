@@ -115,7 +115,7 @@ def load_zip(data: bytes) -> dict[str, str]:
     files = {}
     with zipfile.ZipFile(io.BytesIO(data)) as z:
         for n in z.namelist():
-            if n.lower().endswith((".c", ".h")) and not any(s in n.lower().split("/") for s in SKIP_DIRS):
+            if n.lower().endswith((".c", ".h", ".ino", ".cpp")) and not any(s in n.lower().split("/") for s in SKIP_DIRS):
                 files[n] = z.read(n).decode("utf-8", errors="replace")
         xml = [n for n in z.namelist() if n.endswith("nbproject/configurations.xml")]
         if xml:
@@ -226,6 +226,35 @@ def fcy_from_config(cfg, regs, crystal_hz: float = 8e6) -> tuple[float | None, s
 
 
 # ------------------------------------------------------------------ rules
+def _audit_family(src, rep, device):
+    """M8: Arduino/STM32/ESP32 projects get the family checker (ATDF / CMSIS / ESP32 rules), not the PIC24 rules."""
+    from . import families as FAM
+    from .families.fam_agent import check_code
+    b = FAM.board(device)
+    vendor = re.compile(r"(^|/)(cmsis/|stm32\w*\.h$|system_stm32\w*|core_cm\w*\.h$|cmsis_\w*\.h$|startup_\w*)")
+    nocom = lambda t: re.sub(r"//[^\n]*", "", re.sub(r"/\*.*?\*/", lambda m: "\n" * m.group(0).count("\n"), t, flags=re.S))
+    files = {k: nocom(v) for k, v in src.files.items() if not vendor.search(k)}
+    code = "\n".join(v for k, v in files.items() if k.endswith((".c", ".cpp", ".ino"))) or "\n".join(files.values())
+    arduino = b["family"] == "esp32" or "cl_app_main" in code or re.search(r"\bvoid\s+setup\s*\(", code)
+    if arduino and "cl_app_main" in code and not re.search(r"\bvoid\s+setup\s*\(", code):
+        code += "\nvoid setup() { (void)cl_app_main(); }\nvoid loop() { }\n"   # ChipLlama .ino shim not uploaded
+    own = set(re.findall(r"#\s*define\s+(\w+)", code)) | set(re.findall(r"\b([A-Z][A-Z0-9_]+)\s*(?:=\s*[^,}]+)?[,}]", code))
+    cr = check_code(code, b, "arduino" if arduino else "baremetal")
+    for f in cr.findings:
+        if f.severity == "error" and (m := re.match(r"(\w+) is not", f.message)) and m.group(1) in own:
+            continue   # project-defined macro/enum, not a vendor register
+        rep.findings.append(AuditFinding(f.code or "FAMILY", f.severity, f.message))
+    for fn, t in files.items():
+        for i, ln in enumerate(t.splitlines(), 1):
+            m = re.search(r"(?<!->)(?<!\.)\b(LAT[A-G]|TRIS[A-G]|ANSEL[A-G]|PORT[A-G]bits|_RP\d+R)\b", ln)
+            if m:
+                rep.findings.append(AuditFinding("PIC_REG_ON_FAMILY", "error", f"{m.group(1)} is a PIC register; {device} "
+                                                 f"({b['family'].upper()}) does not have it", file=fn, line=i))
+    rep.findings.append(AuditFinding("DEVICE", "info", f"{device}: {b['family'].upper()} family rules "
+                                     f"({'arduino' if arduino else 'bare-metal'}); PIC24 rules skipped."))
+    return rep
+
+
 def audit_files(files: dict[str, str], *, ics: str = "PGx2", crystal_hz: float = 8e6,
                 device: str = "PIC24FJ256GB110", project: str = "files") -> AuditReport:
     device = files.get("__device__") or device
@@ -235,6 +264,9 @@ def audit_files(files: dict[str, str], *, ics: str = "PGx2", crystal_hz: float =
     if not src.files:
         rep.notes.append("no .c/.h files found")
         return rep
+    from . import families as FAM
+    if FAM.is_family(device):
+        return _audit_family(src, rep, device)
     if device.upper() != "PIC24FJ256GB110":
         F.append(AuditFinding("DEVICE", "info", f"Project targets {device}; rules are tuned for the PIC24FJ256GB110 "
                                                f"(pin/PPS/AN maps may differ)."))

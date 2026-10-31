@@ -29,7 +29,7 @@
 <!-- ================= BLOCKS ================= -->
 <section id="p-blk" class="hide"><div class="bgrid">
  <div class="card" style="padding:0;overflow:hidden"><h3 style="margin:0">Blocks <span class="row" style="flex:0 0 auto;gap:6px">
-  <select id="bex" onchange="Blocks.loadEx(this.value);this.value=''" style="width:auto;padding:5px 8px"></select>
+  <select id="bex" onchange="Blocks.loadEx(this.value);this.value=''" style="width:auto;padding:5px 8px"></select> <span id="bctx" class="muted" style="font-size:11px"></span>
   <button class="s" onclick="Blocks.save()">Save</button><label class="s" style="margin:0;padding:8px 14px;border:1px solid var(--line);border-radius:10px;cursor:pointer;color:var(--tx);font-weight:600;font-size:13px;text-transform:none;letter-spacing:0">Load<input type="file" accept=".json" class="hide" onchange="this.files[0]&&Blocks.load(this.files[0])"></label></span></h3>
   <div id="bws" style="height:calc(100vh - 190px);min-height:480px"></div></div>
  <div><div class="card"><h3>Generated C <span><span id="bbadge" class="pill info">…</span></span></h3>

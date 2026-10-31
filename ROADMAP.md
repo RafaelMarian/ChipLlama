@@ -6,8 +6,11 @@
 - **M3** Audit: static rules for existing code / MPLAB X projects, datasheet pages, patched copy (`chipllama audit --fix`).
 - **M5** Premium UI: sidebar shell, dark design tokens, vendored fonts, empty states, toasts, Ctrl+Enter, responsive ≥1100 px.
 - **M4** Pin planner (PPS/fixed pins/JTAG/ICS conflicts + `pins_init()`), explain-code mode, rough power estimate.
+- **M8** MCU family plugins: Arduino AVR (Uno/Nano/Mega), STM32 (Blue Pill, Nucleo-F411RE, F030), ESP32 (DevKitC, C3), across Generate, Circuit, Blocks, Audit, Doctor and Settings. PIC stays primary.
 
 ## Next
+- **FPGA (roadmap only)**: iCE40 / ECP5 via yosys + nextpnr, plus Gowin. Verilog generation checked by a Verilator lint and a simulation testbench, with pin constraints (PCF/LPF) from the Circuit tab. Not started.
+- **Families v2**: RP2040, nRF52, SAMD21. Bare-metal STM32 HAL for ADC DMA and USB CDC. ESP-IDF mode. Family-aware graphical pin planner.
 - **Power numbers from the datasheet**: replace the typical-order constants in `power.py` with DS39897C sec. 26 IDD/IIDLE/IPD table rows (by Fcy, VDD, temperature) and per-module currents.
 - **Pin planner v2**: full 100-pin package map (graphical), I2C alternate pins, CN/INTx inputs, input-capture/gate inputs, import from existing code (reverse the PPS writes).
 - **More devices**: dsPIC33 / PIC24 families via MPLAB pack EDC files end-to-end (checker + audit + pins), then PIC32 with XC32.

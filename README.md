@@ -160,6 +160,32 @@ Sources for the pragma names: the datasheet gives bit meanings but no XC16 names
 MPLAB X-generated blocks for the PIC24FJ256GB110 in public forum posts (edaboard, Microchip forum) and from a
 p24fj256gb110.h listing. Run `xc16-gcc --help` or check `docs/config_index.html` in your XC16 install to confirm.
 
+## 🧱 MCU families (M8): Arduino AVR, STM32, ESP32
+
+The PIC24FJ256GB110 is still the primary target, and nothing in the PIC path changed. On top of it, M8 adds family plugins in `chipllama/families/`:
+
+| Family | Boards | Mode | Checker | Toolchain |
+|---|---|---|---|---|
+| Arduino AVR | Uno, Nano (ATmega328P), Mega 2560 | bare-metal C (default) or Arduino sketch | register/bit names checked against the Microchip ATDF | avr-gcc (from the Arduino AVR core) or arduino-cli |
+| STM32 | Blue Pill (F103C8), Nucleo-F411RE, F030F4P6 | bare-metal CMSIS | CMSIS macros and instances from the vendor header, F1 CRL/CRH vs MODER/AFR style | arm-none-eabi-gcc |
+| ESP32 | DevKitC (ESP32), C3-DevKitM | Arduino (ESP32 core 3.x) | setup/loop, LEDC 3.x API, flash and input-only pins | arduino-cli + esp32 core |
+
+Choose the board under **Settings > Device** and the AVR mode under **Settings > Family mode** (or the Circuit tab mode selector). Family boards are wired into:
+- **Generate**: a per-family system prompt, then family checker, then compile on your toolchain, then self-correct.
+- **Circuit**: per-pin current limits and ERC, plus HAL, board and drivers project generation. The zip has an `.ino` in Arduino mode.
+- **Blocks**: pick a `⬡` example. The blocks drive the parts of a Circuit (LED, button, servo, pot, TMP102, USB-UART) through the HAL/driver API.
+- **Audit**: family rules, plus flagging of PIC registers used on a non-PIC board.
+- **Doctor**: shows which family toolchains are present. Each missing one is listed with its install command. ChipLlama never installs anything itself.
+
+`examples/circuit/families/` has 48 projects (6 per board) and `examples/blocks/families/` has 24 Blocks programs (3 per board). `python scripts/compile_blocks_examples.py --link` builds them all. Any example whose toolchain is missing is reported as SKIPPED.
+
+Install hints, all optional:
+- Arduino CLI: `winget install ArduinoSA.CLI`, then `arduino-cli core install arduino:avr`.
+- Arm GNU Toolchain: `winget install Arm.GnuArmEmbeddedToolchain`.
+- ESP32 core: add `https://espressif.github.io/arduino-esp32/package_esp32_index.json`, then run `arduino-cli core install esp32:esp32`.
+
+FPGA support is on the roadmap only.
+
 ## 🧩 Blocks (visual programming)
 
 The **Blocks** tab is a Blockly editor with PIC24-specific blocks: *Events* (on start, forever, every N ms on Timer1, pin change on CN pins, UART byte received), *Pins*, *Timing*, *Serial*, *Analog*, *Control*, *Variables & Math* and *Comms* (SPI1, I2C1).

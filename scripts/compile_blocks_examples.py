@@ -65,7 +65,49 @@ def run(link: bool = False, require: bool = False, out=print, verbose: bool = Fa
                 out("    cmd: " + " ".join(c.command or []))
     out(f"{len(files)} examples, {failed} failed")
     failed += run_circuits(s, require, out, verbose)
+    failed += run_families(require, out, verbose)
     return 1 if failed else 0
+
+
+def _fam_line(tag, r, out, verbose):
+    """One line for a family build result; returns 1 if FAILED."""
+    if r["ok"]:
+        out(f"VERIFIED {tag} ({r['tool']}, {r.get('hex_name')} built, {r.get('warnings', 0)} warning(s))")
+        return 0
+    if r["ok"] is None:
+        out(f"SKIPPED  {tag}: checker clean, {r['log'].strip()}")
+        return 0
+    bad = [l.strip() for l in r["log"].splitlines() if "error" in l.lower()]
+    out(f"FAILED   {tag}: {bad[0] if bad else r['log'][-300:]}")
+    if verbose:
+        out(r["log"][-2000:])
+    return 1
+
+
+def run_families(require: bool = False, out=print, verbose: bool = False) -> int:
+    """M8: every family Circuit example and Blocks example, built with the family toolchain (if installed)."""
+    from chipllama import projgen
+    from chipllama.families import toolchain as TC, blocks_fam
+    failed = n = 0
+    for f in sorted((ROOT / "examples" / "circuit" / "families").glob("*.json")):
+        res = projgen.build(json.loads(f.read_text(encoding="utf-8")))
+        n += 1
+        if not res["erc_ok"] or not res["verified"]:
+            failed += 1
+            out(f"FAILED   circuit/families/{f.stem}: ERC ok={res['erc_ok']} verified={res['verified']}")
+            continue
+        r = TC.compile_result(res)
+        failed += _fam_line(f"circuit/families/{f.stem} ({res['board']}, {res['mode']})", r, out, verbose) or (require and r["ok"] is None)
+    for f in sorted((ROOT / "examples" / "blocks" / "families").glob("*.json")):
+        n += 1
+        r = blocks_fam.generate(json.loads(f.read_text(encoding="utf-8")), compile=True)
+        if r["error"]:
+            failed += 1
+            out(f"FAILED   blocks/families/{f.stem}: {r['error']}")
+            continue
+        failed += _fam_line(f"blocks/families/{f.stem} ({r['device']}, {r['mode']})", r["compile"], out, verbose) or (require and r["compile"]["ok"] is None)
+    out(f"{n} family examples, {failed} failed")
+    return failed
 
 
 def run_circuits(s, require: bool = False, out=print, verbose: bool = False) -> int:

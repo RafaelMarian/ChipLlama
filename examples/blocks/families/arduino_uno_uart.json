@@ -1,0 +1,59 @@
+{
+ "title": "ARDUINO-UNO: UART hello + uptime",
+ "device": "ARDUINO-UNO",
+ "circuit": "arduino_uno_uart",
+ "blocks": {
+  "languageVersion": 0,
+  "blocks": [
+   {
+    "type": "cl_on_start",
+    "inputs": {
+     "DO": {
+      "block": {
+       "type": "cl_uart_println",
+       "fields": {
+        "TEXT": "hello from ARDUINO-UNO"
+       }
+      }
+     }
+    },
+    "x": 20,
+    "y": 20
+   },
+   {
+    "type": "cl_every",
+    "fields": {
+     "MS": 1000
+    },
+    "inputs": {
+     "DO": {
+      "block": {
+       "type": "cl_uart_print",
+       "fields": {
+        "TEXT": "ms=",
+        "NL": false
+       },
+       "next": {
+        "block": {
+         "type": "cl_uart_print_num",
+         "fields": {
+          "NL": true
+         },
+         "inputs": {
+          "VALUE": {
+           "block": {
+            "type": "cl_millis"
+           }
+          }
+         }
+        }
+       }
+      }
+     }
+    },
+    "x": 20,
+    "y": 160
+   }
+  ]
+ }
+}

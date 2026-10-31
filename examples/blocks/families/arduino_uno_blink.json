@@ -1,0 +1,29 @@
+{
+ "title": "ARDUINO-UNO: Blink (every 500 ms)",
+ "device": "ARDUINO-UNO",
+ "circuit": "arduino_uno_blink",
+ "blocks": {
+  "languageVersion": 0,
+  "blocks": [
+   {
+    "type": "cl_every",
+    "fields": {
+     "MS": 500
+    },
+    "inputs": {
+     "DO": {
+      "block": {
+       "type": "cl_led_set",
+       "fields": {
+        "PART": "led1",
+        "VALUE": "TOGGLE"
+       }
+      }
+     }
+    },
+    "x": 20,
+    "y": 20
+   }
+  ]
+ }
+}

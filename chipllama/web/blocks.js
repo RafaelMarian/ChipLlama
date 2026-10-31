@@ -1,7 +1,9 @@
 /* ChipLlama - Blocks tab (Blockly 11, vendored). C is generated server-side (deterministic, verified). */
 (function(){
 const C={ev:'#7c5cff',pin:'#2f9e7a',time:'#c48a1d',ser:'#2d7fd3',an:'#c2457c',com:'#5a6bd6'};
-let PINS=['RA0'],CN=['RD6'],WS=null,T=null,LAST=null,READY=false;
+let PINS=['RA0'],CN=['RD6'],WS=null,T=null,LAST=null,READY=false,EX=[],CTX=null,PARTS={};
+/* M8: family boards - blocks drive the parts of a Circuit (CTX={device,circuit}) through the HAL/driver API */
+const partDD=k=>({type:'field_dropdown',name:'PART',options:()=>{const a=PARTS[k]||[];return a.length?a.map(p=>[p,p]):[['('+k+')','']]}});
 const pinDD=n=>({type:'field_dropdown',name:n,options:()=>PINS.map(p=>[p,p])});
 const cnDD=n=>({type:'field_dropdown',name:n,options:()=>CN.map(p=>[p,p])});
 const rp=(n,v)=>({type:'field_number',name:n,value:v,min:0,max:46,precision:1});
@@ -29,6 +31,14 @@ const DEFS=[
  {type:'cl_spi_send',message0:'SPI send %1',args0:[{type:'input_value',name:'VALUE'}],previousStatement:null,nextStatement:null,colour:C.com,tooltip:'Sends a byte over SPI1 and discards the byte received.'},
  {type:'cl_i2c_begin',message0:'I2C1 begin %1 kHz',args0:[{type:'field_dropdown',name:'KHZ',options:[['100','100'],['400','400'],['1000','1000']]}],previousStatement:null,nextStatement:null,colour:C.com,tooltip:'I2C1 master on SCL1/SDA1 (RG2/RG3); I2C1BRG from the datasheet formula.'},
  {type:'cl_i2c_write',message0:'I2C write to %1 value %2',args0:[{type:'field_input',name:'ADDR',text:'0x48'},{type:'input_value',name:'VALUE'}],previousStatement:null,nextStatement:null,colour:C.com,tooltip:'START, 7-bit address + W, one data byte, STOP.'},
+
+ {type:'cl_led_set',message0:'LED %1 %2',args0:[partDD('led'),{type:'field_dropdown',name:'VALUE',options:[['toggle','TOGGLE'],['on','ON'],['off','OFF']]}],previousStatement:null,nextStatement:null,colour:C.pin,tooltip:'Family boards: led_on/led_off/led_toggle on a Circuit LED.'},
+ {type:'cl_button_read',message0:'button %1 is down',args0:[partDD('button')],output:null,colour:C.pin,tooltip:'button_read() - polarity handled by the driver.'},
+ {type:'cl_button_pressed',message0:'button %1 was pressed',args0:[partDD('button')],output:null,colour:C.pin,tooltip:'button_pressed() - debounced edge.'},
+ {type:'cl_servo_write',message0:'servo %1 to %2 °',args0:[partDD('servo'),{type:'input_value',name:'DEG'}],previousStatement:null,nextStatement:null,colour:C.an,tooltip:'servo_set() 0..180°.'},
+ {type:'cl_pot_read',message0:'pot %1 (0..1000)',args0:[partDD('pot')],output:null,colour:C.an,tooltip:'pot_read_permille().'},
+ {type:'cl_temp_read',message0:'temperature °C from %1',args0:[partDD('temp')],output:null,colour:C.an,tooltip:'tmp102_read() / 16.'},
+ {type:'cl_millis',message0:'milliseconds since start',output:null,colour:C.time,tooltip:'hal_millis().'},
 ];
 const cat=(name,colour,types)=>({kind:'category',name,colour,contents:types.map(t=>typeof t==='string'?{kind:'block',type:t}:t)});
 const N=v=>({kind:'block',type:'math_number',fields:{NUM:v}});
@@ -41,6 +51,7 @@ const TOOLBOX={kind:'categoryToolbox',contents:[
  cat('Control','#5b80a5',['controls_if','controls_repeat_ext','controls_whileUntil','controls_flow_statements','logic_compare','logic_operation','logic_negate','logic_boolean']),
  {kind:'category',name:'Variables & Math',colour:'#a55b80',custom:'VARIABLE',},
  cat('Math','#5b67a5',['math_number','math_arithmetic','math_modulo']),
+ cat('Board parts (Arduino/STM32/ESP32)',C.pin,['cl_led_set','cl_button_read','cl_button_pressed',{kind:'block',type:'cl_servo_write',inputs:{DEG:{shadow:N(90)}}},'cl_pot_read','cl_temp_read','cl_millis']),
  cat('Comms',C.com,['cl_spi_begin',{kind:'block',type:'cl_spi_send',inputs:{VALUE:{shadow:N(0)}}},{kind:'block',type:'cl_spi_transfer',inputs:{VALUE:{shadow:N(0)}}},'cl_i2c_begin',{kind:'block',type:'cl_i2c_write',inputs:{VALUE:{shadow:N(0)}}}]),
 ]};
 let INITP=null;
@@ -48,7 +59,9 @@ function init(){if(!INITP)INITP=init0();return INITP}
 async function init0(){
  if(READY)return;READY=true;
  try{const m=await (await fetch('/api/blocks/meta')).json();PINS=m.pins.map(p=>p.pin);CN=m.pins.filter(p=>p.cn).map(p=>p.pin);
-  const s=document.getElementById('bex');s.replaceChildren(new Option('Examples…',''),...m.examples.map(e=>new Option(e.title,e.name)))}catch(e){}
+  EX=m.examples;const s=document.getElementById('bex');s.replaceChildren(new Option('Examples…',''),...m.examples.map(e=>new Option((e.family?'⬡ ':'')+e.title,e.name)))}catch(e){}
+ try{CTX=JSON.parse(localStorage.getItem('cl_blocks_ctx')||'null')}catch(e){CTX=null}
+ await setCtx(CTX);
  Blockly.defineBlocksWithJsonArray(DEFS);
  const theme=Blockly.Theme.defineTheme('cl',{base:Blockly.Themes.Classic,componentStyles:{workspaceBackgroundColour:'#0c111c',toolboxBackgroundColour:'#0f1522',toolboxForegroundColour:'#cbd5e1',flyoutBackgroundColour:'#141b2b',flyoutForegroundColour:'#cbd5e1',flyoutOpacity:.97,scrollbarColour:'#2a3550',insertionMarkerColour:'#fff',insertionMarkerOpacity:.3,cursorColour:'#d0d0d0'},fontStyle:{family:'Inter, system-ui, sans-serif',size:11}});
  WS=Blockly.inject('bws',{toolbox:TOOLBOX,media:'/vendor/',sounds:false,theme,renderer:'zelos',trashcan:true,zoom:{controls:true,wheel:true,startScale:.8},grid:{spacing:24,length:2,colour:'#1a2234',snap:true}});
@@ -58,16 +71,19 @@ async function init0(){
 }
 async function gen(){
  const ws=Blockly.serialization.workspaces.save(WS);localStorage.setItem('cl_blocks',JSON.stringify(ws));
- const r=await fetch('/api/blocks/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({workspace:ws})});
+ const r=await fetch('/api/blocks/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(Object.assign({workspace:ws},CTX?{device:CTX.device,circuit:CTX.circuit,gen_mode:(document.getElementById('cmode')||{}).value||null}:{}))});
  const j=await r.json();LAST=j;const b=document.getElementById('bbadge'),c=document.getElementById('bcode'),f=document.getElementById('bfind');
  c.textContent=j.c||('/* '+(j.error||'add an event block (on start / forever / every …) */')+' */');
  b.className='pill '+(j.error?'bad':j.verified?'ok':'warn');b.textContent=j.error?'ERROR':j.verified?'VERIFIED':'CHECK FAILED';
  document.getElementById('bintent').textContent=j.intent||'';
  f.replaceChildren(...[...(j.warnings||[]).map(w=>({severity:'warning',message:w})),...(j.findings||[]).filter(x=>x.severity!=='info')].map(x=>{const d=document.createElement('div');d.className='f';d.innerHTML='<span class="pill '+(x.severity==='error'?'bad':'warn')+'">'+x.severity+'</span> ';d.append(x.message);return d}));
 }
-async function loadEx(n){if(!n)return;const j=await (await fetch('/api/blocks/example/'+n)).json();WS.clear();Blockly.serialization.workspaces.load(j,WS);WS.cleanUp();WS.scrollCenter();gen()}
-function save(){const ws=Blockly.serialization.workspaces.save(WS);const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(ws,null,1)],{type:'application/json'}));a.download='chipllama_blocks.json';a.click()}
-function load(file){const r=new FileReader();r.onload=()=>{try{WS.clear();Blockly.serialization.workspaces.load(JSON.parse(r.result),WS);gen()}catch(e){alert('Not a ChipLlama blocks file: '+e.message)}};r.readAsText(file)}
+async function setCtx(c){CTX=c&&c.circuit?{device:c.device,circuit:c.circuit}:null;localStorage.setItem('cl_blocks_ctx',JSON.stringify(CTX));PARTS={};
+ if(CTX){try{PARTS=(await (await fetch('/api/blocks/parts?circuit='+encodeURIComponent(CTX.circuit))).json()).parts||{}}catch(e){}}
+ const l=document.getElementById('bctx');if(l)l.textContent=CTX?('Board: '+CTX.device+' · circuit '+CTX.circuit):'Board: PIC24 (Settings device)'}
+async function loadEx(n){if(!n)return;const e=EX.find(x=>x.name===n);await setCtx(e&&e.family?e:null);const j=await (await fetch('/api/blocks/example/'+n)).json();WS.clear();Blockly.serialization.workspaces.load(j,WS);WS.cleanUp();WS.scrollCenter();gen()}
+function save(){const ws=Object.assign(Blockly.serialization.workspaces.save(WS),CTX||{});const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(ws,null,1)],{type:'application/json'}));a.download='chipllama_blocks.json';a.click()}
+function load(file){const r=new FileReader();r.onload=async()=>{try{const j=JSON.parse(r.result);await setCtx(j.circuit?j:null);WS.clear();Blockly.serialization.workspaces.load(j,WS);gen()}catch(e){alert('Not a ChipLlama blocks file: '+e.message)}};r.readAsText(file)}
 function copy(){if(LAST&&LAST.c)navigator.clipboard.writeText(LAST.c).then(()=>window.toast&&toast('C copied'))}
 function polish(){if(!LAST||!LAST.c){return}if(typeof tab==='function')tab('gen');document.getElementById('req').value=LAST.intent;window.BLOCKS_CONTEXT=LAST.c;window.toast&&toast('Muse is polishing the Blocks code…');generate()}
 function loadWs(j){WS.clear();Blockly.serialization.workspaces.load(j,WS);WS.cleanUp();WS.scrollCenter();gen()}
