@@ -204,3 +204,4 @@ button:focus{outline:none}button:focus-visible{outline:2px solid rgba(124,140,25
 
 .cpo{fill:none;stroke:#8fa3c7;stroke-width:1;pointer-events:none}.cdang{fill:none;stroke:#ff6b6b;stroke-width:1.4}
 .ccur,.cw.tmp{pointer-events:none}
+.ctb button.s.rewire{background:var(--acc,#7c8cff);color:#fff;border-color:transparent;font-weight:600}.ctb button.s.rewire:hover{filter:brightness(1.1)}.ctb button.s.rewire.busy{opacity:.6;cursor:progress}

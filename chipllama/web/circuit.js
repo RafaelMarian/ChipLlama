@@ -405,6 +405,7 @@ function bind(){
   if(ctl&&k==='z'&&!e.shiftKey)undo();else if(ctl&&(k==='y'||(k==='z'&&e.shiftKey)))redo();else if(ctl&&k==='d')duplicate();
   else if(ctl&&k==='a'){SEL=new Set(D.parts.map(p=>p.id));render()}
   else if(ctl)done=false;
+  else if(k==='r'&&e.shiftKey&&!e.altKey)rewire();
   else if(k==='escape'){if(MODE)endMode(false);else{SEL.clear();SELW.clear();closePop();render()}}
   else if(k==='delete'||k==='backspace')delSel();
   else if(k==='/'&&MODE&&MODE.t==='wire'){MODE.vfirst=!MODE.vfirst;render()}
@@ -483,10 +484,10 @@ async function netlist(fmt){const r=await post('/api/circuit/netlist',{circuit:D
 /* ================================================================ ERC / BOM */
 let RT=null;
 function routeSoon(){clearTimeout(RT);if(!D.wires.some(w=>w.pts===undefined))return;RT=setTimeout(async()=>{const snap=JSON.stringify(D);
- try{const r=await (await post('/api/circuit/route',{circuit:D,part:''})).json();if(JSON.stringify(D)!==snap||MODE)return routeSoon();D=r.circuit;save();render()}catch(e){console.warn(e)}},150)}
+ try{const r=await (await post('/api/circuit/route',{circuit:D,part:''})).json();if(JSON.stringify(D)!==snap||MODE)return routeSoon();D=r.circuit;save();render();geoSoon()}catch(e){console.warn(e)}},150)}
 async function reroute(mode){snapshot();try{const r=await (await post('/api/circuit/route',{circuit:D,part:mode})).json();D=r.circuit;changed();
  const a=r.audit;toast(a.problems.length?`${a.problems.length} drawing problems: ${a.problems[0]}`:`Wires routed - ${D.wires.length} wires, none through a symbol`)}catch(e){toast('route failed: '+e.message)}}
-function changed(){save();render();routeSoon();clearTimeout(T);T=setTimeout(check,250);PRJ=null;$('cprj')&&$('cprj').classList.add('stale');guide()}
+function changed(){save();render();routeSoon();geoSoon();clearTimeout(T);T=setTimeout(check,250);PRJ=null;$('cprj')&&$('cprj').classList.add('stale');guide()}
 function save(){try{localStorage.setItem('cl_circuit',JSON.stringify(D))}catch(e){}}
 async function check(){
  try{CHK=await (await post('/api/circuit/check',{circuit:D})).json()}catch(e){return}
@@ -563,7 +564,21 @@ async function setCircuit(d){
  await loadMeta(D.device||'PIC24FJ256GB110');$('cdev').value=META.device.device;$('cname').value=D.name||'';CHK=null;PRJ=null;CL=null;NOTES=[];SEL.clear();SELW.clear();MODE=null;
  {const b=$('cpbadge');b.className='pill info';b.textContent='not generated';$('cprj').classList.remove('stale');$('cpinfo').replaceChildren();$('ctree').replaceChildren(h('div',{cls:'mut f'},'Generate to see config/ hal/ drivers/ board/ app/.'));$('cfname').textContent='';$('cfile').textContent=''}
  fit();save();check();guide()}
-async function setDevice(dev){if(D.wires.length&&!confirm(`Switch to ${dev}? Wires to MCU pins are kept by pin number; check the ERC afterwards.`)){$('cdev').value=D.device;return}snapshot();D.device=dev;D.assign={};await setCircuit(D)}
+async function setDevice(dev){if(!D.wires.length){snapshot();D.device=dev;D.assign={};await setCircuit(D);return}await rewire(dev)}
+/* M9.2 Auto re-wire: remap MCU pins for the current device, rebuild support parts, re-place + re-route everything (one undo step) */
+let RWBUSY=false;
+async function rewire(dev){if(RWBUSY)return;RWBUSY=true;const btn=$('crewire');btn&&btn.classList.add('busy');const prev=JSON.stringify(D);
+ try{const r=await post('/api/circuit/rewire',{circuit:D,part:dev||''});if(!r.ok)throw Error('HTTP '+r.status);const x=await r.json();
+  UNDO.push(prev);if(UNDO.length>200)UNDO.shift();REDO=[];const s=x.summary;
+  if(dev&&dev!==D.device){await setCircuit(x.circuit)}else{D=x.circuit;changed()}
+  const rm=s.remapped.length,msg=(dev?`Re-wired for ${s.device}; ${rm} pin${rm===1?'':'s'} remapped`:`Re-wired: ${rm} pin${rm===1?'':'s'} remapped`)+
+   ` · ${s.wires} wires routed · ${s.labels} label${s.labels===1?'':'s'} · ${s.overlaps} overlap${s.overlaps===1?'':'s'}`+(s.erc_errors?` · ${s.erc_errors} ERC error(s)`:'')+(s.dropped.length?` · ${s.dropped.length} connection(s) had no pin on this device`:'');
+  toast(msg);LASTRW=s;geo(x.audit)}
+ catch(e){toast('re-wire failed: '+e.message);if(dev){$('cdev').value=D.device}}finally{RWBUSY=false;btn&&btn.classList.remove('busy')}}
+let LASTRW=null,GT=null;
+function geoSoon(){clearTimeout(GT);GT=setTimeout(async()=>{try{const snap=JSON.stringify(D);const r=await (await post('/api/circuit/route',{circuit:D,part:'check'})).json();if(JSON.stringify(D)===snap)geo(r.audit)}catch(e){}},700)}
+function geo(a){const b=$('cgeo');if(!b)return;const n=(a.problems||[]).length;b.classList.toggle('hide',!n);if(n){$('cgeotxt').textContent=`⚠ ${n} drawing issue${n>1?'s':''}`;b.title=a.problems.slice(0,8).join('\n')}}
+async function fixGeo(){snapshot();try{const r=await (await post('/api/circuit/route',{circuit:D,part:'fix'})).json();D=r.circuit;changed();const n=r.audit.problems.length;toast(n?`${n} drawing issue(s) left - try Auto re-wire (Shift+R)`:'Fixed - no wire crosses a symbol or text');geo(r.audit)}catch(e){toast('fix failed: '+e.message)}}
 function palette(q=''){const cats={};META.library.filter(l=>!q||(l.label+' '+l.type+' '+l.cat).toLowerCase().includes(q.toLowerCase())).forEach(l=>(cats[l.cat]=cats[l.cat]||[]).push(l));
  $('cpal').replaceChildren(...Object.keys(cats).sort().map(c=>h('div',{},h('div',{cls:'cpal-c',style:`color:${CATC[c]||'#ccc'}`},c),...cats[c].map(l=>{const b=h('div',{cls:'cpal-i',draggable:'true',title:(l.guide||l.doc||'')+` (${(l.pins||[]).length} pins)`},h('span',{cls:'dot',style:`background:${CATC[c]||'#7c8cff'}`}),l.label,h('span',{cls:'cpal-n'},(l.pins||[]).length));
   b.addEventListener('dragstart',e=>{e.dataTransfer.setData('text/x-cl-part',l.type);e.dataTransfer.effectAllowed='copy'});
@@ -578,7 +593,7 @@ async function init(){if(READY){render();return}READY=true;
   $('cdev').replaceChildren(og('Microchip PIC',META.bundled.map(b=>new Option(b,b))),
    ...['avr','stm32','esp32'].map(f=>og({avr:'Arduino AVR',stm32:'STM32',esp32:'ESP32'}[f],(META.families||[]).filter(d=>d.family===f).map(d=>new Option(d.title,d.id)))))}$('cdev').value=META.device.device;palette()}
 window.Circuit={init,fit,zoom,generate,zip,hex,toBlocks,exportSvg,exportPng,saveFile,loadFile,bomCsv,bomMd,loadEx,setDevice,palette,
- undo,redo,annotate,netlist,autowire,reroute,place,addPart,rotate,mirror,duplicate,
+ undo,redo,annotate,netlist,autowire,reroute,rewire,fixGeo,place,addPart,rotate,mirror,duplicate,
  tool:t=>{if(t==='wire'){MODE={t:'wire',from:null,pts:[]};render()}else if(t==='label'){const n=prompt('Net label name:',LASTLABEL);if(n){LASTLABEL=n.toUpperCase();place('label',{name:LASTLABEL})}}else if(t==='power')powerPop(null);else if(t==='add')addPop(null)},
  pkg:()=>{PKG=!PKG;$('cpkg')&&$('cpkg').classList.toggle('on',PKG);fit()},
  select:ids=>{SEL=new Set(ids);render();guide()},

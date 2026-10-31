@@ -250,10 +250,22 @@ def create_app(settings: Settings | None = None, model_factory: Callable | None 
         pk = cur().mplab_packs_dir
         if req.part == "tidy":
             d = GM.tidy(d, None, pk)
+        elif req.part == "fix":
+            from .rewire import repair
+            d = repair(GM.route_all(d, pk, only_unrouted=True), pk)[0]
+        elif req.part == "check":
+            pass
         else:
             d = GM.route_all(d, pk, only_unrouted=req.part != "all")
         a = GM.audit(d, pk)
         return {"circuit": d, "audit": a}
+
+    @app.post("/api/circuit/rewire")
+    def circuit_rewire(req: CircuitReq):
+        """M9.2 Auto re-wire: part = new device id (optional).  Remaps MCU pins, rebuilds support parts, re-places
+        and re-routes everything; returns {circuit, summary, audit, check}."""
+        from . import rewire as RW
+        return RW.rewire(req.circuit, cur().mplab_packs_dir, req.part or None)
 
     @app.post("/api/circuit/checklist")
     def circuit_checklist(req: CircuitReq):

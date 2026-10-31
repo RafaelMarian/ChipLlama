@@ -74,6 +74,13 @@ class Project:
         g["pullup"] |= pullup
         g["analog"] |= analog
 
+    def _pwm_of(self, b):
+        pw = next((x for x in self.pwms if x["bind"] is b), None)
+        if pw is None:      # part not wired to a PWM-capable pin (e.g. device without CCP/OC): inert channel 0
+            self.notes.append(f"{b['id']}: no PWM pin connected on this device; its PWM output is inert.")
+            pw = {"id": 0}
+        return pw
+
     def collect(self):
         for b in self.binds:
             drv = b["drv"]
@@ -139,9 +146,9 @@ class Project:
         pin_in, pin_out = [], []
         k = self.kind
         pic18_ccp = {}
-        if k == "pic18":
+        if k != "pic24":
             for i, pw in enumerate(self.pwms):
-                pic18_ccp[id(pw)] = _num(pw["fn"])
+                pic18_ccp[id(pw)] = _num(pw["fn"]) or i + 1
             if any(pw["bind"]["drv"] == "servo" for pw in self.pwms):
                 self.notes.append("Servo PWM needs 50 Hz; PIC18 CCP PWM on Timer2 cannot go below ~244 Hz at 16 MHz. "
                                   "The servo channel is generated but drives a tone-rate PWM: use a PIC24 or a soft-PWM.")
@@ -297,11 +304,11 @@ class Project:
         elif drv in ("ssd1306", "i2c_dev", "tmp102", "mpu6050", "bme280", "eeprom24"):
             init = f"{{ {bus('i2c', 'SCL')}, {addr()} }}"
         elif drv in ("tone", "servo"):
-            pw = next(x for x in self.pwms if x["bind"] is b)
+            pw = self._pwm_of(b)
             init = (f"{{ {pw['id']}, {int(pr.get('min_us', 1000))}U, {int(pr.get('max_us', 2000))}U }}" if drv == "servo"
                     else f"{{ {pw['id']} }}")
         elif drv == "hbridge":
-            pw = next(x for x in self.pwms if x["bind"] is b)
+            pw = self._pwm_of(b)
             init = f"{{ {g('IN1')}, {g('IN2')}, {pw['id']} }}"
         elif drv == "stepper_uln":
             ram.append(f"static uint8_t s_{cid}_phase = 0U;")
