@@ -15,7 +15,7 @@ async function loadDoctor(){const d=$('doctor');try{const j=await api('/api/doct
 d.replaceChildren(...j.rows.map(r=>{const lv=r.level||(r.ok?'ok':'warn');n[lv]=(n[lv]||0)+1;const x=el('div','r');const dot=el('span','dot '+lv,ICON[lv]);dot.title=lv;const v=el('div','v');
 if(r.path&&r.value.includes(r.path)){const [pre,post]=r.value.split(r.path);if(pre)v.append(pre);const c=el('code','',tail(r.path));c.title=r.path;v.append(c);if(post)v.append(post)}else v.textContent=r.value;
 x.append(dot,el('span','k',r.label),v);return x}));$('docsum').textContent=n.error?`· ${n.error} to fix`:n.warn?`· ${n.warn} warning${n.warn>1?'s':''}`:'· all good'}catch(e){d.textContent=e.message}
- try{const p=await api('/api/pragmas');$('pmeta').textContent=p.title;$('pragmas').textContent=p.text+(p.clock_code.length?'\n\n/* first in main() */\n'+p.clock_code.join('\n'):'')}catch(e){$('pmeta').textContent=e.message}}
+ try{const p=await api('/api/pragmas');$('pmeta').textContent=p.title;hlC($('pragmas'),p.text+(p.clock_code.length?'\n\n/* first in main() */\n'+p.clock_code.join('\n'):''))}catch(e){$('pmeta').textContent=e.message}}
 // ---------- generate (streamed)
 function step(cls,title){const s=el('div','step '+cls);s.append(el('b','',title));$('steps').append(s);s.scrollIntoView({block:'nearest',behavior:'smooth'});return s}
 function diffPre(t){const p=el('pre','diff');t.split('\n').forEach(l=>{p.append(el('span',l.startsWith('+')&&!l.startsWith('+++')?'a':l.startsWith('-')&&!l.startsWith('---')?'r':l.startsWith('@@')?'h':'',l+'\n'))});return p}
@@ -51,7 +51,7 @@ function onEvent(ev,running){const d=ev.data;
  if(ev.event=='done'){if(running)running.remove();step(d.status=='verified'?'ok':'bad',d.status=='verified'?'VERIFIED':'FAILED'+(d.error?': '+d.error:''));showFinal(d);return null}return running}
 function showFinal(j){LAST=j;const f=$('final');f.classList.remove('hide');f.replaceChildren();
  const h=el('div','row');h.append(el('h3','',''),);f.append(pill(j.status.toUpperCase(),j.status=='verified'?'ok':'bad'),el('span','mut',' '+(j.verification_level||'')+(j.error?' · '+j.error:'')));
- if(!j.code)return;f.append(el('pre','',j.code));
+ if(!j.code)return;{const pc=el('pre');hlC(pc,j.code);f.append(pc)}
  const r=el('div','row');const bt=(t,c,fn)=>{const b=el('button',c,t);b.style.flex='0 0 auto';b.onclick=fn;r.append(b)};
  bt('Copy','s',()=>{navigator.clipboard.writeText(j.code);toast('Copied')});
  bt('Download main.c','s',()=>dl(new Blob([j.code],{type:'text/plain'}),'main.c'));

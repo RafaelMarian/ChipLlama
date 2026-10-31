@@ -198,7 +198,7 @@ function txt(par,x,y,s,cls,anchor='start'){const t=el('text',{x,y,class:cls,'tex
 function render(){
  const svg=$('csvg');svg.replaceChildren();GEO={mcu:mcuGeo()};computeNets();
  const defs=el('defs',{},svg);const pat=el('pattern',{id:'cgrid',width:GRID*5,height:GRID*5,patternUnits:'userSpaceOnUse'},defs);
- for(let i=0;i<5;i++)for(let j=0;j<5;j++)el('circle',{cx:i*GRID+.5,cy:j*GRID+.5,r:i||j?.6:1.1,fill:i||j?'#182033':'#26314a'},pat);
+ for(let i=0;i<5;i++)for(let j=0;j<5;j++)el('circle',{cx:i*GRID+.5,cy:j*GRID+.5,r:i||j?.6:1.1,fill:i||j?'#182033':'#26314a',class:i||j?'cgd':'cgd m'},pat);
  const root=el('g',{id:'croot',transform:`translate(${VIEW.x},${VIEW.y}) scale(${VIEW.k})`},svg);
  el('rect',{x:-8000,y:-8000,width:16000,height:16000,fill:'url(#cgrid)','data-bg':1},root);
  const bad=new Set((CHK&&CHK.bad_pins)||[]),badParts=new Set();
@@ -511,7 +511,7 @@ function renderTree(){const dirs={};PRJ.tree.forEach(f=>{const i=f.path.lastInde
  Object.keys(dirs).sort((a,b)=>(a===''?'~':a).localeCompare(b===''?'~':b)).forEach(d=>{if(d)out.push(h('div',{cls:'ct-d',style:'padding-left:14px'},'▾ '+d+'/'));
   dirs[d].forEach(f=>out.push(h('div',{cls:'ct-f'+(f.path===FILE?' on':''),style:`padding-left:${d?30:14}px`,on:{click:()=>showFile(f.path)}},f.path.split('/').pop(),h('span',{cls:'mut'},` ${f.lines} lines`))))});
  $('ctree').replaceChildren(...out)}
-function showFile(p){FILE=p;if(!PRJ||!PRJ.files[p])return;$('cfname').textContent=p;$('cfile').textContent=PRJ.files[p];renderTree()}
+function showFile(p){FILE=p;if(!PRJ||!PRJ.files[p])return;$('cfname').textContent=p;/\.(c|h)$/.test(p)?hlC($('cfile'),PRJ.files[p]):($('cfile').textContent=PRJ.files[p]);renderTree()}
 async function zip(){const r=await fetch('/api/circuit/project.zip',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({circuit:Object.assign({},D,FAMMODE()?{gen_mode:FAMMODE()}:{})})});
  if(!r.ok){window.toast&&toast('Fix the ERC errors first');return}dl((D.name||'chipllama_circuit').replace(/[^A-Za-z0-9_]+/g,'_')+(isFam()?'.zip':'.X.zip'),await r.blob())}
 function isFam(){return (META&&META.families||[]).some(d=>d.id===D.device)}
@@ -521,6 +521,11 @@ async function toBlocks(){const r=await (await fetch('/api/circuit/to_blocks',{m
  if(!r.ok){window.toast&&toast(r.reason);return}tab('blk');await Blocks.init();Blocks.loadWs(r.workspace)}
 
 /* ================================================================ export */
+const EXPORT_CSS_LIGHT=`.csl,.csb{stroke:#840000;stroke-width:1.6;fill:none}.csl.w{stroke-width:2.4}.csl.nc{stroke:#0000c8}.csb.f,.csd{fill:#840000}.csb.f2,.csb.mcu{fill:#ffffc2}.csb.glab{fill:#fff;stroke:#1f2433}
+ .cspin{stroke:#840000;stroke-width:1.4}.cspin.pw{stroke:#a35f00}.cspin.used{stroke:#008400}.cspin.bad{stroke:#d00018}.cep,.chit,.cw-hit{fill:none;stroke:none}.cjn{fill:#008400}
+ .cw{fill:none;stroke:#008400;stroke-width:1.8}text{font-family:Inter,Segoe UI,sans-serif}.cpl{font-size:9px;fill:#006464}.cpl.s{font-size:8px;fill:#6b3b3b}.cpl.fn{fill:#8a4b00}.cpn{font-size:7.5px;fill:#7a2a2a}
+ .cref{font-size:11px;font-weight:700;fill:#006464}.cval{font-size:10px;fill:#2f5f5f}.cpwr{font-size:10px;font-weight:700;fill:#840000}.clab{font-size:11px;font-weight:600;fill:#111}.cmod{font-size:10px;fill:#4a4f5c}
+ .cmcu-t{font-size:15px;font-weight:700;fill:#1a1a1a}.cmcu-s{font-size:10px;fill:#555a66}.csym-t{font-size:16px;font-weight:700;fill:#840000;text-anchor:middle}.cerc path{fill:#d00018}.cerc.warning path{fill:#e09000}.cerc-t{font-size:10px;font-weight:800;fill:#fff}.cgd{fill:#c9c6b8}.cgd.m{fill:#a8a493}.cpo,.cdang,.cpinhl,.ccur{display:none}`;
 const EXPORT_CSS=`.csl{stroke:#e06c75;stroke-width:1.6;fill:none}.csl.w{stroke-width:2.4}.csb{stroke:#e06c75;stroke-width:1.6;fill:none}.csb.f,.csd{fill:#e06c75}.csb.f2{fill:#1b1a12}.csb.mcu{fill:#15140f}
  .cspin{stroke:#c47b7b;stroke-width:1.4}.cspin.pw{stroke:#f5b84b}.cspin.used{stroke:#3ddc97}.cspin.bad{stroke:#ff4d5e}.cep,.chit,.cw-hit{fill:none;stroke:none}.cjn{fill:#3ddc97}
  .cw{fill:none;stroke:#3ddc97;stroke-width:1.8}text{font-family:Inter,Segoe UI,sans-serif}.cpl{font-size:9px;fill:#5fd7d7}.cpl.fn{fill:#f5b84b}.cpn{font-size:7.5px;fill:#a46a6a}
@@ -528,8 +533,10 @@ const EXPORT_CSS=`.csl{stroke:#e06c75;stroke-width:1.6;fill:none}.csl.w{stroke-w
  .cmcu-t{font-size:15px;font-weight:700;fill:#ececf1}.cmcu-s{font-size:10px;fill:#7d8394}.csym-t{font-size:16px;font-weight:700;fill:#e06c75;text-anchor:middle}.cerc path{fill:#ff4d5e}.cerc.warning path{fill:#f5b84b}.cerc-t{font-size:10px;font-weight:800;fill:#000}`;
 function svgText(){GEO={mcu:mcuGeo()};const keep=VIEW,ks=SEL,kw=SELW;SEL=new Set();SELW=new Set();fit();const svg=$('csvg').cloneNode(true);VIEW=keep;SEL=ks;SELW=kw;render();
  const r=$('csvg').getBoundingClientRect();svg.setAttribute('xmlns',NS);svg.setAttribute('width',r.width);svg.setAttribute('height',r.height);
- const st=document.createElementNS(NS,'style');st.textContent=EXPORT_CSS;svg.insertBefore(st,svg.firstChild);
- const bg=document.createElementNS(NS,'rect');bg.setAttribute('width','100%');bg.setAttribute('height','100%');bg.setAttribute('fill','#0b0e15');svg.insertBefore(bg,st.nextSibling);
+ const white=(localStorage.getItem('cl_expbg')||'theme')==='white',light=white||(window.Theme&&Theme.current()==='light');
+ if(white)svg.querySelectorAll('[data-bg]').forEach(n=>n.remove());
+ const st=document.createElementNS(NS,'style');st.textContent=light?EXPORT_CSS_LIGHT:EXPORT_CSS;svg.insertBefore(st,svg.firstChild);
+ const bg=document.createElementNS(NS,'rect');bg.setAttribute('width','100%');bg.setAttribute('height','100%');bg.setAttribute('fill',white?'#ffffff':light?'#f5f4ef':'#0b0e15');svg.insertBefore(bg,st.nextSibling);
  return {s:new XMLSerializer().serializeToString(svg),w:r.width,h:r.height}}
 function exportSvg(){dl((D.name||'circuit')+'.svg',new Blob([svgText().s],{type:'image/svg+xml'}))}
 function exportPng(){const {s,w,h:H}=svgText();const img=new Image();img.onload=()=>{const c=document.createElement('canvas');c.width=w*2;c.height=H*2;const x=c.getContext('2d');x.scale(2,2);x.drawImage(img,0,0);c.toBlob(b=>dl((D.name||'circuit')+'.png',b))};img.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(s)}

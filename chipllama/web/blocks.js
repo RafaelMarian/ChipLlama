@@ -63,7 +63,11 @@ async function init0(){
  try{CTX=JSON.parse(localStorage.getItem('cl_blocks_ctx')||'null')}catch(e){CTX=null}
  await setCtx(CTX);
  Blockly.defineBlocksWithJsonArray(DEFS);
- const theme=Blockly.Theme.defineTheme('cl',{base:Blockly.Themes.Classic,componentStyles:{workspaceBackgroundColour:'#0c111c',toolboxBackgroundColour:'#0f1522',toolboxForegroundColour:'#cbd5e1',flyoutBackgroundColour:'#141b2b',flyoutForegroundColour:'#cbd5e1',flyoutOpacity:.97,scrollbarColour:'#2a3550',insertionMarkerColour:'#fff',insertionMarkerOpacity:.3,cursorColour:'#d0d0d0'},fontStyle:{family:'Inter, system-ui, sans-serif',size:11}});
+ const mkTheme=t=>Blockly.Theme.defineTheme('cl_'+t,{base:Blockly.Themes.Classic,componentStyles:t==='light'?
+  {workspaceBackgroundColour:'#fbfbfd',toolboxBackgroundColour:'#f2f3f8',toolboxForegroundColour:'#2a2f3d',flyoutBackgroundColour:'#e9ebf3',flyoutForegroundColour:'#2a2f3d',flyoutOpacity:.98,scrollbarColour:'#c3c7d4',insertionMarkerColour:'#000',insertionMarkerOpacity:.25,cursorColour:'#333'}:
+  {workspaceBackgroundColour:'#0c111c',toolboxBackgroundColour:'#0f1522',toolboxForegroundColour:'#cbd5e1',flyoutBackgroundColour:'#141b2b',flyoutForegroundColour:'#cbd5e1',flyoutOpacity:.97,scrollbarColour:'#2a3550',insertionMarkerColour:'#fff',insertionMarkerOpacity:.3,cursorColour:'#d0d0d0'},fontStyle:{family:'Inter, system-ui, sans-serif',size:11}});
+ const THEMES={light:mkTheme('light'),dark:mkTheme('dark')};const theme=THEMES[window.Theme?Theme.current():'dark'];
+ document.addEventListener('cl-theme',e=>{if(WS)WS.setTheme(THEMES[e.detail]||THEMES.dark)});
  WS=Blockly.inject('bws',{toolbox:TOOLBOX,media:'/vendor/',sounds:false,theme,renderer:'zelos',trashcan:true,zoom:{controls:true,wheel:true,startScale:.8},grid:{spacing:24,length:2,colour:'#1a2234',snap:true}});
  WS.addChangeListener(e=>{if(e.isUiEvent)return;clearTimeout(T);T=setTimeout(gen,300)});
  const saved=localStorage.getItem('cl_blocks');
@@ -73,7 +77,7 @@ async function gen(){
  const ws=Blockly.serialization.workspaces.save(WS);localStorage.setItem('cl_blocks',JSON.stringify(ws));
  const r=await fetch('/api/blocks/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(Object.assign({workspace:ws},CTX?{device:CTX.device,circuit:CTX.circuit,gen_mode:(document.getElementById('cmode')||{}).value||null}:{}))});
  const j=await r.json();LAST=j;const b=document.getElementById('bbadge'),c=document.getElementById('bcode'),f=document.getElementById('bfind');
- c.textContent=j.c||('/* '+(j.error||'add an event block (on start / forever / every …) */')+' */');
+ hlC(c,j.c||('/* '+(j.error||'add an event block (on start / forever / every …) */')+' */'));
  b.className='pill '+(j.error?'bad':j.verified?'ok':'warn');b.textContent=j.error?'ERROR':j.verified?'VERIFIED':'CHECK FAILED';
  document.getElementById('bintent').textContent=j.intent||'';
  f.replaceChildren(...[...(j.warnings||[]).map(w=>({severity:'warning',message:w})),...(j.findings||[]).filter(x=>x.severity!=='info')].map(x=>{const d=document.createElement('div');d.className='f';d.innerHTML='<span class="pill '+(x.severity==='error'?'bad':'warn')+'">'+x.severity+'</span> ';d.append(x.message);return d}));
