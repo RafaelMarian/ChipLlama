@@ -37,7 +37,6 @@ EXAMPLES = Path(__file__).resolve().parent.parent / "examples"
 
 class GenerateReq(BaseModel):
     request: str
-    backend: str | None = None
     max_iters: int | None = None
     use_images: bool = True
     hint: bool = False
@@ -91,7 +90,7 @@ def create_app(settings: Settings | None = None, model_factory: Callable | None 
     def cur() -> Settings:
         return state["s"]
 
-    mk = model_factory or (lambda backend: make_model(cur(), backend))
+    mk = model_factory or (lambda: make_model(cur()))
     app = FastAPI(title="ChipLlama", version=__version__)
 
     @app.get("/")
@@ -295,9 +294,9 @@ def create_app(settings: Settings | None = None, model_factory: Callable | None 
     @app.get("/api/status")
     def status():
         s = cur()
-        return {"version": __version__, "device": s.device, "backend": s.backend,
-                "meta_key_set": bool(s.meta_api_key), "baseten_key_set": bool(s.baseten_api_key),
-                "meta_model": s.meta_model, "baseten_model": s.baseten_model,
+        return {"version": __version__, "device": s.device,
+                "meta_key_set": bool(s.meta_api_key),
+                "meta_model": s.meta_model,
                 "xc16_gcc": find_compiler(s)[1], "compiler": find_compiler(s)[0], "ipecmd": find_ipecmd(s.ipecmd_path),
                 "flash_enabled": s.enable_flash, "flash_tool": s.ipecmd_tool, "ipe_part": part_name(s.device),
                 "datasheet_found": Path(s.datasheet_pdf).is_file(), "clock_profile": s.clock_profile, "ics": s.ics}
@@ -341,8 +340,8 @@ def create_app(settings: Settings | None = None, model_factory: Callable | None 
         if body.get("muse"):
             try:
                 from .models import Message
-                ann["explanation"] = mk(body.get("backend")).complete([Message("user", ex.explain_prompt(code, ann))]).strip()
-            except (ModelError, ValueError) as e:
+                ann["explanation"] = mk().complete([Message("user", ex.explain_prompt(code, ann))]).strip()
+            except ModelError as e:
                 ann["explanation_error"] = str(e)
         return ann
 
@@ -365,7 +364,7 @@ def create_app(settings: Settings | None = None, model_factory: Callable | None 
         s = cur()
         profiles = [{"key": k, "title": get_profile(k, s.crystal_hz).title} for k in PROFILE_KEYS]
         return {"settings": public_view(s), "file": str(sfile),
-                "options": {"clock_profile": profiles, "ics": list(ICS_PAIRS), "backend": ["meta", "baseten"],
+                "options": {"clock_profile": profiles, "ics": list(ICS_PAIRS),
                             "family_mode": ["baremetal", "arduino"], "family_boards": _fam_boards(),
                             "ipecmd_tool": ["PK5", "PK4", "PK3", "ICD4", "ICD5", "SNAP", "PKOB4"],
                             "reasoning_effort": ["minimal", "low", "medium", "high", "xhigh", "max"]}}
@@ -451,10 +450,7 @@ def create_app(settings: Settings | None = None, model_factory: Callable | None 
 
     @app.post("/api/generate")
     def generate(req: GenerateReq):
-        try:
-            model = mk(req.backend)
-        except ValueError as e:
-            raise HTTPException(400, str(e))
+        model = mk()
         res = run_agent(req.request, model, cur(), max_iters=_iters(req), use_images=req.use_images,
                         hint=req.hint, compile_fn=compile_fn, inject_fault=req.inject_fault, context=req.context, context_kind=req.context_kind)
         return res.to_dict()
@@ -462,10 +458,7 @@ def create_app(settings: Settings | None = None, model_factory: Callable | None 
     @app.post("/api/generate/stream")
     def generate_stream(req: GenerateReq):
         """NDJSON stream: one event per line (spec, model_call, attempt (+diff), done)."""
-        try:
-            model = mk(req.backend)
-        except ValueError as e:
-            raise HTTPException(400, str(e))
+        model = mk()
         q: queue.Queue = queue.Queue()
         prev = {"code": None}
 
@@ -496,23 +489,20 @@ def create_app(settings: Settings | None = None, model_factory: Callable | None 
     # ------------------------------------------------------------ reverse debug
     @app.post("/api/debug")
     async def debug(dump: str = Form(""), symptom: str = Form(""), code: str = Form(""),
-                    backend: str | None = Form(None), fosc_mhz: float | None = Form(None),
+                    fosc_mhz: float | None = Form(None),
                     expected_period_ms: float | None = Form(None), use_model: bool = Form(True),
                     images: list[UploadFile] = File(default=[])):
         imgs = [await f.read() for f in images if f.filename]
         model = None
         if use_model:
-            try:
-                model = mk(backend)
-            except ValueError as e:
-                raise HTTPException(400, str(e))
+            model = mk()
         fosc = fosc_mhz * 1e6 if fosc_mhz else cur().profile().fosc_hz
         res = debug_session(dump, imgs, symptom, code, model, fosc,
                             expected_period_ms / 1e3 if expected_period_ms else None)
         return res.to_dict()
 
     @app.post("/api/debug/vision")
-    async def debug_vision(intent: str = Form(""), code: str = Form(""), backend: str | None = Form(None),
+    async def debug_vision(intent: str = Form(""), code: str = Form(""),
                            fosc_mhz: float | None = Form(None), extraction: str = Form(""), explain: bool = Form(True),
                            device: str = Form(""), passes: int | None = Form(None),
                            images: list[UploadFile] = File(default=[])):
@@ -526,10 +516,7 @@ def create_app(settings: Settings | None = None, model_factory: Callable | None 
                 raise HTTPException(422, f"bad extraction JSON: {e}")
         if not imgs and ex is None:
             raise HTTPException(422, "drop, paste or choose an image first")
-        try:
-            model = mk(backend)
-        except ValueError as e:
-            raise HTTPException(400, str(e))
+        model = mk()
         s = cur()
         fosc = fosc_mhz * 1e6 if fosc_mhz else s.profile().fosc_hz
         try:
@@ -545,7 +532,7 @@ def create_app(settings: Settings | None = None, model_factory: Callable | None 
 
     @app.post("/api/audit")
     async def audit_ep(code: str = Form(""), filename: str = Form("main.c"), explain: bool = Form(False),
-                       compile: bool = Form(False), backend: str | None = Form(None), ics: str = Form(""),
+                       compile: bool = Form(False), ics: str = Form(""),
                        device: str = Form(""), project: str = Form(""),
                        files: list[UploadFile] = File(default=[]), images: list[UploadFile] = File(default=[])):
         from . import audit as au
@@ -571,10 +558,10 @@ def create_app(settings: Settings | None = None, model_factory: Callable | None 
         notes = []
         if imgs:
             try:
-                model = mk(backend)
+                model = mk()
                 src["screenshot.c"] = au.transcribe(imgs, model)
                 notes.append("screenshot.c was transcribed from your image by Muse - check it before trusting line numbers.")
-            except (ValueError, ModelError) as e:
+            except ModelError as e:
                 raise HTTPException(400, f"reading a screenshot needs the Muse model: {e}")
         device = device.strip() or s.device
         kind = project or kind
@@ -592,10 +579,7 @@ def create_app(settings: Settings | None = None, model_factory: Callable | None 
         rep = au.audit_files(src, ics=ics or s.ics, crystal_hz=s.crystal_hz, device=device, project=kind)
         rep.notes += notes
         if explain and model is None:
-            try:
-                model = mk(backend)
-            except ValueError as e:
-                rep.notes.append(f"Muse explanation skipped: {e}")
+            model = mk()
         au.enrich(rep, model, s, explain=explain and model is not None, compile=compile)
         import uuid
         rid = uuid.uuid4().hex[:12]

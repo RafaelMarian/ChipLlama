@@ -159,7 +159,7 @@ def test_cli_no_model_without_extraction_errors(capsys):
 def test_server_vision_endpoint(settings):
     po = (EX / "sfr_pll_off.extraction.json").read_text()
     m = ScriptedModel([po, po, "explained p.123"])
-    c = TestClient(create_app(settings, model_factory=lambda b: m))
+    c = TestClient(create_app(settings, model_factory=lambda: m))
     r = c.post("/api/debug/vision", data={"intent": "Timer1 interrupt every 10 ms"},
                files=[("images", ("a.png", PNG, "image/png"))])
     assert r.status_code == 200, r.text
@@ -168,7 +168,7 @@ def test_server_vision_endpoint(settings):
     assert any(f["register"] == "OSCCON" and f["status"] == "bad" for f in j["findings"])
     assert len(j["extraction"]["passes"]) == 2 and j["extraction"]["disputed"] == {}
     assert c.post("/api/debug/vision", data={"intent": "x"}).status_code == 422
-    bad = TestClient(create_app(settings, model_factory=lambda b: ScriptedModel(["x", "y"])))
+    bad = TestClient(create_app(settings, model_factory=lambda: ScriptedModel(["x", "y"])))
     assert bad.post("/api/debug/vision", files=[("images", ("a.png", PNG, "image/png"))]).status_code == 502
     off = c.post("/api/debug/vision", data={"extraction": (EX / "sfr_pll_off.extraction.json").read_text(),
                                              "intent": "Timer1 10 ms", "explain": "false"},
@@ -177,7 +177,7 @@ def test_server_vision_endpoint(settings):
 
 
 def test_server_serves_demo_examples(settings):
-    c = TestClient(create_app(settings, model_factory=lambda b: ScriptedModel([])))
+    c = TestClient(create_app(settings, model_factory=lambda: ScriptedModel([])))
     assert c.get("/api/examples/debug/sfr_pll_off.png").content[:4] == b"\x89PNG"
     assert "toggle" in c.get("/api/examples/debug/scope_20ms_instead_of_10ms.json").json()["code"]
     assert c.get("/api/examples/debug/..%2Fsecret.png").status_code == 404
@@ -187,7 +187,7 @@ def test_generate_context_reaches_prompt(settings, monkeypatch):
     import chipllama.server as srv
     monkeypatch.setattr(srv, "compile_c", compile_ok, raising=False)
     m = ScriptedModel([fence(GOOD_T1)] * 4)
-    c = TestClient(create_app(settings, model_factory=lambda b: m))
+    c = TestClient(create_app(settings, model_factory=lambda: m))
     r = c.post("/api/generate", json={"request": "Timer1 interrupt every 10 ms at 32 MHz priority 5",
                                       "use_images": False, "context": "REVERSE-DEBUG-MARKER TCKPS"})
     assert r.status_code == 200

@@ -1,8 +1,7 @@
 """OpenAI-compatible Chat Completions client (plain httpx).
 
-Used for BOTH backends:
+Single backend:
   * Meta Model API  https://api.meta.ai/v1/chat/completions  (Bearer MODEL_API_KEY, models muse-spark-1.x)
-  * Baseten         https://inference.baseten.co/v1/chat/completions (Bearer BASETEN_API_KEY, Muse Spark Open)
 Image parts use the OpenAI shape {"type":"image_url","image_url":{"url":"data:<mime>;base64,..."}}.
 """
 from __future__ import annotations
@@ -67,7 +66,7 @@ class OpenAICompatModel:
 
     def complete(self, messages: list[Message]) -> str:
         if not self.api_key:
-            raise ModelError(f"no API key configured for backend '{self.name}' (see .env.example)")
+            raise ModelError("no API key configured (MODEL_API_KEY in .env, see .env.example)")
         payload = self.build_payload(messages)
         headers = {"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"}
         url = f"{self.base_url}/chat/completions"
@@ -89,12 +88,7 @@ class OpenAICompatModel:
         raise last
 
 
-def make_model(settings, backend: str | None = None, client: httpx.Client | None = None) -> ChatModel:
-    backend = (backend or settings.backend).lower()
-    if backend in ("meta", "muse", "muse-spark"):
-        return OpenAICompatModel("meta", settings.meta_base_url, settings.meta_api_key, settings.meta_model,
-                                 reasoning_effort=settings.meta_reasoning_effort, max_tokens=settings.max_tokens, client=client)
-    if backend in ("baseten", "muse-spark-open", "open"):
-        return OpenAICompatModel("baseten", settings.baseten_base_url, settings.baseten_api_key, settings.baseten_model,
-                                 reasoning_effort=settings.baseten_reasoning_effort, max_tokens=settings.max_tokens, client=client)
-    raise ValueError(f"unknown backend '{backend}' (use 'meta' or 'baseten')")
+def make_model(settings, client: httpx.Client | None = None) -> ChatModel:
+    """Build the Meta Model API client from settings (single backend)."""
+    return OpenAICompatModel("meta", settings.meta_base_url, settings.meta_api_key, settings.meta_model,
+                             reasoning_effort=settings.meta_reasoning_effort, max_tokens=settings.max_tokens, client=client)

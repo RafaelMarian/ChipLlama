@@ -29,11 +29,8 @@ def doctor(s: Settings) -> list[dict]:
         prof_txt, prof_ok = f"{prof.title}; ICS={s.ics}", True
     except ValueError as e:
         prof_txt, prof_ok = str(e), False
-    key = s.meta_api_key if s.backend == "meta" else s.baseten_api_key
-    model = s.meta_model if s.backend == "meta" else s.baseten_model
     pdf_ok = Path(s.datasheet_pdf).is_file()
     sp = settings_path()
-    meta_need, bt_need = s.backend == "meta", s.backend == "baseten"
     # (label, value, ok, level, path)  level: ok | warn | info | error
     try:
         from . import dfp
@@ -43,13 +40,10 @@ def doctor(s: Settings) -> list[dict]:
     rows = [
         ("device", f"{s.device}  (ipecmd -P{part_name(s.device)})", True, "ok", None),
         dev_row,
-        ("backend", f"{s.backend} · {model}", True, "ok", None),
-        ("MODEL_API_KEY", "set" if s.meta_api_key else ("NOT set" if meta_need else "not set (optional)"),
-         bool(s.meta_api_key) or not meta_need,
-         "ok" if s.meta_api_key else ("error" if meta_need else "info"), None),
-        ("BASETEN_API_KEY", "set" if s.baseten_api_key else ("NOT set" if bt_need else "not set (optional)"),
-         bool(s.baseten_api_key) or not bt_need,
-         "ok" if s.baseten_api_key else ("error" if bt_need else "info"), None),
+        ("model", f"meta · {s.meta_model}", True, "ok", None),
+        ("MODEL_API_KEY", "set" if s.meta_api_key else "NOT set",
+         bool(s.meta_api_key),
+         "ok" if s.meta_api_key else "error", None),
         ("clock profile", prof_txt, prof_ok, "ok" if prof_ok else "error", None),
         (drv, gcc or "NOT FOUND (compile step skipped)", bool(gcc), "ok" if gcc else "warn", gcc),
         *([("DFP (-mdfp)", dfp_warn or dfp_val, not dfp_warn, "warn" if dfp_warn else "ok", dfp_val)] if (dfp_val or dfp_warn) else []),
@@ -61,7 +55,6 @@ def doctor(s: Settings) -> list[dict]:
         ("settings.json", str(sp) + (" (exists)" if sp.is_file() else " (not created yet)"), True,
          "ok" if sp.is_file() else "info", str(sp)),
     ]
-    _ = key
     out = [{"label": a, "value": b, "ok": c, "level": d, "path": e} for a, b, c, d, e in rows]
     try:  # M8: other MCU families (optional; read-only detection, never installs anything)
         from .families import toolchain as fam_tc

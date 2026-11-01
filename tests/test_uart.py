@@ -145,7 +145,7 @@ def test_api_stream_inject_fault(settings):
     from fastapi.testclient import TestClient
     from chipllama.server import create_app
     m = ScriptedModel([fence(GOOD_UART), fence(GOOD_UART)])
-    c = TestClient(create_app(settings, model_factory=lambda b: m, compile_fn=compile_ok))
+    c = TestClient(create_app(settings, model_factory=lambda: m, compile_fn=compile_ok))
     r = c.post("/api/generate/stream", json={"request": UREQ, "use_images": False, "inject_fault": True})
     evs = [json.loads(l) for l in r.text.splitlines() if l.strip()]
     names = [e["event"] for e in evs]

@@ -10,7 +10,7 @@ from conftest import GOOD_T1, ScriptedModel, compile_ok, fence
 def client(settings=None, replies=()):
     m = ScriptedModel(list(replies))
     return TestClient(create_app(settings or Settings(meta_api_key="sk-secret-123"),
-                                 model_factory=lambda b: m, compile_fn=compile_ok)), m
+                                 model_factory=lambda: m, compile_fn=compile_ok)), m
 
 
 def test_get_settings_never_echoes_keys():
@@ -20,7 +20,7 @@ def test_get_settings_never_echoes_keys():
     body = r.text
     assert "sk-secret-123" not in body
     st = r.json()["settings"]
-    assert st["meta_api_key_set"] is True and st["baseten_api_key_set"] is False
+    assert st["meta_api_key_set"] is True and "baseten_api_key_set" not in st
     assert "meta_api_key" not in st
     assert st["clock_profile"] == "frcpll" and st["ics"] == "PGx2" and st["ipecmd_tool"] == "PK5"
     assert {p["key"] for p in r.json()["options"]["clock_profile"]} == {"frcpll", "frcpll_div2", "frc", "xtal"}
@@ -29,14 +29,14 @@ def test_get_settings_never_echoes_keys():
 def test_post_settings_persists_to_settings_json_not_env(tmp_path):
     c, _ = client()
     r = c.post("/api/settings", json={"ics": "PGx1", "clock_profile": "frc", "max_iters": 6,
-                                      "ipecmd_power_target": True, "baseten_api_key": "bt-new-key"})
+                                      "ipecmd_power_target": True, "meta_api_key": "k-new-key"})
     assert r.status_code == 200, r.text
-    assert "bt-new-key" not in r.text
+    assert "k-new-key" not in r.text
     st = r.json()["settings"]
     assert st["ics"] == "PGx1" and st["clock_profile"] == "frc" and st["max_iters"] == 6
-    assert st["ipecmd_power_target"] is True and st["baseten_api_key_set"] is True
+    assert st["ipecmd_power_target"] is True and st["meta_api_key_set"] is True
     saved = json.loads(settings_path().read_text())
-    assert saved["ics"] == "PGx1" and saved["baseten_api_key"] == "bt-new-key"
+    assert saved["ics"] == "PGx1" and saved["meta_api_key"] == "k-new-key"
     assert not (settings_path().parent / ".env").exists()
     # live: pragmas endpoint follows the new settings
     p = c.get("/api/pragmas").json()
@@ -56,7 +56,7 @@ def test_empty_key_keeps_existing_and_clear_removes():
 
 def test_validation_errors():
     c, _ = client()
-    for bad in ({"ics": "PGx9"}, {"clock_profile": "pll"}, {"backend": "openai"}, {"max_iters": 99},
+    for bad in ({"ics": "PGx9"}, {"clock_profile": "pll"}, {"backend": "meta"}, {"max_iters": 99},
                 {"nope": 1}, {"crystal_hz": "abc"}):
         assert c.post("/api/settings", json=bad).status_code == 422, bad
     assert not settings_path().exists()
@@ -108,9 +108,9 @@ def test_doctor_levels():
     from chipllama.config import Settings
     from chipllama.doctor import doctor
     s = Settings.from_env()
-    s.backend, s.meta_api_key, s.baseten_api_key, s.enable_flash = "meta", "", "", False
+    s.meta_api_key, s.enable_flash = "", False
     rows = {r["label"]: r for r in doctor(s)}
     assert all(r["level"] in ("ok", "warn", "info", "error") and "ok" in r for r in rows.values())
-    assert rows["BASETEN_API_KEY"]["level"] == "info" and "optional" in rows["BASETEN_API_KEY"]["value"]
+    assert "BASETEN_API_KEY" not in rows and rows["model"]["value"].startswith("meta")
     assert rows["MODEL_API_KEY"]["level"] == "error" and rows["MODEL_API_KEY"]["ok"] is False
     assert rows["flash"]["level"] == "info"

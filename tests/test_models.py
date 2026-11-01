@@ -28,7 +28,7 @@ def test_meta_request_shape_and_auth():
         return ok("pong")
 
     s = Settings(meta_api_key="k-test")
-    m = make_model(s, "meta", client=mock_client(h))
+    m = make_model(s, client=mock_client(h))
     out = m.complete([Message("system", "sys"), Message("user", "hi", [PNG])])
     assert out == "pong"
     assert seen["url"] == "https://api.meta.ai/v1/chat/completions"
@@ -40,32 +40,18 @@ def test_meta_request_shape_and_auth():
     assert parts[1]["type"] == "image_url" and parts[1]["image_url"]["url"].startswith("data:image/png;base64,")
 
 
-def test_baseten_backend_switch():
-    seen = {}
-
-    def h(req):
-        seen["url"] = str(req.url)
-        seen["auth"] = req.headers["authorization"]
-        seen["body"] = json.loads(req.content)
-        return ok()
-
-    s = Settings(baseten_api_key="bt-test", backend="baseten")
-    m = make_model(s, client=mock_client(h))          # backend taken from settings
-    m.complete([Message("user", "x")])
-    assert seen["url"] == "https://inference.baseten.co/v1/chat/completions"
-    assert seen["auth"] == "Bearer bt-test"
-    assert seen["body"]["model"] == "meta-models/muse-spark-open"
-    assert "reasoning_effort" not in seen["body"]     # off unless configured
-
-
-def test_unknown_backend():
-    with pytest.raises(ValueError):
-        make_model(Settings(), "gpt")
+def test_make_model_uses_meta_settings():
+    s = Settings(meta_api_key="k", meta_base_url="https://x.test/v1/", meta_model="m-9",
+                 meta_reasoning_effort="low", max_tokens=4000)
+    m = make_model(s, client=mock_client(lambda req: ok()))
+    assert m.name == "meta"
+    assert m.base_url == "https://x.test/v1" and m.model == "m-9"
+    assert m.reasoning_effort == "low" and m.max_tokens == 4000
 
 
 def test_missing_key_is_clear_error():
     with pytest.raises(ModelError, match="API key"):
-        make_model(Settings(), "meta").complete([Message("user", "x")])
+        make_model(Settings()).complete([Message("user", "x")])
 
 
 def test_images_only_in_user_messages_and_limit():

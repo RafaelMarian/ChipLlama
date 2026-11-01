@@ -177,7 +177,7 @@ def _print_attempt(ev: str, data: dict) -> None:
 
 
 def cmd_generate(a, s: Settings) -> int:
-    model = make_model(s, a.backend)
+    model = make_model(s)
     res = run_agent(a.request, model, s, max_iters=a.max_iters, use_images=not a.no_images, hint=a.hint,
                     on_event=_print_attempt, inject_fault=a.inject_fault)
     print(f"\n=== {res.status.upper()} ({res.to_dict()['verification_level']}) backend={res.backend} ===")
@@ -213,10 +213,7 @@ def cmd_debug(a, s: Settings) -> int:
     imgs = [Path(p).read_bytes() for p in (a.image or [])]
     model = None
     if not a.no_model:
-        try:
-            model = make_model(s, a.backend)
-        except ValueError as e:
-            print(e, file=sys.stderr)
+        model = make_model(s)
     r = debug_session(text, imgs, a.symptom or "", Path(a.code).read_text(encoding="utf-8") if a.code else "", model,
                       (a.fosc or 32.0) * 1e6, a.expected_ms / 1e3 if a.expected_ms else None)
     print(json.dumps(r.to_dict(), indent=2) if a.json else _fmt_debug(r))
@@ -230,10 +227,7 @@ def cmd_debug_vision(a, s: Settings) -> int:
     ex = normalize(json.loads(Path(a.extraction).read_text(encoding="utf-8"))) if a.extraction else None
     model = None
     if not a.no_model:
-        try:
-            model = make_model(s, a.backend)
-        except ValueError as e:
-            print(e, file=sys.stderr)
+        model = make_model(s)
     if ex is None and model is None:
         print("reading an image needs the Muse model (MODEL_API_KEY in .env), or pass --extraction file.json", file=sys.stderr)
         return 2
@@ -291,10 +285,7 @@ def cmd_audit(a, s: Settings) -> int:
     rep = au.audit_path(a.path, ics=a.ics or s.ics, crystal_hz=s.crystal_hz)
     model = None
     if a.explain:
-        try:
-            model = make_model(s, a.backend)
-        except ValueError as e:
-            print(e, file=sys.stderr)
+        model = make_model(s)
     au.enrich(rep, model, s, explain=a.explain, compile=a.compile)
     if a.json:
         print(json.dumps(rep.to_dict(), indent=2))
@@ -346,7 +337,7 @@ def cmd_explain(a, s: Settings) -> int:
     text = None
     if a.muse:
         from .models import Message
-        text = make_model(s, a.backend).complete([Message("user", ex.explain_prompt(code, ann))]).strip()
+        text = make_model(s).complete([Message("user", ex.explain_prompt(code, ann))]).strip()
     if a.json:
         print(json.dumps({**ann, "explanation": text}, indent=2))
         return 0
@@ -404,7 +395,7 @@ def build_parser() -> argparse.ArgumentParser:
     c.add_argument("--json", action="store_true", help="also print JSON")
     c.set_defaults(fn=cmd_calc)
     g = sub.add_parser("generate", help="request -> verified C code")
-    g.add_argument("request"); g.add_argument("--backend", choices=["meta", "baseten"])
+    g.add_argument("request")
     g.add_argument("--max-iters", type=int, default=4); g.add_argument("--no-images", action="store_true")
     g.add_argument("--hint", action="store_true", help="give the calculator result to the model up front")
     g.add_argument("--out", help="write main.c here"); g.add_argument("--export", help="write MPLAB X-ready folder")
@@ -422,7 +413,7 @@ def build_parser() -> argparse.ArgumentParser:
     d.add_argument("--device", help="PIC part for the vision pipeline (default: Settings device); uses the MPLAB EDC file when found")
     d.add_argument("--symptom"); d.add_argument("--code", help="C file under suspicion")
     d.add_argument("--fosc", type=float, default=None, help="assumed Fosc in MHz (default: board profile / 32)")
-    d.add_argument("--expected-ms", type=float); d.add_argument("--backend", choices=["meta", "baseten"])
+    d.add_argument("--expected-ms", type=float)
     d.add_argument("--no-model", action="store_true", help="deterministic analysis only"); d.add_argument("--json", action="store_true")
     d.set_defaults(fn=cmd_debug)
     pg = sub.add_parser("pages", help="render datasheet register pages to PNG")
@@ -436,12 +427,11 @@ def build_parser() -> argparse.ArgumentParser:
     au.add_argument("--explain", action="store_true", help="add a Muse review (needs MODEL_API_KEY)")
     au.add_argument("--compile", action="store_true", help="compile the patched files with XC16 if installed")
     au.add_argument("--ics", choices=["PGx1", "PGx2", "PGx3"], help="debug pin pair of your board")
-    au.add_argument("--backend")
     au.set_defaults(fn=cmd_audit)
     ex = sub.add_parser("explain", help="annotate existing C: register fields + datasheet pages per line")
     ex.add_argument("path"); ex.add_argument("--json", action="store_true")
     ex.add_argument("--muse", action="store_true", help="add a Muse walkthrough (needs MODEL_API_KEY)")
-    ex.add_argument("--backend"); ex.set_defaults(fn=cmd_explain)
+    ex.set_defaults(fn=cmd_explain)
     pi = sub.add_parser("pins", help="pin planner: check FN=PIN assignments (PPS, fixed pins, JTAG/ICS) and emit init code")
     pi.add_argument("assign", nargs="*", help="e.g. U1TX=RP10 U1RX=RF5 OC1=RD0 AN3=RB3")
     pi.add_argument("--ics", choices=["PGx1", "PGx2", "PGx3"]); pi.add_argument("--jtag", action="store_true")
