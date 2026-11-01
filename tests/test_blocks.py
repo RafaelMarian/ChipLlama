@@ -144,5 +144,5 @@ def test_vendor_blockly_served_with_notice():
 
 
 def test_index_has_blocks_tab():
-    html = (Path(blocks.__file__).parent / "web" / "index.html").read_text()
+    html = (Path(blocks.__file__).parent / "web" / "index.html").read_text(encoding="utf-8")
     assert "/vendor/blockly.min.js" in html and "Polish with Muse" in html

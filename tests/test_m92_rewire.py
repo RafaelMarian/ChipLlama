@@ -41,7 +41,7 @@ def _job(a):
 @pytest.fixture(scope="module")
 def matrix():
     jobs = [(f, d) for f in EXAMPLES for d in DEVICES]
-    with get_context("fork").Pool(min(8, os.cpu_count() or 2)) as p:
+    with get_context("fork" if os.name == "posix" else "spawn").Pool(min(8, os.cpu_count() or 2)) as p:
         return p.map(_job, jobs, chunksize=4)
 
 
@@ -131,6 +131,6 @@ def test_endpoint_and_fix_route():
 
 def test_ui_has_button_hotkey_badge():
     web = Path(__file__).resolve().parents[1] / "chipllama" / "web"
-    html, js = (web / "index.html").read_text(), (web / "circuit.js").read_text()
+    html, js = (web / "index.html").read_text(encoding="utf-8"), (web / "circuit.js").read_text(encoding="utf-8")
     assert 'id="crewire"' in html and "Shift+R" in html and 'id="cgeo"' in html
     assert "k==='r'&&e.shiftKey" in js and "/api/circuit/rewire" in js and "Re-wired for" in js
