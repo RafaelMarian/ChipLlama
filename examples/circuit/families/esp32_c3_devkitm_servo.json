@@ -1,0 +1,97 @@
+{
+ "schema": 2,
+ "name": "esp32_c3_devkitm_servo",
+ "title": "ESP32-C3-DevKitM-1: Servo sweep (PWM)",
+ "device": "ESP32-C3-DEVKITM",
+ "family": "esp32",
+ "power": "board",
+ "parts": [
+  {
+   "id": "U1",
+   "type": "mcu",
+   "x": 0,
+   "y": 0,
+   "rot": 0,
+   "params": {}
+  },
+  {
+   "id": "PWR1",
+   "type": "gnd",
+   "x": 190,
+   "y": 330,
+   "rot": 0,
+   "params": {}
+  },
+  {
+   "id": "M1",
+   "type": "servo",
+   "x": -190,
+   "y": 180,
+   "rot": 0,
+   "params": {
+    "min_us": 1000,
+    "max_us": 2000
+   },
+   "mx": true,
+   "my": true
+  },
+  {
+   "id": "PWR2",
+   "type": "gnd",
+   "x": -90,
+   "y": 230,
+   "rot": 0,
+   "params": {}
+  },
+  {
+   "id": "PWR3",
+   "type": "v5",
+   "x": -70,
+   "y": 20,
+   "rot": 0,
+   "params": {}
+  }
+ ],
+ "wires": [
+  {
+   "a": "U1.18",
+   "b": "PWR1.1",
+   "pts": []
+  },
+  {
+   "a": "M1.1",
+   "b": "PWR2.1",
+   "pts": [
+    {
+     "x": -90,
+     "y": 200
+    }
+   ]
+  },
+  {
+   "a": "M1.2",
+   "b": "PWR3.1",
+   "pts": [
+    {
+     "x": -70,
+     "y": 180
+    }
+   ]
+  },
+  {
+   "a": "U1.5",
+   "b": "M1.3",
+   "pts": [
+    {
+     "x": -100,
+     "y": 140
+    },
+    {
+     "x": -100,
+     "y": 160
+    }
+   ]
+  }
+ ],
+ "assign": {}
+}

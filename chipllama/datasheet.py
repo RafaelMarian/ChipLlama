@@ -20,16 +20,18 @@ PAGE_OFFSET = 0   # printed page N == PDF page N + PAGE_OFFSET (verified = 0 for
 def pages_for_spec(spec) -> list[int]:
     """Pick the datasheet pages relevant to a TimerSpec (register tables first)."""
     pages: list[int] = []
-    n = 2 if getattr(spec, "bits32", False) else spec.timer
+    n = spec.base if hasattr(spec, "base") else spec.timer
     if n == 1:
         pages += chipdb.PAGES["timer1"]
-    elif n == 2:
+    elif n in (2, 4):
         pages += chipdb.PAGES["timer2"]
     else:
         pages += chipdb.PAGES["timer3"]
     if spec.interrupt:
-        ints = {1: [84, 90, 97], 2: [84, 90, 98], 3: [84, 90, 99]}[3 if spec.bits32 else spec.timer]
-        pages += ints
+        irq = n + 1 if getattr(spec, "bits32", False) else spec.timer
+        pages += {1: [84, 90, 97], 2: [84, 90, 98], 3: [84, 90, 99], 4: [85, 91, 103], 5: [85, 91, 104]}[irq]
+    if getattr(spec, "gated", False):
+        pages += [142, 143] if n > 1 else [142]
     return list(dict.fromkeys(pages))
 
 

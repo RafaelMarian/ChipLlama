@@ -1,0 +1,74 @@
+{
+ "schema": 2,
+ "name": "arduino_uno_uart",
+ "title": "Arduino Uno R3: UART echo / hello",
+ "device": "ARDUINO-UNO",
+ "family": "avr",
+ "power": "board",
+ "parts": [
+  {
+   "id": "U1",
+   "type": "mcu",
+   "x": 0,
+   "y": 0,
+   "rot": 0,
+   "params": {}
+  },
+  {
+   "id": "PWR1",
+   "type": "gnd",
+   "x": 170,
+   "y": 410,
+   "rot": 0,
+   "params": {}
+  },
+  {
+   "id": "USB1",
+   "type": "uart_usb",
+   "x": 650,
+   "y": 60,
+   "rot": 0,
+   "params": {
+    "baud": 115200,
+    "io_v": 5.0
+   },
+   "my": true
+  },
+  {
+   "id": "PWR2",
+   "type": "gnd",
+   "x": 550,
+   "y": 130,
+   "rot": 0,
+   "params": {}
+  }
+ ],
+ "wires": [
+  {
+   "a": "U1.24",
+   "b": "PWR1.1",
+   "pts": []
+  },
+  {
+   "a": "U1.2",
+   "b": "USB1.2",
+   "pts": []
+  },
+  {
+   "a": "U1.1",
+   "b": "USB1.3",
+   "pts": []
+  },
+  {
+   "a": "USB1.1",
+   "b": "PWR2.1",
+   "pts": [
+    {
+     "x": 550,
+     "y": 100
+    }
+   ]
+  }
+ ],
+ "assign": {}
+}

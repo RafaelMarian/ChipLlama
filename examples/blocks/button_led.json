@@ -1,0 +1,66 @@
+{
+ "blocks": {
+  "languageVersion": 0,
+  "blocks": [
+   {
+    "type": "cl_on_start",
+    "inputs": {
+     "DO": {
+      "block": {
+       "type": "cl_pin_mode",
+       "fields": {
+        "PIN": "RA0",
+        "MODE": "OUTPUT"
+       }
+      }
+     }
+    },
+    "x": 20,
+    "y": 20
+   },
+   {
+    "type": "cl_on_pin_change",
+    "fields": {
+     "PIN": "RD6",
+     "PULLUP": "TRUE"
+    },
+    "inputs": {
+     "DO": {
+      "block": {
+       "type": "controls_if",
+       "inputs": {
+        "IF0": {
+         "block": {
+          "type": "logic_negate",
+          "inputs": {
+           "BOOL": {
+            "block": {
+             "type": "cl_pin_read",
+             "fields": {
+              "PIN": "RD6"
+             }
+            }
+           }
+          }
+         }
+        },
+        "DO0": {
+         "block": {
+          "type": "cl_pin_toggle",
+          "fields": {
+           "PIN": "RA0"
+          }
+         }
+        }
+       }
+      }
+     }
+    },
+    "x": 380,
+    "y": 20
+   }
+  ]
+ },
+ "variables": [],
+ "title": "Button on RD6 (pull-up, change notification) toggles the LED on RA0"
+}

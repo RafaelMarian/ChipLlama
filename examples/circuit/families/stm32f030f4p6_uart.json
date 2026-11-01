@@ -1,0 +1,84 @@
+{
+ "schema": 2,
+ "name": "stm32f030f4p6_uart",
+ "title": "STM32F030F4P6 TSSOP-20 module: UART echo / hello",
+ "device": "STM32F030F4P6",
+ "family": "stm32",
+ "power": "board",
+ "parts": [
+  {
+   "id": "U1",
+   "type": "mcu",
+   "x": 0,
+   "y": 0,
+   "rot": 0,
+   "params": {}
+  },
+  {
+   "id": "PWR1",
+   "type": "gnd",
+   "x": 170,
+   "y": 290,
+   "rot": 0,
+   "params": {}
+  },
+  {
+   "id": "USB1",
+   "type": "uart_usb",
+   "x": -270,
+   "y": 80,
+   "rot": 0,
+   "params": {
+    "baud": 115200,
+    "io_v": 3.3
+   },
+   "mx": true,
+   "my": true
+  },
+  {
+   "id": "PWR2",
+   "type": "gnd",
+   "x": -170,
+   "y": 150,
+   "rot": 0,
+   "params": {}
+  }
+ ],
+ "wires": [
+  {
+   "a": "U1.17",
+   "b": "PWR1.1",
+   "pts": []
+  },
+  {
+   "a": "U1.3",
+   "b": "USB1.2",
+   "pts": []
+  },
+  {
+   "a": "U1.4",
+   "b": "USB1.3",
+   "pts": [
+    {
+     "x": -160,
+     "y": 120
+    },
+    {
+     "x": -160,
+     "y": 80
+    }
+   ]
+  },
+  {
+   "a": "USB1.1",
+   "b": "PWR2.1",
+   "pts": [
+    {
+     "x": -170,
+     "y": 120
+    }
+   ]
+  }
+ ],
+ "assign": {}
+}

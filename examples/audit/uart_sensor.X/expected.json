@@ -1,0 +1,56 @@
+{
+  "project": "mplabx",
+  "device": "PIC24FJ256GB110",
+  "score": 0,
+  "findings": [
+    {
+      "rule": "ISR_FLAG",
+      "severity": "error",
+      "file": "main.c",
+      "line": 19
+    },
+    {
+      "rule": "IRQ_NO_ISR",
+      "severity": "error",
+      "file": "main.c",
+      "line": 36
+    },
+    {
+      "rule": "ANALOG_PIN",
+      "severity": "error",
+      "file": "main.c",
+      "line": 39
+    },
+    {
+      "rule": "FCY_MISSING",
+      "severity": "error",
+      "file": "main.c",
+      "line": 40
+    },
+    {
+      "rule": "PPS_UART_TX",
+      "severity": "error",
+      "file": "uart.c",
+      "line": 6
+    },
+    {
+      "rule": "PPS_UART_RX",
+      "severity": "error",
+      "file": "uart.c",
+      "line": 6
+    },
+    {
+      "rule": "ICS_MISMATCH",
+      "severity": "warning",
+      "file": "main.c",
+      "line": 9
+    },
+    {
+      "rule": "ISR_PSV",
+      "severity": "warning",
+      "file": "main.c",
+      "line": 19
+    }
+  ],
+  "score_after_fixes": 70
+}

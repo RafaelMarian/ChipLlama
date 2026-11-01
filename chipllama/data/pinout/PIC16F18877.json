@@ -1,0 +1,346 @@
+{
+"device": "PIC16F18877",
+"arch": "16Exxx",
+"pps": "complex-port",
+"source": "Microchip PIC16F1xxxx_DFP 1.32.471 edc/PIC16F18877.PIC <edc:PinList>",
+"pins": [
+{
+"num": 1,
+"names": [
+"VPP",
+"MCLR_n",
+"ICD_n",
+"IOCE3",
+"RE3"
+]
+},
+{
+"num": 2,
+"names": [
+"ANA0",
+"C1IN0-",
+"C2IN0-",
+"IOCA0",
+"RA0"
+]
+},
+{
+"num": 3,
+"names": [
+"ANA1",
+"C1IN1-",
+"C2IN1-",
+"IOCA1",
+"RA1"
+]
+},
+{
+"num": 4,
+"names": [
+"DAC1OUT1",
+"VREF-",
+"ANA2",
+"C1IN0+",
+"C2IN0+",
+"IOCA2",
+"RA2"
+]
+},
+{
+"num": 5,
+"names": [
+"VREF+",
+"ANA3",
+"C1IN1+",
+"IOCA3",
+"RA3"
+]
+},
+{
+"num": 6,
+"names": [
+"ANA4",
+"IOCA4",
+"RA4"
+]
+},
+{
+"num": 7,
+"names": [
+"ANA5",
+"IOCA5",
+"RA5"
+]
+},
+{
+"num": 8,
+"names": [
+"ANE0",
+"RE0"
+]
+},
+{
+"num": 9,
+"names": [
+"ANE1",
+"RE1"
+]
+},
+{
+"num": 10,
+"names": [
+"ANE2",
+"RE2"
+]
+},
+{
+"num": 11,
+"names": [
+"VDD"
+]
+},
+{
+"num": 12,
+"names": [
+"AVSS",
+"VSS"
+]
+},
+{
+"num": 13,
+"names": [
+"OSC1",
+"CLKIN",
+"ANA7",
+"IOCA7",
+"RA7"
+]
+},
+{
+"num": 14,
+"names": [
+"OSC2",
+"CLKOUT",
+"ANA6",
+"IOCA6",
+"RA6"
+]
+},
+{
+"num": 15,
+"names": [
+"SOSCO",
+"ANC0",
+"IOCC0",
+"RC0"
+]
+},
+{
+"num": 16,
+"names": [
+"SOSCI",
+"ANC1",
+"IOCC1",
+"RC1"
+]
+},
+{
+"num": 17,
+"names": [
+"ANC2",
+"IOCC2",
+"RC2"
+]
+},
+{
+"num": 18,
+"names": [
+"ANC3",
+"SMB_I2C",
+"IOCC3",
+"RC3"
+]
+},
+{
+"num": 19,
+"names": [
+"AND0",
+"SMB_I2C",
+"RD0"
+]
+},
+{
+"num": 20,
+"names": [
+"AND1",
+"SMB_I2C",
+"RD1"
+]
+},
+{
+"num": 21,
+"names": [
+"AND2",
+"RD2"
+]
+},
+{
+"num": 22,
+"names": [
+"AND3",
+"RD3"
+]
+},
+{
+"num": 23,
+"names": [
+"ANC4",
+"SMB_I2C",
+"IOCC4",
+"RC4"
+]
+},
+{
+"num": 24,
+"names": [
+"ANC5",
+"IOCC5",
+"RC5"
+]
+},
+{
+"num": 25,
+"names": [
+"ANC6",
+"IOCC6",
+"RC6"
+]
+},
+{
+"num": 26,
+"names": [
+"ANC7",
+"IOCC7",
+"RC7"
+]
+},
+{
+"num": 27,
+"names": [
+"AND4",
+"RD4"
+]
+},
+{
+"num": 28,
+"names": [
+"AND5",
+"RD5"
+]
+},
+{
+"num": 29,
+"names": [
+"AND6",
+"RD6"
+]
+},
+{
+"num": 30,
+"names": [
+"AND7",
+"RD7"
+]
+},
+{
+"num": 31,
+"names": [
+"VSS"
+]
+},
+{
+"num": 32,
+"names": [
+"AVDD",
+"VDD"
+]
+},
+{
+"num": 33,
+"names": [
+"ZCD",
+"ANB0",
+"C2IN1+",
+"IOCB0",
+"RB0"
+]
+},
+{
+"num": 34,
+"names": [
+"ANB1",
+"C1IN3-",
+"C2IN3-",
+"SMB_I2C",
+"IOCB1",
+"RB1"
+]
+},
+{
+"num": 35,
+"names": [
+"ANB2",
+"SMB_I2C",
+"IOCB2",
+"RB2"
+]
+},
+{
+"num": 36,
+"names": [
+"ANB3",
+"C1IN2-",
+"C2IN2-",
+"IOCB3",
+"RB3"
+]
+},
+{
+"num": 37,
+"names": [
+"ANB4",
+"IOCB4",
+"RB4"
+]
+},
+{
+"num": 38,
+"names": [
+"ANB5",
+"IOCB5",
+"RB5"
+]
+},
+{
+"num": 39,
+"names": [
+"ICSPCLK",
+"ICDCLK",
+"ANB6",
+"IOCB6",
+"RB6"
+]
+},
+{
+"num": 40,
+"names": [
+"ICSPDAT",
+"ICDDAT",
+"DAC1OUT2",
+"ANB7",
+"IOCB7",
+"RB7"
+]
+}
+]
+}

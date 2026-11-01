@@ -1,0 +1,88 @@
+{
+ "schema": 2,
+ "name": "stm32_bluepill_servo",
+ "title": "Blue Pill: Servo sweep (PWM)",
+ "device": "STM32-BLUEPILL",
+ "family": "stm32",
+ "power": "board",
+ "parts": [
+  {
+   "id": "U1",
+   "type": "mcu",
+   "x": 0,
+   "y": 0,
+   "rot": 0,
+   "params": {}
+  },
+  {
+   "id": "PWR1",
+   "type": "gnd",
+   "x": 170,
+   "y": 470,
+   "rot": 0,
+   "params": {}
+  },
+  {
+   "id": "M1",
+   "type": "servo",
+   "x": -250,
+   "y": 160,
+   "rot": 0,
+   "params": {
+    "min_us": 1000,
+    "max_us": 2000
+   },
+   "mx": true,
+   "my": true
+  },
+  {
+   "id": "PWR2",
+   "type": "gnd",
+   "x": -150,
+   "y": 210,
+   "rot": 0,
+   "params": {}
+  },
+  {
+   "id": "PWR3",
+   "type": "v5",
+   "x": -150,
+   "y": 100,
+   "rot": 0,
+   "params": {}
+  }
+ ],
+ "wires": [
+  {
+   "a": "U1.35",
+   "b": "PWR1.1",
+   "pts": []
+  },
+  {
+   "a": "M1.1",
+   "b": "PWR2.1",
+   "pts": [
+    {
+     "x": -150,
+     "y": 180
+    }
+   ]
+  },
+  {
+   "a": "M1.2",
+   "b": "PWR3.1",
+   "pts": [
+    {
+     "x": -150,
+     "y": 160
+    }
+   ]
+  },
+  {
+   "a": "U1.5",
+   "b": "M1.3",
+   "pts": []
+  }
+ ],
+ "assign": {}
+}

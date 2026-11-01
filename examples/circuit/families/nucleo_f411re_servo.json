@@ -1,0 +1,87 @@
+{
+ "schema": 2,
+ "name": "nucleo_f411re_servo",
+ "title": "Nucleo-F411RE: Servo sweep (PWM)",
+ "device": "NUCLEO-F411RE",
+ "family": "stm32",
+ "power": "board",
+ "parts": [
+  {
+   "id": "U1",
+   "type": "mcu",
+   "x": 0,
+   "y": 0,
+   "rot": 0,
+   "params": {}
+  },
+  {
+   "id": "PWR1",
+   "type": "gnd",
+   "x": 170,
+   "y": 610,
+   "rot": 0,
+   "params": {}
+  },
+  {
+   "id": "M1",
+   "type": "servo",
+   "x": 630,
+   "y": 260,
+   "rot": 0,
+   "params": {
+    "min_us": 1000,
+    "max_us": 2000
+   },
+   "my": true
+  },
+  {
+   "id": "PWR2",
+   "type": "gnd",
+   "x": 530,
+   "y": 310,
+   "rot": 0,
+   "params": {}
+  },
+  {
+   "id": "PWR3",
+   "type": "v5",
+   "x": 530,
+   "y": 200,
+   "rot": 0,
+   "params": {}
+  }
+ ],
+ "wires": [
+  {
+   "a": "U1.43",
+   "b": "PWR1.1",
+   "pts": []
+  },
+  {
+   "a": "M1.1",
+   "b": "PWR2.1",
+   "pts": [
+    {
+     "x": 530,
+     "y": 280
+    }
+   ]
+  },
+  {
+   "a": "M1.2",
+   "b": "PWR3.1",
+   "pts": [
+    {
+     "x": 530,
+     "y": 260
+    }
+   ]
+  },
+  {
+   "a": "U1.10",
+   "b": "M1.3",
+   "pts": []
+  }
+ ],
+ "assign": {}
+}

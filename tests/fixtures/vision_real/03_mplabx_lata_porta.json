@@ -1,0 +1,2 @@
+{"kind": "registers", "registers": {"LATA": "0x82AA", "PORTA": "0x82AA", "TRISA": "0x0000", "T2CON": "0x0000",
+ "PR2": "0xFFFF", "TMR2": "0x0000"}, "scope": {}, "serial": {}, "confidence": 0.85, "notes": "SFRs window"}

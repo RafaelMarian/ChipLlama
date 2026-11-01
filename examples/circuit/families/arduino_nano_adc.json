@@ -1,0 +1,84 @@
+{
+ "schema": 2,
+ "name": "arduino_nano_adc",
+ "title": "Arduino Nano 3: Potentiometer on ADC",
+ "device": "ARDUINO-NANO",
+ "family": "avr",
+ "power": "board",
+ "parts": [
+  {
+   "id": "U1",
+   "type": "mcu",
+   "x": 0,
+   "y": 0,
+   "rot": 0,
+   "params": {}
+  },
+  {
+   "id": "PWR1",
+   "type": "gnd",
+   "x": 170,
+   "y": 410,
+   "rot": 0,
+   "params": {}
+  },
+  {
+   "id": "RV1",
+   "type": "pot",
+   "x": -150,
+   "y": 40,
+   "rot": 0,
+   "params": {
+    "ohms": 10000
+   }
+  },
+  {
+   "id": "PWR2",
+   "type": "gnd",
+   "x": -150,
+   "y": 100,
+   "rot": 0,
+   "params": {}
+  },
+  {
+   "id": "PWR3",
+   "type": "v5",
+   "x": -150,
+   "y": -20,
+   "rot": 0,
+   "params": {}
+  }
+ ],
+ "wires": [
+  {
+   "a": "U1.26",
+   "b": "PWR1.1",
+   "pts": []
+  },
+  {
+   "a": "RV1.1",
+   "b": "PWR2.1",
+   "pts": []
+  },
+  {
+   "a": "U1.15",
+   "b": "RV1.2",
+   "pts": [
+    {
+     "x": -100,
+     "y": 60
+    },
+    {
+     "x": -100,
+     "y": 40
+    }
+   ]
+  },
+  {
+   "a": "RV1.3",
+   "b": "PWR3.1",
+   "pts": []
+  }
+ ],
+ "assign": {}
+}

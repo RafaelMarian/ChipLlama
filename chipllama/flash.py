@@ -50,8 +50,8 @@ def find_ipecmd(configured: str = "") -> str | None:
 
 
 def part_name(device: str) -> str:
-    d = device.upper()
-    return d[3:] if d.startswith("PIC") else d      # PIC24FJ256GB110 -> 24FJ256GB110
+    from .edc import compiler_cpu
+    return compiler_cpu(device)      # PIC24FJ256GB110 -> 24FJ256GB110, DSPIC33CK256MP506 -> 33CK256MP506
 
 
 def build_command(ipecmd: str, hex_file: str, s: Settings, verify: bool = True) -> list[str]:

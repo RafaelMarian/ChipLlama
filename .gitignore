@@ -10,3 +10,7 @@ out/
 *.egg-info/
 datasheets/*.pdf
 datasheets/pages/
+settings.json
+devices/
+*.PIC
+!tests/fixtures/*.PIC

@@ -1,0 +1,93 @@
+{
+ "schema": 2,
+ "name": "esp32_c3_devkitm_blink",
+ "title": "ESP32-C3-DevKitM-1: Blink LED",
+ "device": "ESP32-C3-DEVKITM",
+ "family": "esp32",
+ "power": "board",
+ "parts": [
+  {
+   "id": "U1",
+   "type": "mcu",
+   "x": 0,
+   "y": 0,
+   "rot": 0,
+   "params": {}
+  },
+  {
+   "id": "PWR1",
+   "type": "gnd",
+   "x": 190,
+   "y": 330,
+   "rot": 0,
+   "params": {}
+  },
+  {
+   "id": "R1",
+   "type": "resistor",
+   "x": 590,
+   "y": 140,
+   "rot": 270,
+   "params": {
+    "ohms": 330
+   }
+  },
+  {
+   "id": "LED1",
+   "type": "led",
+   "x": 750,
+   "y": 120,
+   "rot": 270,
+   "params": {
+    "color": "red",
+    "vf": 2.0,
+    "if_ma": 5
+   }
+  },
+  {
+   "id": "PWR2",
+   "type": "gnd",
+   "x": 810,
+   "y": 150,
+   "rot": 0,
+   "params": {}
+  }
+ ],
+ "wires": [
+  {
+   "a": "U1.18",
+   "b": "PWR1.1",
+   "pts": []
+  },
+  {
+   "a": "U1.10",
+   "b": "R1.1",
+   "pts": []
+  },
+  {
+   "a": "R1.2",
+   "b": "LED1.2",
+   "pts": [
+    {
+     "x": 700,
+     "y": 140
+    },
+    {
+     "x": 700,
+     "y": 120
+    }
+   ]
+  },
+  {
+   "a": "LED1.1",
+   "b": "PWR2.1",
+   "pts": [
+    {
+     "x": 810,
+     "y": 120
+    }
+   ]
+  }
+ ],
+ "assign": {}
+}

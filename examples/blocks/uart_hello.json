@@ -1,0 +1,49 @@
+{
+ "blocks": {
+  "languageVersion": 0,
+  "blocks": [
+   {
+    "type": "cl_on_start",
+    "inputs": {
+     "DO": {
+      "block": {
+       "type": "cl_uart_begin",
+       "fields": {
+        "BAUD": 115200,
+        "TX": 10,
+        "RX": 17
+       }
+      }
+     }
+    },
+    "x": 20,
+    "y": 20
+   },
+   {
+    "type": "cl_forever",
+    "inputs": {
+     "DO": {
+      "block": {
+       "type": "cl_uart_println",
+       "fields": {
+        "TEXT": "hello from ChipLlama"
+       },
+       "next": {
+        "block": {
+         "type": "cl_delay_ms",
+         "fields": {
+          "MS": 1000
+         }
+        }
+       }
+      }
+     }
+    },
+    "x": 380,
+    "y": 20
+   }
+  ]
+ },
+ "variables": [],
+ "title": "UART1 115200 on RP10/RP17, print hello every second"
+}

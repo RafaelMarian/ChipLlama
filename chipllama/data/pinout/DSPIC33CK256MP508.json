@@ -1,0 +1,684 @@
+{
+"device": "DSPIC33CK256MP508",
+"arch": "33xxxx",
+"pps": "complex",
+"source": "Microchip dsPIC33CK-MP_DFP 1.16.521 edc/DSPIC33CK256MP508.PIC <edc:PinList>",
+"pins": [
+{
+"num": 1,
+"names": [
+"RP46",
+"PWM1H",
+"PMD5",
+"RB14"
+]
+},
+{
+"num": 2,
+"names": [
+"AN20",
+"RE0"
+]
+},
+{
+"num": 3,
+"names": [
+"RP47",
+"PWM1L",
+"PMD6",
+"RB15"
+]
+},
+{
+"num": 4,
+"names": [
+"AN21",
+"RE1"
+]
+},
+{
+"num": 5,
+"names": [
+"RP60",
+"PWM8H",
+"PMD7",
+"RC12"
+]
+},
+{
+"num": 6,
+"names": [
+"RP61",
+"PWM8L",
+"PMA5",
+"RC13"
+]
+},
+{
+"num": 7,
+"names": [
+"RP62",
+"PWM6H",
+"PMA4",
+"RC14"
+]
+},
+{
+"num": 8,
+"names": [
+"RP63",
+"PWM6L",
+"PMA3",
+"RC15"
+]
+},
+{
+"num": 9,
+"names": [
+"MCLR"
+]
+},
+{
+"num": 10,
+"names": [
+"RP79",
+"PCI22",
+"PMA2",
+"RD15"
+]
+},
+{
+"num": 11,
+"names": [
+"vss"
+]
+},
+{
+"num": 12,
+"names": [
+"vdd"
+]
+},
+{
+"num": 13,
+"names": [
+"RP78",
+"PCI21",
+"RD14"
+]
+},
+{
+"num": 14,
+"names": [
+"ANN2",
+"RP77",
+"RD13"
+]
+},
+{
+"num": 15,
+"names": [
+"AN12",
+"ANN0",
+"RP48",
+"RC0"
+]
+},
+{
+"num": 16,
+"names": [
+"OA1OUT",
+"AN0",
+"CMP1A",
+"IBIAS0",
+"RA0"
+]
+},
+{
+"num": 17,
+"names": [
+"AN22",
+"RE2"
+]
+},
+{
+"num": 18,
+"names": [
+"OA1IN-",
+"ANA1",
+"RA1"
+]
+},
+{
+"num": 19,
+"names": [
+"AN23",
+"RE3"
+]
+},
+{
+"num": 20,
+"names": [
+"OA1IN+",
+"AN9",
+"PMA6",
+"RA2"
+]
+},
+{
+"num": 21,
+"names": [
+"DACOUT1",
+"AN3",
+"CMP1C",
+"RA3"
+]
+},
+{
+"num": 22,
+"names": [
+"RE4"
+]
+},
+{
+"num": 23,
+"names": [
+"OA3OUT",
+"AN4",
+"CMP3B",
+"IBIAS3",
+"RA4"
+]
+},
+{
+"num": 24,
+"names": [
+"RE5"
+]
+},
+{
+"num": 25,
+"names": [
+"AVdd"
+]
+},
+{
+"num": 26,
+"names": [
+"AVss"
+]
+},
+{
+"num": 27,
+"names": [
+"RP76",
+"RD12"
+]
+},
+{
+"num": 28,
+"names": [
+"OA3IN-",
+"AN13",
+"CMP1B",
+"ISRC0",
+"RP49",
+"PMA7",
+"RC1"
+]
+},
+{
+"num": 29,
+"names": [
+"OA3IN+",
+"AN14",
+"CMP2B",
+"ISRC1",
+"RP50",
+"PMD13",
+"PMA13",
+"RC2"
+]
+},
+{
+"num": 30,
+"names": [
+"AN17",
+"ANN1",
+"IBIAS1",
+"RP54",
+"PMD12",
+"PMA12",
+"RC6"
+]
+},
+{
+"num": 31,
+"names": [
+"vdd"
+]
+},
+{
+"num": 32,
+"names": [
+"vss"
+]
+},
+{
+"num": 33,
+"names": [
+"AN15",
+"CMP2A",
+"IBIAS2",
+"RP51",
+"PMD11",
+"PMA11",
+"RC3"
+]
+},
+{
+"num": 34,
+"names": [
+"OSCI",
+"CLKI",
+"AN5",
+"RP32",
+"PMD10",
+"PMA10",
+"RB0"
+]
+},
+{
+"num": 35,
+"names": [
+"OSCO",
+"CLKO",
+"AN6",
+"RP33",
+"PMA1/PMALH",
+"PSA1",
+"RB1"
+]
+},
+{
+"num": 36,
+"names": [
+"AN19",
+"CMP2C",
+"RP75",
+"PMA0/PMALL",
+"PSA0",
+"RD11"
+]
+},
+{
+"num": 37,
+"names": [
+"RE6"
+]
+},
+{
+"num": 38,
+"names": [
+"AN18",
+"CMP3C",
+"ISRC3",
+"RP74",
+"PMD9",
+"PMA9",
+"RD10"
+]
+},
+{
+"num": 39,
+"names": [
+"RE7"
+]
+},
+{
+"num": 40,
+"names": [
+"AN16",
+"ISRC2",
+"RP55",
+"PMD8",
+"PMA8",
+"RC7"
+]
+},
+{
+"num": 41,
+"names": [
+"OA2OUT",
+"AN1",
+"AN7",
+"ANA0",
+"CMP1D",
+"CMP2D",
+"CMP3D",
+"RP34",
+"SCL3",
+"INT0",
+"RB2"
+]
+},
+{
+"num": 42,
+"names": [
+"RE8"
+]
+},
+{
+"num": 43,
+"names": [
+"PGD2",
+"OA2IN-",
+"AN8",
+"RP35",
+"RB3"
+]
+},
+{
+"num": 44,
+"names": [
+"RE9"
+]
+},
+{
+"num": 45,
+"names": [
+"PGC2",
+"OA2IN+",
+"RP36",
+"RB4"
+]
+},
+{
+"num": 46,
+"names": [
+"RP56",
+"ASDA1",
+"SCK2",
+"RC8"
+]
+},
+{
+"num": 47,
+"names": [
+"RP57",
+"ASCL1",
+"SDI2",
+"RC9"
+]
+},
+{
+"num": 48,
+"names": [
+"RP73",
+"PCI20",
+"RD9"
+]
+},
+{
+"num": 49,
+"names": [
+"RP72",
+"SDO2",
+"PCI19",
+"RD8"
+]
+},
+{
+"num": 50,
+"names": [
+"vss"
+]
+},
+{
+"num": 51,
+"names": [
+"vdd"
+]
+},
+{
+"num": 52,
+"names": [
+"RP71",
+"PMD15",
+"RD7"
+]
+},
+{
+"num": 53,
+"names": [
+"RP70",
+"PMD14",
+"RD6"
+]
+},
+{
+"num": 54,
+"names": [
+"RP69",
+"PMA15/PMCS2",
+"RD5"
+]
+},
+{
+"num": 55,
+"names": [
+"PGD3",
+"RP37",
+"SDA2",
+"PMA14/PMCS1",
+"PSCS",
+"RB5"
+]
+},
+{
+"num": 56,
+"names": [
+"PGC3",
+"RP38",
+"SCL2",
+"RB6"
+]
+},
+{
+"num": 57,
+"names": [
+"RE10"
+]
+},
+{
+"num": 58,
+"names": [
+"TDO",
+"AN2",
+"CMP3A",
+"RP39",
+"SDA3",
+"RB7"
+]
+},
+{
+"num": 59,
+"names": [
+"RE11"
+]
+},
+{
+"num": 60,
+"names": [
+"PGD1",
+"AN10",
+"RP40",
+"SCL1",
+"RB8"
+]
+},
+{
+"num": 61,
+"names": [
+"PGC1",
+"AN11",
+"RP41",
+"SDA1",
+"RB9"
+]
+},
+{
+"num": 62,
+"names": [
+"RE12"
+]
+},
+{
+"num": 63,
+"names": [
+"RP52",
+"PWM5H",
+"ASDA2",
+"RC4"
+]
+},
+{
+"num": 64,
+"names": [
+"RE13"
+]
+},
+{
+"num": 65,
+"names": [
+"RP53",
+"PWM5L",
+"ASCL2",
+"PMWR/PMENB",
+"PSWR",
+"RC5"
+]
+},
+{
+"num": 66,
+"names": [
+"RP58",
+"PWM7H",
+"PMRD/PMWRn",
+"PSRD",
+"RC10"
+]
+},
+{
+"num": 67,
+"names": [
+"RP59",
+"PWM7L",
+"RC11"
+]
+},
+{
+"num": 68,
+"names": [
+"RP68",
+"ASDA3",
+"RD4"
+]
+},
+{
+"num": 69,
+"names": [
+"RP67",
+"ASCL3",
+"RD3"
+]
+},
+{
+"num": 70,
+"names": [
+"vss"
+]
+},
+{
+"num": 71,
+"names": [
+"vdd"
+]
+},
+{
+"num": 72,
+"names": [
+"RP66",
+"RD2"
+]
+},
+{
+"num": 73,
+"names": [
+"RP65",
+"PWM4H",
+"RD1"
+]
+},
+{
+"num": 74,
+"names": [
+"RP64",
+"PWM4L",
+"PMD0",
+"RD0"
+]
+},
+{
+"num": 75,
+"names": [
+"TMS",
+"RP42",
+"PWM3H",
+"PMD1",
+"RB10"
+]
+},
+{
+"num": 76,
+"names": [
+"TCK",
+"RP43",
+"PWM3L",
+"PMD2",
+"RB11"
+]
+},
+{
+"num": 77,
+"names": [
+"RE14"
+]
+},
+{
+"num": 78,
+"names": [
+"TDI",
+"RP44",
+"PWM2H",
+"PMD3",
+"RB12"
+]
+},
+{
+"num": 79,
+"names": [
+"RE15"
+]
+},
+{
+"num": 80,
+"names": [
+"RP45",
+"PWM2L",
+"PMD4",
+"RB13"
+]
+}
+]
+}

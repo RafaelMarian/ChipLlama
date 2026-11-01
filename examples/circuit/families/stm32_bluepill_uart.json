@@ -1,0 +1,84 @@
+{
+ "schema": 2,
+ "name": "stm32_bluepill_uart",
+ "title": "Blue Pill: UART echo / hello",
+ "device": "STM32-BLUEPILL",
+ "family": "stm32",
+ "power": "board",
+ "parts": [
+  {
+   "id": "U1",
+   "type": "mcu",
+   "x": 0,
+   "y": 0,
+   "rot": 0,
+   "params": {}
+  },
+  {
+   "id": "PWR1",
+   "type": "gnd",
+   "x": 170,
+   "y": 470,
+   "rot": 0,
+   "params": {}
+  },
+  {
+   "id": "USB1",
+   "type": "uart_usb",
+   "x": -270,
+   "y": 140,
+   "rot": 0,
+   "params": {
+    "baud": 115200,
+    "io_v": 3.3
+   },
+   "mx": true,
+   "my": true
+  },
+  {
+   "id": "PWR2",
+   "type": "gnd",
+   "x": -170,
+   "y": 210,
+   "rot": 0,
+   "params": {}
+  }
+ ],
+ "wires": [
+  {
+   "a": "U1.35",
+   "b": "PWR1.1",
+   "pts": []
+  },
+  {
+   "a": "U1.6",
+   "b": "USB1.2",
+   "pts": []
+  },
+  {
+   "a": "U1.7",
+   "b": "USB1.3",
+   "pts": [
+    {
+     "x": -160,
+     "y": 180
+    },
+    {
+     "x": -160,
+     "y": 140
+    }
+   ]
+  },
+  {
+   "a": "USB1.1",
+   "b": "PWR2.1",
+   "pts": [
+    {
+     "x": -170,
+     "y": 180
+    }
+   ]
+  }
+ ],
+ "assign": {}
+}

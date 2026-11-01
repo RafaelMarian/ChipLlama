@@ -1,0 +1,131 @@
+{
+ "schema": 2,
+ "name": "arduino_nano_button",
+ "title": "Arduino Nano 3: Button toggles LED",
+ "device": "ARDUINO-NANO",
+ "family": "avr",
+ "power": "board",
+ "parts": [
+  {
+   "id": "U1",
+   "type": "mcu",
+   "x": 0,
+   "y": 0,
+   "rot": 0,
+   "params": {}
+  },
+  {
+   "id": "PWR1",
+   "type": "gnd",
+   "x": 170,
+   "y": 410,
+   "rot": 0,
+   "params": {}
+  },
+  {
+   "id": "R1",
+   "type": "resistor",
+   "x": 530,
+   "y": 340,
+   "rot": 270,
+   "params": {
+    "ohms": 470
+   }
+  },
+  {
+   "id": "LED1",
+   "type": "led",
+   "x": 690,
+   "y": 320,
+   "rot": 270,
+   "params": {
+    "color": "red",
+    "vf": 2.0,
+    "if_ma": 5
+   }
+  },
+  {
+   "id": "PWR2",
+   "type": "gnd",
+   "x": 750,
+   "y": 350,
+   "rot": 0,
+   "params": {}
+  },
+  {
+   "id": "SW1",
+   "type": "button",
+   "x": 600,
+   "y": 120,
+   "rot": 0,
+   "params": {
+    "pullup": "internal",
+    "debounce_ms": 20
+   }
+  },
+  {
+   "id": "PWR3",
+   "type": "gnd",
+   "x": 660,
+   "y": 100,
+   "rot": 270,
+   "params": {}
+  }
+ ],
+ "wires": [
+  {
+   "a": "U1.26",
+   "b": "PWR1.1",
+   "pts": []
+  },
+  {
+   "a": "U1.14",
+   "b": "R1.1",
+   "pts": [
+    {
+     "x": 480,
+     "y": 320
+    },
+    {
+     "x": 480,
+     "y": 340
+    }
+   ]
+  },
+  {
+   "a": "R1.2",
+   "b": "LED1.2",
+   "pts": [
+    {
+     "x": 640,
+     "y": 340
+    },
+    {
+     "x": 640,
+     "y": 320
+    }
+   ]
+  },
+  {
+   "a": "LED1.1",
+   "b": "PWR2.1",
+   "pts": [
+    {
+     "x": 750,
+     "y": 320
+    }
+   ]
+  },
+  {
+   "a": "U1.3",
+   "b": "SW1.1",
+   "pts": []
+  },
+  {
+   "a": "SW1.3",
+   "b": "PWR3.1",
+   "pts": []
+  }
+ ],
+ "assign": {}
+}

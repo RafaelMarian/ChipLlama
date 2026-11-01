@@ -1,0 +1,83 @@
+/* ChipLlama light theme. Dark stays the default (app.css); html[data-theme=light] overrides. */
+html[data-theme=light]{color-scheme:light;
+ --bg:#f4f5f9;--bg2:#ffffff;--panel:rgba(255,255,255,.86);--panel-solid:#ffffff;--panel2:#eef0f6;--input:#ffffff;
+ --line:rgba(20,24,40,.09);--line2:rgba(20,24,40,.16);
+ --tx:#161a26;--tx2:#3d4356;--mut:#5c6378;
+ --acc:#4c56d6;--acc2:#7c4ddb;--accg:linear-gradient(135deg,#5865f2 0%,#8b5cf6 100%);
+ --ok:#0b7d55;--warn:#8a5a00;--bad:#c0283b;--info:#3c4cc7;
+ --shadow:0 1px 2px rgba(20,24,40,.05),0 8px 24px rgba(20,24,40,.07);}
+html[data-theme=dark]{color-scheme:dark}
+html[data-theme=light] body:before{background:radial-gradient(900px 500px at 75% -10%,rgba(88,101,242,.08),transparent 60%),radial-gradient(700px 420px at 10% 110%,rgba(139,92,246,.05),transparent 60%)}
+html[data-theme=light] ::selection{background:rgba(88,101,242,.22)}
+html[data-theme=light] .side{background:rgba(255,255,255,.8)}
+html[data-theme=light] .top{background:rgba(244,245,249,.82)}
+html[data-theme=light] .side nav button:hover{background:rgba(20,24,40,.05)}
+html[data-theme=light] .side nav button.on{background:rgba(88,101,242,.1);color:#1e2380;box-shadow:inset 0 0 0 1px rgba(88,101,242,.25)}
+html[data-theme=light] .card:before{background:linear-gradient(180deg,rgba(255,255,255,.6),transparent 40%)}
+html[data-theme=light] .mark{box-shadow:0 6px 18px rgba(88,101,242,.25)}
+html[data-theme=light] button.p,html[data-theme=light] a.btn.p{box-shadow:0 4px 14px rgba(88,101,242,.25),inset 0 1px 0 rgba(255,255,255,.25)}
+html[data-theme=light] button.s{background:#fff}html[data-theme=light] button.s:hover{background:#eef0f6}
+html[data-theme=light] button.d{background:rgba(192,40,59,.08);color:#a3192c;border-color:rgba(192,40,59,.4)}
+html[data-theme=light] .ex{background:#fff}html[data-theme=light] .ex:hover,html[data-theme=light] details summary:hover,html[data-theme=light] .exmore:hover{color:#1e2380}
+html[data-theme=light] .pill.ok{background:rgba(11,125,85,.09);border-color:rgba(11,125,85,.25)}html[data-theme=light] .pill.warn{background:rgba(138,90,0,.08);border-color:rgba(138,90,0,.25)}
+html[data-theme=light] .pill.bad{background:rgba(192,40,59,.08);border-color:rgba(192,40,59,.25)}html[data-theme=light] .pill.info{background:rgba(60,76,199,.08);border-color:rgba(60,76,199,.22)}
+html[data-theme=light] #chips .pill:before{box-shadow:none}
+html[data-theme=light] pre{background:#f7f8fb;color:#1f2433;border-color:var(--line2)}
+html[data-theme=light] .diff .a{color:#0a6a47;background:rgba(11,125,85,.08)}html[data-theme=light] .diff .r{color:#a3192c;background:rgba(192,40,59,.07)}html[data-theme=light] .diff .h{color:#3c4cc7}
+html[data-theme=light] .tk-k{color:#8a2bb5}html[data-theme=light] .tk-t{color:#0b5fa5}html[data-theme=light] .tk-n{color:#9a4a00}html[data-theme=light] .tk-s{color:#0b7d55}html[data-theme=light] .tk-c{color:#6b7280;font-style:italic}html[data-theme=light] .tk-p{color:#a3192c}
+html[data-theme=light] .doc .v code{color:#2a33a8;background:#f2f3f8}
+html[data-theme=light] .dot.info{background:rgba(20,24,40,.06)}
+html[data-theme=light] .drop{background:rgba(255,255,255,.6)}
+html[data-theme=light] .toast{background:rgba(255,255,255,.96);box-shadow:0 12px 32px rgba(20,24,40,.15)}
+html[data-theme=light] dialog{box-shadow:0 24px 60px rgba(20,24,40,.25)}html[data-theme=light] dialog::backdrop{background:rgba(20,24,40,.35)}
+html[data-theme=light] .rule{color:#2a33a8}html[data-theme=light] .xl code{color:#2a33a8}
+html[data-theme=light] .ptbl td{border-bottom-color:var(--line)}html[data-theme=light] .xl{border-bottom-color:var(--line)}html[data-theme=light] .pstat{background:#fff}
+html[data-theme=light] .blocklyMainBackground{fill:#fbfbfd!important}
+html[data-theme=light] .blocklyToolboxDiv,html[data-theme=light] .blocklyToolbox{background:#f2f3f8!important}
+html[data-theme=light] .blocklyFlyoutBackground{fill:#e9ebf3!important}
+/* scrollbars */
+html[data-theme=light]{scrollbar-color:#c3c7d4 transparent}
+html[data-theme=dark],html:not([data-theme]){scrollbar-color:#2e3444 transparent}
+::-webkit-scrollbar{width:10px;height:10px}::-webkit-scrollbar-thumb{background:#2e3444;border-radius:8px;border:2px solid transparent;background-clip:padding-box}
+html[data-theme=light] ::-webkit-scrollbar-thumb{background:#c3c7d4;background-clip:padding-box}
+/* theme toggle */
+.thbtn{display:inline-grid;place-items:center;width:34px;height:34px;flex:none;border-radius:10px;border:1px solid var(--line2);background:var(--panel2);color:var(--tx2);cursor:pointer;transition:.15s}
+.thbtn:hover{color:var(--tx)}.thbtn svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.thbtn .sun{display:none}html[data-theme=light] .thbtn .sun{display:block}html[data-theme=light] .thbtn .moon{display:none}
+
+/* ---------- Circuit: KiCad default light schematic */
+html[data-theme=light] #cwrap{background:#f5f4ef}
+html[data-theme=light] .cgd{fill:#c9c6b8}html[data-theme=light] .cgd.m{fill:#a8a493}
+html[data-theme=light] .csl,html[data-theme=light] .csb{stroke:#840000}
+html[data-theme=light] .csb.f,html[data-theme=light] .csd{fill:#840000;stroke:#840000}
+html[data-theme=light] .csb.f2,html[data-theme=light] .csb.mcu{fill:#ffffc2}
+html[data-theme=light] .csb.glab{fill:#fff;stroke:#1f2433}
+html[data-theme=light] .csl.nc{stroke:#0000c8}
+html[data-theme=light] .cpart.sel .csl,html[data-theme=light] .cpart.sel .csb{stroke:#c26a00}html[data-theme=light] .cpart.sel .csb.f{fill:#c26a00}
+html[data-theme=light] .cpart.sel .chit{fill:rgba(194,106,0,.06);stroke:#c26a00}
+html[data-theme=light] .cpart.bad .csb{stroke:#d00018}
+html[data-theme=light] .cspin{stroke:#840000}html[data-theme=light] .cspin.pw{stroke:#a35f00}html[data-theme=light] .cspin.used{stroke:#008400}html[data-theme=light] .cspin.bad{stroke:#d00018}
+html[data-theme=light] .cep:hover{fill:rgba(0,132,0,.18);stroke:#008400}
+html[data-theme=light] .cjn,html[data-theme=light] .cw-dot{fill:#008400}
+html[data-theme=light] .cw{stroke:#008400}html[data-theme=light] .cw.sel{stroke:#c26a00}html[data-theme=light] .cw.hl{stroke:#00b000}html[data-theme=light] .cw.tmp{stroke:#c26a00}
+html[data-theme=light] .ccur{stroke:#c26a00}html[data-theme=light] .cwl{stroke:#008400}
+html[data-theme=light] .cbox{fill:rgba(76,86,214,.07);stroke:#4c56d6}html[data-theme=light] .cbox.cross{fill:rgba(0,132,0,.06);stroke:#008400}
+html[data-theme=light] .cpl,html[data-theme=light] .cpl.mp{fill:#006464}html[data-theme=light] .cpl.s{fill:#6b3b3b}html[data-theme=light] .cpl.fn{fill:#8a4b00}
+html[data-theme=light] .cpn{fill:#7a2a2a}
+html[data-theme=light] .cref{fill:#006464}html[data-theme=light] .cval{fill:#2f5f5f}html[data-theme=light] .cpwr{fill:#840000}html[data-theme=light] .clab{fill:#111}html[data-theme=light] .cmod{fill:#4a4f5c}
+html[data-theme=light] .cmcu-t{fill:#1a1a1a}html[data-theme=light] .cmcu-s{fill:#555a66}html[data-theme=light] .csym-t{fill:#840000}
+html[data-theme=light] .cid{fill:#1a1a1a}html[data-theme=light] .cty{fill:#4a4f5c}
+html[data-theme=light] .cbody{fill:#ffffc2;stroke:#840000}html[data-theme=light] .cbody.mcu{fill:#ffffc2;stroke:#840000;filter:none}
+html[data-theme=light] .cpin{stroke:#840000;fill:#fff}html[data-theme=light] .cpin.used{stroke:#008400;fill:#008400}
+html[data-theme=light] .cerc path{fill:#d00018;stroke:#fff}html[data-theme=light] .cerc.warning path{fill:#e09000}html[data-theme=light] .cerc-t{fill:#fff}html[data-theme=light] .cerc.warning .cerc-t{fill:#1a1a1a}
+html[data-theme=light] .cpinhl{stroke:#c26a00}
+html[data-theme=light] .cpo{stroke:#7d8aa8}html[data-theme=light] .cdang{stroke:#d00018}
+html[data-theme=light] #ctip,html[data-theme=light] #cpop{background:rgba(255,255,255,.98);color:var(--tx)}
+html[data-theme=light] .cgt td.ok,html[data-theme=light] .ccl .ok{color:var(--ok)}html[data-theme=light] .cgt tr.nc td:first-child,html[data-theme=light] .ccl .todo{color:var(--warn)}
+/* code tokens (dark palette; light palette above) */
+.tk-k{color:#c792ea}.tk-t{color:#82aaff}.tk-n{color:#f78c6c}.tk-s{color:#c3e88d}.tk-c{color:#6b7389;font-style:italic}.tk-p{color:#ff8f9b}
+#bws pattern line{stroke:#1a2234}html[data-theme=light] #bws pattern line{stroke:#d9dce6}
+html[data-theme=light] .cpal-c{filter:brightness(.62) saturate(1.3)}
+/* status/help bar over the sheet: readable pill in both themes */
+.chelp{background:rgba(11,14,21,.9);padding:3px 8px;border-radius:6px;right:10px;border:1px solid var(--line)}
+html[data-theme=light] .chelp{background:rgba(255,255,255,.92)}

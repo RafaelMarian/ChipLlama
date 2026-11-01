@@ -1,0 +1,53 @@
+{
+ "title": "STM32F030F4P6: Button lights the LED",
+ "device": "STM32F030F4P6",
+ "circuit": "stm32f030f4p6_button",
+ "blocks": {
+  "languageVersion": 0,
+  "blocks": [
+   {
+    "type": "cl_forever",
+    "inputs": {
+     "DO": {
+      "block": {
+       "type": "controls_if",
+       "inputs": {
+        "IF0": {
+         "block": {
+          "type": "cl_button_read",
+          "fields": {
+           "PART": "sw1"
+          }
+         }
+        },
+        "DO0": {
+         "block": {
+          "type": "cl_led_set",
+          "fields": {
+           "PART": "led1",
+           "VALUE": "ON"
+          }
+         }
+        },
+        "ELSE": {
+         "block": {
+          "type": "cl_led_set",
+          "fields": {
+           "PART": "led1",
+           "VALUE": "OFF"
+          }
+         }
+        }
+       },
+       "extraState": {
+        "hasElse": true
+       }
+      }
+     }
+    },
+    "x": 20,
+    "y": 20
+   }
+  ]
+ }
+}

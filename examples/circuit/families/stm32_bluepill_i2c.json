@@ -1,0 +1,192 @@
+{
+ "schema": 2,
+ "name": "stm32_bluepill_i2c",
+ "title": "Blue Pill: TMP102 I2C temperature",
+ "device": "STM32-BLUEPILL",
+ "family": "stm32",
+ "power": "board",
+ "parts": [
+  {
+   "id": "U1",
+   "type": "mcu",
+   "x": 0,
+   "y": 0,
+   "rot": 0,
+   "params": {}
+  },
+  {
+   "id": "PWR1",
+   "type": "gnd",
+   "x": 170,
+   "y": 470,
+   "rot": 0,
+   "params": {}
+  },
+  {
+   "id": "S1",
+   "type": "tmp102",
+   "x": -350,
+   "y": 330,
+   "rot": 0,
+   "params": {
+    "addr": "0x48",
+    "pullups": false
+   },
+   "mx": true,
+   "my": true
+  },
+  {
+   "id": "R10",
+   "type": "resistor",
+   "x": -190,
+   "y": 220,
+   "rot": 0,
+   "params": {
+    "ohms": 4700
+   }
+  },
+  {
+   "id": "R11",
+   "type": "resistor",
+   "x": -270,
+   "y": 160,
+   "rot": 0,
+   "params": {
+    "ohms": 4700
+   }
+  },
+  {
+   "id": "PWR2",
+   "type": "vdd33",
+   "x": -190,
+   "y": 360,
+   "rot": 90,
+   "params": {}
+  },
+  {
+   "id": "PWR3",
+   "type": "gnd",
+   "x": -250,
+   "y": 400,
+   "rot": 0,
+   "params": {}
+  },
+  {
+   "id": "PWR4",
+   "type": "vdd33",
+   "x": -190,
+   "y": 160,
+   "rot": 0,
+   "params": {}
+  },
+  {
+   "id": "PWR5",
+   "type": "vdd33",
+   "x": -270,
+   "y": 100,
+   "rot": 0,
+   "params": {}
+  },
+  {
+   "id": "JN1",
+   "type": "junction",
+   "params": {},
+   "x": -190,
+   "y": 320,
+   "rot": 0
+  },
+  {
+   "id": "JN2",
+   "type": "junction",
+   "params": {},
+   "x": -260,
+   "y": 300,
+   "rot": 0
+  }
+ ],
+ "wires": [
+  {
+   "a": "U1.35",
+   "b": "PWR1.1",
+   "pts": []
+  },
+  {
+   "a": "S1.1",
+   "b": "PWR2.1",
+   "pts": []
+  },
+  {
+   "a": "S1.2",
+   "b": "PWR3.1",
+   "pts": [
+    {
+     "x": -250,
+     "y": 340
+    }
+   ]
+  },
+  {
+   "a": "U1.14",
+   "b": "JN1.1",
+   "pts": []
+  },
+  {
+   "a": "U1.15",
+   "b": "JN2.1",
+   "pts": [
+    {
+     "x": -140,
+     "y": 340
+    },
+    {
+     "x": -140,
+     "y": 330
+    },
+    {
+     "x": -260,
+     "y": 330
+    }
+   ]
+  },
+  {
+   "a": "R10.2",
+   "b": "JN1.1",
+   "pts": []
+  },
+  {
+   "a": "R11.2",
+   "b": "JN2.1",
+   "pts": [
+    {
+     "x": -270,
+     "y": 270
+    },
+    {
+     "x": -260,
+     "y": 270
+    }
+   ]
+  },
+  {
+   "a": "R10.1",
+   "b": "PWR4.1",
+   "pts": []
+  },
+  {
+   "a": "R11.1",
+   "b": "PWR5.1",
+   "pts": []
+  },
+  {
+   "a": "JN1.1",
+   "b": "S1.3",
+   "pts": []
+  },
+  {
+   "a": "JN2.1",
+   "b": "S1.4",
+   "pts": []
+  }
+ ],
+ "assign": {}
+}

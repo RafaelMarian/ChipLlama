@@ -46,10 +46,22 @@ def test_link_builds_hex(monkeypatch, tmp_path):
 
     def runner(cmd, **kw):
         cmds.append(cmd)
+        if cmd[0].endswith("xc16-bin2hex"):
+            (tmp_path / "main.hex").write_text(":00000001FF\n")
         return SimpleNamespace(returncode=0, stdout="", stderr="")
 
     r = compile_c(GOOD_T1, Settings(), runner=runner, link=True, workdir=str(tmp_path))
     assert r.status == "ok" and r.hex_path.endswith("main.hex") and cmds[1][0].endswith("xc16-bin2hex")
+    link = cmds[0]
+    assert "-mcpu=24FJ256GB110" in link and "-omf=elf" in link and "-c" not in link
+    assert any(a.startswith("-Wl,--script=p24FJ256GB110.gld,--heap=0") for a in link)
+
+
+def test_link_without_hex_is_not_flashable(monkeypatch, tmp_path):
+    monkeypatch.setattr("chipllama.compiler.find_tool", lambda n, c="": f"/x/{n}")
+    r = compile_c(GOOD_T1, Settings(), runner=lambda cmd, **kw: SimpleNamespace(returncode=0, stdout="", stderr=""),
+                  link=True, workdir=str(tmp_path))
+    assert r.hex_path is None
 
 
 # ----- flashing (PICkit 5, ipecmd)

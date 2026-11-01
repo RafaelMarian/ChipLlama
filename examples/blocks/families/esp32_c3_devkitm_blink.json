@@ -1,0 +1,29 @@
+{
+ "title": "ESP32-C3-DEVKITM: Blink (every 500 ms)",
+ "device": "ESP32-C3-DEVKITM",
+ "circuit": "esp32_c3_devkitm_blink",
+ "blocks": {
+  "languageVersion": 0,
+  "blocks": [
+   {
+    "type": "cl_every",
+    "fields": {
+     "MS": 500
+    },
+    "inputs": {
+     "DO": {
+      "block": {
+       "type": "cl_led_set",
+       "fields": {
+        "PART": "led1",
+        "VALUE": "TOGGLE"
+       }
+      }
+     }
+    },
+    "x": 20,
+    "y": 20
+   }
+  ]
+ }
+}

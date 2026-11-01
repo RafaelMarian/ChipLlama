@@ -15,7 +15,7 @@ _LINE = re.compile(r"\b([A-Za-z][A-Za-z0-9]{2,7})\s*(?:\(0[xX][0-9a-fA-F]+\))?\s
 
 def parse_dump(text: str) -> dict[str, int]:
     regs: dict[str, int] = {}
-    known = set(chipdb.REGISTERS) | set(chipdb.DATA_REGS)
+    known = set(chipdb.CORE_NAMES)
     for m in _LINE.finditer(text):
         name = m.group(1).upper()
         if name not in known:
@@ -146,7 +146,7 @@ def transcribe_images(model: ChatModel, images: list[bytes]) -> dict[str, int]:
         raise ModelError("vision transcription returned no JSON")
     j = json.loads(m.group(0))
     out = {}
-    known = set(chipdb.REGISTERS) | set(chipdb.DATA_REGS)
+    known = set(chipdb.CORE_NAMES)
     for k, v in j.items():
         k = k.upper().strip()
         try:

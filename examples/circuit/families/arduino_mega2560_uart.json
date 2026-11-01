@@ -1,0 +1,83 @@
+{
+ "schema": 2,
+ "name": "arduino_mega2560_uart",
+ "title": "Arduino Mega 2560 R3: UART echo / hello",
+ "device": "ARDUINO-MEGA2560",
+ "family": "avr",
+ "power": "board",
+ "parts": [
+  {
+   "id": "U1",
+   "type": "mcu",
+   "x": 0,
+   "y": 0,
+   "rot": 0,
+   "params": {}
+  },
+  {
+   "id": "PWR1",
+   "type": "gnd",
+   "x": 170,
+   "y": 890,
+   "rot": 0,
+   "params": {}
+  },
+  {
+   "id": "USB1",
+   "type": "uart_usb",
+   "x": 650,
+   "y": 400,
+   "rot": 0,
+   "params": {
+    "baud": 115200,
+    "io_v": 5.0
+   },
+   "my": true
+  },
+  {
+   "id": "PWR2",
+   "type": "gnd",
+   "x": 550,
+   "y": 470,
+   "rot": 0,
+   "params": {}
+  }
+ ],
+ "wires": [
+  {
+   "a": "U1.74",
+   "b": "PWR1.1",
+   "pts": []
+  },
+  {
+   "a": "U1.19",
+   "b": "USB1.2",
+   "pts": []
+  },
+  {
+   "a": "U1.20",
+   "b": "USB1.3",
+   "pts": [
+    {
+     "x": 540,
+     "y": 440
+    },
+    {
+     "x": 540,
+     "y": 400
+    }
+   ]
+  },
+  {
+   "a": "USB1.1",
+   "b": "PWR2.1",
+   "pts": [
+    {
+     "x": 550,
+     "y": 440
+    }
+   ]
+  }
+ ],
+ "assign": {}
+}

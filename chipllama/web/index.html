@@ -1,104 +1,129 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>ChipLlama - PIC24 verified peripheral copilot</title>
-<style>
-:root{--bg:#0f1419;--card:#18202a;--line:#2a3646;--tx:#e6edf3;--mut:#8b9bb0;--ok:#3fb950;--bad:#f85149;--warn:#d29922;--acc:#58a6ff}
-*{box-sizing:border-box}body{margin:0;font:15px/1.5 system-ui,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--tx)}
-header{padding:16px 24px;border-bottom:1px solid var(--line);display:flex;gap:16px;align-items:baseline;flex-wrap:wrap}
-h1{margin:0;font-size:20px}h1 span{color:var(--acc)}.sub{color:var(--mut);font-size:13px}
-main{max-width:1100px;margin:0 auto;padding:20px}
-nav{display:flex;gap:8px;margin-bottom:16px}nav button{background:var(--card);color:var(--tx);border:1px solid var(--line);padding:8px 16px;border-radius:8px;cursor:pointer}
-nav button.on{border-color:var(--acc);color:var(--acc)}
-.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:16px}
-textarea,input,select{width:100%;background:#0b0f14;color:var(--tx);border:1px solid var(--line);border-radius:8px;padding:10px;font:inherit}
-textarea{min-height:90px;font-family:Consolas,monospace;font-size:13px}
-.row{display:flex;gap:12px;flex-wrap:wrap;align-items:end}.row>*{flex:1;min-width:140px}label{font-size:12px;color:var(--mut);display:block;margin-bottom:4px}
-button.go{background:var(--acc);color:#04111f;border:0;padding:10px 20px;border-radius:8px;font-weight:600;cursor:pointer;flex:0 0 auto}
-button.go:disabled{opacity:.5}button.sec{background:transparent;color:var(--acc);border:1px solid var(--acc);padding:8px 14px;border-radius:8px;cursor:pointer}
-pre{background:#0b0f14;border:1px solid var(--line);border-radius:8px;padding:12px;overflow:auto;font-size:13px;margin:8px 0}
-.pill{display:inline-block;padding:2px 10px;border-radius:99px;font-size:12px;font-weight:600}
-.ok{background:rgba(63,185,80,.15);color:var(--ok)}.bad{background:rgba(248,81,73,.15);color:var(--bad)}.warn{background:rgba(210,153,34,.15);color:var(--warn)}.info{background:rgba(88,166,255,.12);color:var(--acc)}
-.f{margin:4px 0;font-size:13px}table{border-collapse:collapse;width:100%;font-size:13px}td,th{border-bottom:1px solid var(--line);padding:4px 8px;text-align:left;font-family:Consolas,monospace}
-.hide{display:none}small{color:var(--mut)}
-</style></head><body>
-<header><h1>Chip<span>Llama</span></h1><span class="sub">Verifiable PIC24FJ256GB110 copilot &middot; Muse Spark + XC16 + register checker</span><span class="sub" id="status"></span></header>
+<title>ChipLlama · PIC copilot</title><link rel="preload" href="/fonts/inter-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+<script>(function(){try{var p=localStorage.getItem("cl_theme")||"dark";if(p==="system")p=matchMedia("(prefers-color-scheme: light)").matches?"light":"dark";document.documentElement.dataset.theme=p}catch(e){document.documentElement.dataset.theme="dark"}})()</script>
+<link rel="stylesheet" href="/static/app.css"><link rel="stylesheet" href="/static/theme.css"><script src="/static/theme.js"></script>
+<script src="/vendor/blockly.min.js"></script><script src="/vendor/blockly.en.js"></script><script src="/static/blocks.js"></script><script src="/static/circuit.js"></script><script src="/static/audit.js"></script><script src="/static/pins.js"></script></head><body>
+<div class="app"><aside class="side">
+<div class="brand"><div class="mark">🦙</div><div><div class="logo">ChipLlama</div><div class="sub">PIC copilot · Muse Spark</div></div></div>
+<nav><div class="ngrp">Build</div><button id="t-gen" class="on" onclick="tab('gen')"><svg viewBox="0 0 24 24"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg><span>Generate</span><kbd>⌃↵</kbd></button><button id="t-blk" class="" onclick="tab('blk')"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="8" rx="2"/><rect x="13" y="13" width="8" height="8" rx="2"/><path d="M13 7h4a2 2 0 0 1 2 2v2M11 17H7a2 2 0 0 1-2-2v-2"/></svg><span>Blocks</span></button><button id="t-cir" class="" onclick="tab('cir')"><svg viewBox="0 0 24 24"><rect x="8" y="7" width="8" height="10" rx="1.5"/><path d="M10 4v3M14 4v3M10 17v3M14 17v3M3 10h5M3 14h5M16 12h5"/><circle cx="21" cy="12" r="1"/></svg><span>Circuit</span></button><div class="ngrp">Analyse</div><button id="t-aud" class="" onclick="tab('aud')"><svg viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6z"/><path d="M8.5 12l2.5 2.5 4.5-5"/></svg><span>Audit</span></button><button id="t-dbg" class="" onclick="tab('dbg')"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M20.5 20.5L16 16M8.5 11h5M11 8.5v5"/></svg><span>Reverse debug</span></button><div class="ngrp">Plan</div><button id="t-pin" class="" onclick="tab('pin')"><svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4"/></svg><span>Pin planner</span></button><div class="nsp"></div><button id="t-set" class="" onclick="tab('set')"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg><span>Settings</span></button></nav>
+<div class="sfoot"><div class="mut">Every answer is checked against the datasheet and the compiler.</div><div class="kbdhint"><kbd>Ctrl</kbd>+<kbd>Enter</kbd> run current tab</div></div>
+</aside><div class="shell">
+<header class="top"><div><h1 id="ptitle">Generate</h1><div class="sub" id="psub"></div></div><div id="chips"></div><button class="thbtn" id="thbtn" onclick="Theme.toggle()" title="Toggle light / dark theme" aria-label="Toggle light / dark theme"><svg class="moon" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z"/></svg><svg class="sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></button></header>
 <main>
-<nav><button id="t1" class="on" onclick="tab(1)">Generate &amp; verify</button><button id="t2" onclick="tab(2)">Reverse-debug</button><button id="t3" onclick="tab(3)">How it works</button></nav>
-
-<section id="p1">
- <div class="card"><label>Describe the peripheral setup</label>
-  <textarea id="req">Configure Timer1 to generate an interrupt every 10 ms with priority 5, Fosc = 32 MHz.</textarea>
-  <div class="row" style="margin-top:10px">
-   <div><label>Backend</label><select id="backend"><option value="">default (.env)</option><option value="meta">Meta Model API - Muse Spark</option><option value="baseten">Baseten - Muse Spark Open</option></select></div>
-   <div><label>Max iterations</label><input id="iters" type="number" value="4" min="1" max="8"></div>
-   <div><label>Datasheet page images</label><select id="imgs"><option value="1">attach (if PDF present)</option><option value="0">text only</option></select></div>
-   <button class="go" id="gen" onclick="generate()">Generate &amp; verify</button>
-  </div></div>
- <div id="out"></div>
-</section>
-
-<section id="p2" class="hide">
- <div class="card"><label>Paste register dump (e.g. <code>T1CON = 0x8030</code>, one per line)</label>
-  <textarea id="dump">T1CON = 0x0030
-PR1   = 0xFFFF
-IEC0  = 0x0000
-IFS0  = 0x0008
-IPC0  = 0x4444</textarea>
-  <div class="row" style="margin-top:10px"><div><label>Symptom</label><input id="sym" value="My 10 ms timer interrupt never runs"></div>
-   <div><label>Assumed Fosc (MHz)</label><input id="fosc" type="number" value="32"></div>
-   <div><label>Expected period (ms, optional)</label><input id="exp" type="number" value="10"></div></div>
-  <div class="row" style="margin-top:10px"><div><label>Debugger screenshot(s) (optional, multimodal)</label><input id="shots" type="file" accept="image/*" multiple></div>
-   <div><label>Backend</label><select id="dbackend"><option value="">default</option><option value="meta">Muse Spark</option><option value="baseten">Muse Spark Open</option></select></div>
-   <div><label>AI explanation</label><select id="usem"><option value="true">on</option><option value="false">off (deterministic only)</option></select></div>
-   <button class="go" onclick="dbg()">Analyse</button></div></div>
- <div id="dout"></div>
-</section>
-
-<section id="p3" class="hide"><div class="card">
-<p><b>ChipLlama is not a RAG chatbot.</b> It is a closed loop:</p>
-<ol><li>Parse the request deterministically (timer, period, Fosc, interrupt) and compute a <i>reference</i> solution with a calculator checked against DS39897C.</li>
-<li>Give Muse Spark the register facts <i>and datasheet page images</i> (T1CON/T2CON/T3CON/IFS0/IEC0/IPC pages).</li>
-<li>Muse writes C with explicit bit math. A mini register emulator executes the init code and a rule checker compares the final T1CON/PR1/IEC0/IPC0/ISR with the requested period.</li>
-<li>xc16-gcc compiles it (skipped gracefully if XC16 is missing). Compiler errors and checker findings are fed back until it verifies.</li>
-<li>Export to an MPLAB X-ready folder; optional PICkit 5 flashing via ipecmd is OFF by default.</li></ol></div></section>
-</main>
-<script>
-const $=id=>document.getElementById(id);
-function tab(n){for(let i=1;i<=3;i++){$('p'+i).classList.toggle('hide',i!=n);$('t'+i).classList.toggle('on',i==n)}}
-function el(tag,cls,text){const e=document.createElement(tag);if(cls)e.className=cls;if(text!=null)e.textContent=text;return e}
-function pill(sev){return el('span','pill '+({error:'bad',warning:'warn',info:'info',ok:'ok'}[sev]||'info'),sev)}
-fetch('/api/status').then(r=>r.json()).then(s=>{$('status').textContent=`backend ${s.backend} · xc16 ${s.xc16_gcc?'found':'missing (compile skipped)'} · flash ${s.flash_enabled?'ENABLED':'off'}`})
-async function generate(){
-  const b=$('gen');b.disabled=true;b.textContent='Working…';const out=$('out');out.replaceChildren(el('div','card','Muse is generating and the checker is verifying… (can take a minute)'));
-  try{
-    const r=await fetch('/api/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({request:$('req').value,backend:$('backend').value||null,max_iters:+$('iters').value,use_images:$('imgs').value==='1'})});
-    const j=await r.json();if(!r.ok)throw new Error(j.detail||r.statusText);render(j)
-  }catch(e){out.replaceChildren(el('div','card','Error: '+e.message))}
-  b.disabled=false;b.textContent='Generate & verify'}
-function render(j){
-  const out=$('out');out.replaceChildren();
-  const h=el('div','card');const st=el('span','pill '+(j.status==='verified'?'ok':'bad'),j.status.toUpperCase());h.append(st,el('span','',' verification: '+j.verification_level+' · backend '+j.backend));
-  if(j.error)h.append(el('div','f','Error: '+j.error));(j.notes||[]).forEach(n=>h.append(el('div','f','note: '+n)));
-  if(j.reference){const r=j.reference;h.append(el('div','f',`Reference: Timer${r.spec.timer} TCKPS=${r.tckps} (1:${r.prescale}), PR=${r.period_reg}, achieved ${(r.achieved_s*1e3).toPrecision(6)} ms, ${r.error_ppm.toFixed(0)} ppm`))}
-  out.append(h);
-  (j.attempts||[]).forEach(a=>{const c=el('div','card');c.append(el('b','','Attempt '+a.n+' '),el('span','pill '+(a.check.ok?'ok':'bad'),'checker '+(a.check.ok?'pass':'fail')),document.createTextNode(' '),el('span','pill '+(a.compile.status==='ok'?'ok':a.compile.status==='skipped'?'warn':'bad'),'compile '+a.compile.status));
-    a.check.findings.filter(f=>f.severity!=='info').forEach(f=>{const d=el('div','f');d.append(pill(f.severity),el('span','',' '+f.code+': '+f.message));c.append(d)});
-    if(a.compile.status==='error')c.append(el('pre','',a.compile.output));
-    const rt=el('table');rt.append(Object.assign(el('tr'),{innerHTML:'<th>register</th><th>code gives</th><th>reference</th>'}));
-    Object.keys(a.check.registers).forEach(k=>{const tr=el('tr');tr.append(el('td','',k),el('td','',a.check.registers[k]),el('td','',a.check.expected[k]||''));rt.append(tr)});c.append(rt);
-    out.append(c)});
-  if(j.code){const c=el('div','card');c.append(el('b','','Final C (main.c)'),el('pre','',j.code));
-    const b=el('button','sec','Download MPLAB X folder (zip)');b.onclick=async()=>{const r=await fetch('/api/export',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code:j.code,request:j.request})});const bl=await r.blob();const a=document.createElement('a');a.href=URL.createObjectURL(bl);a.download='ChipLlamaProject.zip';a.click()};c.append(b);out.append(c)}}
-async function dbg(){
-  const fd=new FormData();fd.append('dump',$('dump').value);fd.append('symptom',$('sym').value);fd.append('fosc_mhz',$('fosc').value);
-  if($('exp').value)fd.append('expected_period_ms',$('exp').value);if($('dbackend').value)fd.append('backend',$('dbackend').value);fd.append('use_model',$('usem').value);
-  for(const f of $('shots').files)fd.append('images',f);
-  const o=$('dout');o.replaceChildren(el('div','card','Analysing…'));
-  try{const r=await fetch('/api/debug',{method:'POST',body:fd});const j=await r.json();if(!r.ok)throw new Error(j.detail||r.statusText);
-   o.replaceChildren();const c=el('div','card');c.append(el('b','','Decoded registers'));
-   j.decoded.forEach(d=>{if(Object.keys(d.fields).length)c.append(el('div','f',`${d.register} ${d.value}  `+Object.entries(d.fields).map(([k,v])=>k+'='+v).join(' ')))});o.append(c);
-   const f=el('div','card');f.append(el('b','','Findings'));j.findings.forEach(x=>{const d=el('div','f');d.append(pill(x.severity),el('span','',' '+x.message));f.append(d)});o.append(f);
-   if(j.explanation){const e=el('div','card');e.append(el('b','','Muse explanation'),el('pre','',j.explanation));o.append(e)}
-   (j.notes||[]).forEach(n=>o.append(el('div','f','note: '+n)))
-  }catch(e){o.replaceChildren(el('div','card','Error: '+e.message))}}
-</script></body></html>
+<!-- ================= GENERATE ================= -->
+<section id="p-gen"><div class="grid"><div>
+ <div class="card"><h3>What should the chip do?</h3>
+  <textarea id="req">Timer1 interrupt every 10 ms, priority 5</textarea>
+  <div id="exs" class="exs"><span class="ex" onclick="ex(this)">UART1 115200 on RP10 TX / RP17 RX, print hello every 1 s</span><span class="ex" onclick="ex(this)">Timer1 10 ms toggle RA0</span><span class="ex" onclick="ex(this)">Timer1 interrupt every 10 ms, priority 5</span><span class="ex" onclick="ex(this)">Timer2 polling, 250 us period</span><span class="ex" onclick="ex(this)">32-bit Timer2/3 interrupt every 2 seconds</span><span class="ex" onclick="ex(this)">Timer4 interrupt every 1 ms, toggle RA0</span><span class="ex" onclick="ex(this)">32-bit Timer4/5 interrupt every 10 s</span><span class="ex" onclick="ex(this)">Timer1 gated mode: measure pulse width up to 20 ms, gate on RP7</span><span class="ex" onclick="ex(this)">Blink an LED on RA0 every 500 ms using Timer1 interrupt</span><span class="ex" onclick="ex(this)">RA0 output (LED), RD6 input button with pull-up and change notification interrupt on RD6, priority 4</span><span class="ex" onclick="ex(this)">External interrupt INT1 on RP10, falling edge, priority 6</span><span class="ex" onclick="ex(this)">Sample AN5 continuously at 10 kHz with ADC interrupt priority 3</span><span class="ex" onclick="ex(this)">Scan AN0, AN1 and AN4 triggered by Timer3 at 1 kHz</span><span class="ex" onclick="ex(this)">PWM 20 kHz 25% duty on RP2 using OC1</span><span class="ex" onclick="ex(this)">50 Hz servo PWM 7.5% on RD8 with OC3</span><span class="ex" onclick="ex(this)">Measure period on RP10 with IC1 rising edges using Timer2, up to 20 ms, priority 5</span><span class="ex" onclick="ex(this)">SPI1 master 2 MHz mode 3 SCK on RP10 MOSI on RP17 MISO on RP16</span><span class="ex" onclick="ex(this)">I2C1 master 400 kHz, read a sensor at address 0x48</span><span class="ex" onclick="ex(this)">UART2 9600 baud TX on RP10 RX on RP17</span><span class="ex" onclick="ex(this)">RTCC with an alarm every second</span><span class="ex" onclick="ex(this)">CRC-16-CCITT of a buffer</span><span class="ex" onclick="ex(this)">PMP master 8-bit with 2 address lines and chip select CS1</span><span class="ex" onclick="ex(this)">Watchdog 1 s, sleep until it wakes the chip</span><span class="ex" onclick="ex(this)">USB CDC device (config check only)</span><!--more-chips--></div><button class="exmore" onclick="this.previousElementSibling.classList.toggle('open');this.textContent=this.previousElementSibling.classList.contains('open')?'Show fewer':'Show all examples'">Show all examples</button>
+  <div class="row"><button class="p" id="gen" onclick="generate()" style="flex:0 0 auto">Generate &amp; verify</button>
+   <label style="flex:0 0 auto;margin:0"><input type="checkbox" id="imgs" checked style="width:auto"> datasheet page images</label>
+   <label style="flex:0 0 auto;margin:0" title="Deliberately corrupts the model's first attempt so you can watch the agent detect and fix it. Clearly labelled in the timeline."><input type="checkbox" id="fault" style="width:auto"> Demo: self-correction (inject fault)</label><span class="mut" id="genmeta" style="flex:2"></span></div>
+ </div>
+ <div id="prog" class="card hide"><h3>Agent progress</h3><div class="steps" id="steps"></div></div>
+ <div id="final" class="card hide"></div>
+ <div id="gempty" class="card emptyc"><div class="eico">✦</div><div class="et">Describe what the chip should do</div><div class="mut">Muse writes register-level C, then ChipLlama checks every register against the datasheet and compiles it with XC16. Pick an example above or press <kbd>Ctrl</kbd>+<kbd>Enter</kbd>.</div></div>
+</div><aside>
+ <div class="card doc"><h3><span>Doctor <span id="docsum" class="sum"></span></span><button class="s" style="padding:3px 10px;font-size:11px;text-transform:none;letter-spacing:0" onclick="loadDoctor()">↻ refresh</button></h3><div id="doctor" class="mut">loading…</div></div>
+ <div class="card"><h3>Board configuration bits</h3><div id="pmeta" class="mut f"></div><details><summary>show #pragma config block</summary><pre id="pragmas"></pre></details></div>
+</aside></div></section>
+<!-- ================= BLOCKS ================= -->
+<section id="p-blk" class="hide"><div class="bgrid">
+ <div class="card" style="padding:0;overflow:hidden"><h3 style="margin:0">Blocks <span class="row" style="flex:0 0 auto;gap:6px">
+  <select id="bex" onchange="Blocks.loadEx(this.value);this.value=''" style="width:auto;padding:5px 8px"></select> <span id="bctx" class="muted" style="font-size:11px"></span>
+  <button class="s" onclick="Blocks.save()">Save</button><label class="s" style="margin:0;padding:8px 14px;border:1px solid var(--line);border-radius:10px;cursor:pointer;color:var(--tx);font-weight:600;font-size:13px;text-transform:none;letter-spacing:0">Load<input type="file" accept=".json" class="hide" onchange="this.files[0]&&Blocks.load(this.files[0])"></label></span></h3>
+  <div id="bws" style="height:calc(100vh - 190px);min-height:480px"></div></div>
+ <div><div class="card"><h3>Generated C <span><span id="bbadge" class="pill info">…</span></span></h3>
+  <div class="f mut" id="bintent"></div><div id="bfind"></div>
+  <pre id="bcode" style="max-height:calc(100vh - 360px)"></pre>
+  <div class="row"><button class="s" onclick="Blocks.copy()">Copy C</button><button class="p" onclick="Blocks.polish()" title="Sends the verified code to Muse Spark as a starting point; the result is verified again.">Polish with Muse</button></div></div></div>
+</div></section>
+<!-- ================= CIRCUIT ================= -->
+<section id="p-cir" class="hide"><div class="cgrid">
+ <div class="card cpalc"><h3>Parts</h3><input id="cq" placeholder="Search parts…" oninput="Circuit.palette(this.value)"><div id="cpal"></div><div class="mut f" style="margin-top:8px">Drag onto the canvas, double-click, or press A on the canvas. The number is the real pin count.</div></div>
+ <div class="card" style="padding:0;overflow:hidden;display:flex;flex-direction:column"><div class="ctb">
+  <select id="cdev" onchange="Circuit.setDevice(this.value)" title="Device (pinout from its EDC data)"></select>
+  <input id="cname" placeholder="project name" onchange="Circuit.rename(this.value)" style="width:150px">
+  <select id="cex" onchange="Circuit.loadEx(this.value);this.value=''" style="width:auto"></select>
+  <span class="sp"></span>
+  <span class="ctools"><button class="s" title="Wire (W)" onclick="Circuit.tool('wire')">⌐ Wire</button><button class="s" title="Net label (L)" onclick="Circuit.tool('label')">Label</button><button class="s" title="Power symbol (P)" onclick="Circuit.tool('power')">⏚ Power</button><button class="s" title="Add symbol (A)" onclick="Circuit.tool('add')">+ Add</button>
+  <button class="s" title="Rotate (R)" onclick="Circuit.rotate()">⟳</button><button class="s" title="Undo (Ctrl+Z)" onclick="Circuit.undo()">↶</button><button class="s" title="Redo (Ctrl+Y)" onclick="Circuit.redo()">↷</button>
+  <button class="s" title="Renumber references top-left to bottom-right" onclick="Circuit.annotate()">Annotate</button><button class="s" title="Re-route every wire around the symbols (orthogonal, no crossings through bodies or text)" onclick="Circuit.reroute('all')">Route wires</button><button class="s" title="Re-place the added parts next to the pins they connect to and route everything" onclick="Circuit.reroute('tidy')">Tidy</button><button class="s rewire" id="crewire" title="Auto re-wire (Shift+R): remap every MCU connection to valid pins of the current device, re-place all parts around the MCU, regenerate power/GND symbols and re-route every wire (net labels where a wire can't be drawn cleanly). One undo step." onclick="Circuit.rewire()"><svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" style="vertical-align:-2px;margin-right:4px"><path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9"/><path d="M13.6 1.8v3h-3"/></svg>Auto re-wire</button><span id="cgeo" class="hide pill warn" style="margin-left:4px"><span id="cgeotxt"></span> <button class="s" style="padding:0 6px;margin-left:4px" title="Re-route only the wires that cross a symbol or text" onclick="Circuit.fixGeo()">Fix</button></span><button class="s" id="cpkg" title="Toggle the MCU between the KiCad-style symbol and the real package pin order" onclick="Circuit.pkg()">Package</button></span>
+  <button class="s" onclick="Circuit.zoom(1/1.2)">−</button><span id="czoom" class="mut" style="min-width:40px;text-align:center">100%</span><button class="s" onclick="Circuit.zoom(1.2)">+</button><button class="s" onclick="Circuit.fit()">Fit</button>
+  <button class="s" onclick="Circuit.saveFile()">Save</button><label class="s cbtn">Load<input type="file" accept=".json" class="hide" onchange="this.files[0]&&Circuit.loadFile(this.files[0])"></label>
+  <button class="s" title="KiCad netlist (.net)" onclick="Circuit.netlist('kicad')">.net</button><button class="s" title="Netlist JSON" onclick="Circuit.netlist('json')">Netlist JSON</button>
+  <button class="s" onclick="Circuit.exportPng()">PNG</button><button class="s" onclick="Circuit.exportSvg()">SVG</button><button class="s" onclick="Circuit.clear()">Clear</button></div>
+  <div id="cwrap"><svg id="csvg"></svg><div id="ctip"></div><div id="cpop"></div>
+   <div class="chelp mut" id="cstat"></div></div></div>
+ <div class="cside">
+  <div class="card"><h3>Connection guide <span class="mut f">what goes where</span></h3><div id="cguide" class="cscroll2"></div></div>
+  <div class="card"><h3>ERC <span id="cerc" class="pill info">…</span></h3><div id="cfind" class="cscroll"></div></div>
+  <div class="card" id="cprj"><h3>MPLAB X project <span id="cpbadge" class="pill info">not generated</span></h3>
+   <div class="row" style="flex-wrap:wrap;gap:6px"><button class="p" onclick="Circuit.generate()">Generate project</button><select id="cmode" title="Arduino AVR: bare-metal C (avr-gcc) or Arduino sketch (.ino via arduino-cli)" style="width:auto"><option value="baremetal">AVR: bare-metal C</option><option value="arduino">AVR: Arduino sketch</option></select><label class="mut" style="display:flex;align-items:center;gap:6px;text-transform:none;letter-spacing:0;margin:0"><input type="checkbox" id="ccomp" style="width:auto">compile with XC</label></div>
+   <div id="cpinfo"></div>
+   <div class="ctreebox"><div id="ctree" class="mut f">Generate to see config/ hal/ drivers/ board/ app/.</div><div><div id="cfname" class="mut f"></div><pre id="cfile"></pre></div></div>
+   <div class="row" style="flex-wrap:wrap;gap:6px"><button class="s" onclick="Circuit.zip()">Download .X.zip</button><button class="s" onclick="Circuit.hex()">Download .hex</button><button class="s" onclick="Circuit.toBlocks()">Open in Blocks</button></div></div>
+  <div class="card"><h3>BOM <span class="row" style="flex:0 0 auto;gap:6px"><button class="s" onclick="Circuit.bomCsv()">CSV</button><button class="s" onclick="Circuit.bomMd()">Markdown</button></span></h3><table class="ctab"><thead><tr><th>Ref</th><th>Qty</th><th>Value</th><th>Footprint</th></tr></thead><tbody id="cbom"></tbody></table></div>
+ </div>
+</div></section>
+<!-- ================= AUDIT ================= -->
+<section id="p-aud" class="hide"><div class="grid"><div>
+ <div class="card"><h3><span>Audit existing code <span class="sum">static rules · datasheet pages · fix diff</span></span><select id="aex" onchange="Audit.loadEx(this.value);this.value=''" style="width:auto;padding:5px 8px;text-transform:none;letter-spacing:0"></select></h3>
+  <div id="adrop" class="drop"><b>Drop .c / .h files, an MPLAB X project .zip, or a screenshot of code</b><br><span class="mut">click to choose · Ctrl+V pastes a screenshot (transcribed by Muse)</span></div><input type="file" id="ainput" multiple accept=".c,.h,.zip,.xml,image/*" class="hide">
+  <div id="afiles" class="row" style="justify-content:flex-start;gap:6px;margin-top:8px"></div>
+  <label>…or paste main.c</label><textarea id="acode" rows="12" placeholder="#include &lt;xc.h&gt;&#10;#pragma config FWDTEN = OFF&#10;…"></textarea>
+  <div class="row" style="margin-top:12px"><button class="p" id="arun" onclick="Audit.run()" style="flex:0 0 auto">Run audit</button><button id="aexpl" class="s" onclick="Audit.explain()" style="flex:0 0 auto" title="Annotate every register access with fields and datasheet pages">Explain code</button>
+   <label style="flex:0 0 auto;margin:0"><input type="checkbox" id="aexplain" style="width:auto"> Muse review</label>
+   <label style="flex:0 0 auto;margin:0"><input type="checkbox" id="acompile" style="width:auto"> compile patched files</label><span class="mut" id="ameta" style="flex:2"></span></div></div>
+ <div class="card"><h3>What the rules check</h3><div class="f mut">Config words (WDT/ClrWdt, JTAG on RA0/1/4/5, ICS pair, clock source) · FCY vs the real clock · PPS mapping for UART/SPI · AD1PCFG analog pins · TRIS vs LAT/PORT · interrupt vector names, flag clearing, auto_psv · enabled IRQs without an ISR · volatile ISR variables. Every finding cites DS39897C pages. Fixes are a patched <b>copy</b>; your files are never edited.</div></div>
+</div><aside id="aout"><div class="card emptyc"><div class="eico">◎</div><div class="et">No audit yet</div><div class="mut">Load a buggy example from the menu, or drop your project, to get a score, findings with datasheet pages and a patched copy.</div></div></aside></div></section>
+<!-- ================= DEBUG ================= -->
+<section id="p-dbg" class="hide"><div class="grid"><div>
+ <div class="card"><h3><span>Image → diagnosis <span class="sum">Muse Spark vision + deterministic decode</span></span><button class="s" style="padding:3px 10px;font-size:11px;text-transform:none;letter-spacing:0" onclick="clearShots()">clear</button></h3>
+  <div id="drop" class="drop"><b>Drop, paste (Ctrl+V) or click</b><br><span class="mut">MPLAB X SFR / Watch window · register dump · oscilloscope / logic analyzer · serial terminal</span></div><input type="file" id="shots" accept="image/*" multiple class="hide">
+  <div class="thumbs" id="thumbs"></div>
+  <div style="margin:8px 0" class="mut f">Demo images: <span class="ex" onclick="loadEx('sfr_timer1_prescaler_bug')">SFR: Timer1 prescaler bug</span><span class="ex" onclick="loadEx('sfr_pll_off')">SFR: PLL off</span><span class="ex" onclick="loadEx('scope_20ms_instead_of_10ms')">Scope: 20 ms instead of 10 ms</span></div>
+  <label>Intent – what should the chip do?</label><input id="intent" placeholder="Timer1 interrupt every 10 ms, toggle RA0  ·  UART1 115200 baud  ·  RA0 square wave 10 ms period">
+  <details><summary>Your C code (optional – enables a real fix diff)</summary><textarea id="dcode" rows="8" placeholder="paste main.c"></textarea></details>
+  <details><summary>…or paste a text register dump instead of an image</summary><textarea id="dump" rows="6" placeholder="T1CON = 0x8000&#10;PR1 = 0x4E1F&#10;IEC0 = 0x0000"></textarea>
+   <div class="row"><div><label>Symptom</label><input id="sym" placeholder="the ISR never runs"></div><div><label>Expected period (ms)</label><input id="exp" type="number" step="any"></div></div></details>
+  <div class="row" style="margin-top:12px"><button class="p" id="dbgb" onclick="dbg()" style="flex:0 0 auto">Diagnose</button>
+   <div style="flex:0 0 150px"><input id="fosc" type="number" step="any" placeholder="Fosc MHz (profile)"></div>
+   <div style="flex:0 0 170px"><input id="ddev" list="devlist" placeholder="device (Settings)" title="PIC part in the image - port masks/registers come from its MPLAB device file"></div>
+   <div style="flex:0 0 120px"><select id="dpasses" title="independent vision reads"><option value="">passes (Settings)</option><option>1</option><option>2</option><option>3</option></select></div>
+   <label style="flex:0 0 auto;margin:0"><input type="checkbox" id="usem" checked style="width:auto"> explain with Muse</label><span class="mut" id="dbgmeta" style="flex:2"></span></div></div>
+ <div id="dsteps" class="card hide"><h3>Pipeline</h3><div class="steps" id="dsteplist"></div></div>
+</div><aside><div id="dout"><div class="card emptyc"><div class="eico">⌕</div><div class="et">No diagnosis yet</div><div class="mut">Drop an SFR/Watch screenshot, a scope capture or a terminal, or try a demo image. The verdict, decoded registers and a fix diff appear here.</div></div></div></aside></div></section>
+<!-- ================= PIN PLANNER ================= -->
+<section id="p-pin" class="hide"><div id="pinroot"><div class="card emptyc"><div class="eico">▦</div><div class="et">Pin planner</div><div class="mut">Loading…</div></div></div></section>
+<!-- ================= SETTINGS ================= -->
+<section id="p-set" class="hide"><div class="grid"><div>
+ <div class="card"><h3>Appearance</h3><div class="row"><div><label>Theme</label><select id="s-theme"><option value="light">Light</option><option value="dark">Dark</option><option value="system">System (follow OS)</option></select></div><div><label>Schematic export background</label><select id="s-expbg"><option value="theme">Follow theme</option><option value="white">White</option></select></div></div><div class="f mut">Stored in this browser only (not settings.json).</div></div>
+ <div class="card"><h3>Target &amp; board</h3>
+  <div class="row"><div><label>Device / board (MPLAB packs, or Arduino Uno/Nano/Mega, STM32 Blue Pill/Nucleo/F030, ESP32 DevKitC/C3)</label><input id="s-device" list="devlist" autocomplete="off" oninput="devSearch()" onchange="devInfo()"><datalist id="devlist"></datalist><div id="devinfo" class="muted" style="font-size:12px"></div></div><div><label>Debug/program pin pair (ICS) - match your wiring</label><select id="s-ics"></select><label style="margin-top:6px">AVR code style (Arduino boards)</label><select id="s-family_mode"></select></div></div>
+  <div class="row"><div><label>Clock profile</label><select id="s-clock_profile"></select></div><div><label>Crystal frequency, Hz (external crystal profile only)</label><input id="s-crystal_hz" type="number"></div></div>
+ </div>
+ <div class="card"><h3>Model</h3>
+  <div class="row"><div><label>Backend</label><select id="s-backend"></select></div><div><label>Max iterations</label><input id="s-max_iters" type="number" min="1" max="10"></div><div><label>Max tokens</label><input id="s-max_tokens" type="number"></div><div><label>Vision passes (1-3)</label><input id="s-vision_passes" type="number" min="1" max="3" title="2 = read + independent transcription check; 3 = + tie-break on disputed registers"></div></div>
+  <div class="row"><div><label>Meta model</label><input id="s-meta_model"></div><div><label>Meta reasoning effort</label><select id="s-meta_reasoning_effort"></select></div></div>
+  <div class="row"><div><label>Meta API key <span id="k-meta" class="pill"></span> <a href="#" class="ex" onclick="clearKey('meta_api_key');return false">clear</a></label><input id="s-meta_api_key" type="password" autocomplete="off" placeholder="leave empty to keep"></div>
+   <div><label>Baseten API key <span id="k-baseten" class="pill"></span> <a href="#" class="ex" onclick="clearKey('baseten_api_key');return false">clear</a></label><input id="s-baseten_api_key" type="password" autocomplete="off" placeholder="leave empty to keep"></div></div>
+  <div class="row"><div><label>Baseten model</label><input id="s-baseten_model"></div><div><label>Baseten reasoning effort (blank = default)</label><input id="s-baseten_reasoning_effort"></div></div>
+ </div>
+ <div class="card"><h3>Toolchain</h3>
+  <label>MPLAB X packs folder (blank = auto, e.g. C:\Program Files\Microchip\MPLABX\v6.25\packs)</label><input id="s-mplab_packs_dir">
+  <div class="row"><div><label>xc8-cc path (PIC10/12/16/18, blank = auto)</label><input id="s-xc8_cc"></div><div><label>xc32-gcc path (PIC32, blank = auto)</label><input id="s-xc32_gcc"></div></div>
+  <div class="row"><div><label>xc-dsc-gcc path (dsPIC, blank = auto)</label><input id="s-xc_dsc_gcc"></div><div><label>dsPIC compiler</label><select id="s-dspic_compiler"><option value="auto">auto (XC-DSC if installed)</option><option value="xc-dsc">XC-DSC</option><option value="xc16">XC16</option></select></div></div>
+  <label>xc16-gcc path (PIC24/dsPIC, blank = auto)</label><div class="row"><input id="s-xc16_gcc" style="flex:4"><button class="s" style="flex:0 0 auto" onclick="detect()">Auto-detect</button></div>
+  <label>ipecmd path (blank = auto)</label><input id="s-ipecmd_path">
+  <div class="row"><div><label>Programmer</label><select id="s-ipecmd_tool"></select></div><div><label>Serial (blank = first)</label><input id="s-ipecmd_serial"></div>
+   <div><label>PICkit powers the target</label><select id="s-ipecmd_power_target"><option value="false">no (board self-powered)</option><option value="true">yes (-W)</option></select></div>
+   <div><label>Flashing</label><select id="s-enable_flash"><option value="false">off</option><option value="true">enabled</option></select></div></div>
+  <label>Datasheet PDF</label><input id="s-datasheet_pdf">
+ </div>
+ <div class="row"><button class="p" style="flex:0 0 auto" onclick="saveSettings()">Save settings</button><span class="mut" id="sfile" style="flex:3"></span></div>
+</div><aside><div class="card"><h3>Notes</h3><div class="f mut">Saved to a local <b>settings.json</b> (not .env). API keys are never sent back to the browser - only "set / not set". Keys are stored in plain text in that file on this PC, so keep it private. The dashboard only listens on 127.0.0.1.</div><div class="f mut">ICS must match the PGECx/PGEDx pins your PICkit 5 is wired to on your board.</div></div></aside></div></section>
+</main></div></div>
+<dialog id="dlg"><h3 style="margin-top:0">Flash to board?</h3><p id="dlgtxt"></p><div class="row"><button class="s" onclick="dlg.close('no')">Cancel</button><button class="d" onclick="dlg.close('yes')">Yes, program the PIC</button></div></dialog>
+<div class="toasts" id="toasts"></div>
+<script src="/static/app.js"></script></body></html>

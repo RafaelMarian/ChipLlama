@@ -1,0 +1,837 @@
+{
+"device": "PIC24FJ256GB110",
+"arch": "24xxxx",
+"pps": "complex",
+"source": "Microchip PIC24F-GA-GB_DFP 1.11.479 edc/PIC24FJ256GB110.PIC <edc:PinList>",
+"pins": [
+{
+"num": 1,
+"names": [
+"CN82",
+"RG15"
+]
+},
+{
+"num": 2,
+"names": [
+"Vdd"
+]
+},
+{
+"num": 3,
+"names": [
+"PMD5",
+"CN63",
+"RE5"
+]
+},
+{
+"num": 4,
+"names": [
+"SCL3",
+"PMD6",
+"CN64",
+"RE6"
+]
+},
+{
+"num": 5,
+"names": [
+"SDA3",
+"PMD7",
+"CN65",
+"RE7"
+]
+},
+{
+"num": 6,
+"names": [
+"RPI38",
+"CN45",
+"RC1"
+]
+},
+{
+"num": 7,
+"names": [
+"RPI39",
+"CN46",
+"RC2"
+]
+},
+{
+"num": 8,
+"names": [
+"RPI40",
+"CN47",
+"RC3"
+]
+},
+{
+"num": 9,
+"names": [
+"RPI41",
+"CN48",
+"RC4"
+]
+},
+{
+"num": 10,
+"names": [
+"C1IND",
+"RP21",
+"PMA5",
+"CN8",
+"RG6"
+]
+},
+{
+"num": 11,
+"names": [
+"C1INC",
+"RP26",
+"PMA4",
+"CN9",
+"RG7"
+]
+},
+{
+"num": 12,
+"names": [
+"C2IND",
+"RP19",
+"PMA3",
+"CN10",
+"RG8"
+]
+},
+{
+"num": 13,
+"names": [
+"MCLR"
+]
+},
+{
+"num": 14,
+"names": [
+"C2INC",
+"RP27",
+"PMA2",
+"CN11",
+"RG9"
+]
+},
+{
+"num": 15,
+"names": [
+"Vss"
+]
+},
+{
+"num": 16,
+"names": [
+"Vdd"
+]
+},
+{
+"num": 17,
+"names": [
+"TMS",
+"CN33",
+"RA0"
+]
+},
+{
+"num": 18,
+"names": [
+"RPI33",
+"CN66",
+"RE8"
+]
+},
+{
+"num": 19,
+"names": [
+"RPI34",
+"CN67",
+"RE9"
+]
+},
+{
+"num": 20,
+"names": [
+"PGEC3",
+"AN5",
+"C1INA",
+"Vbuson",
+"RP18",
+"CN7",
+"RB5"
+]
+},
+{
+"num": 21,
+"names": [
+"PGED3",
+"AN4",
+"C1INB",
+"USBOEN",
+"RP28",
+"CN6",
+"RB4"
+]
+},
+{
+"num": 22,
+"names": [
+"AN3",
+"C2INA",
+"VPIO",
+"CN5",
+"RB3"
+]
+},
+{
+"num": 23,
+"names": [
+"AN2",
+"C2INB",
+"VMIO",
+"RP13",
+"CN4",
+"RB2"
+]
+},
+{
+"num": 24,
+"names": [
+"PGEC1",
+"AN1",
+"RP1",
+"CN3",
+"RB1"
+]
+},
+{
+"num": 25,
+"names": [
+"PGED1",
+"AN0",
+"RP0",
+"CN2",
+"RB0"
+]
+},
+{
+"num": 26,
+"names": [
+"PGEC2",
+"AN6",
+"RP6",
+"CN24",
+"RB6"
+]
+},
+{
+"num": 27,
+"names": [
+"PGED2",
+"AN7",
+"RP7",
+"RCV",
+"CN25",
+"RB7"
+]
+},
+{
+"num": 28,
+"names": [
+"Vref-",
+"PMA7",
+"CN41",
+"RA9"
+]
+},
+{
+"num": 29,
+"names": [
+"Vref+",
+"PMA6",
+"CN42",
+"RA10"
+]
+},
+{
+"num": 30,
+"names": [
+"AVdd"
+]
+},
+{
+"num": 31,
+"names": [
+"AVss"
+]
+},
+{
+"num": 32,
+"names": [
+"AN8",
+"RP8",
+"CN26",
+"RB8"
+]
+},
+{
+"num": 33,
+"names": [
+"AN9",
+"RP9",
+"CN27",
+"RB9"
+]
+},
+{
+"num": 34,
+"names": [
+"AN10",
+"CVref",
+"PMA13",
+"CN28",
+"RB10"
+]
+},
+{
+"num": 35,
+"names": [
+"AN11",
+"PMA12",
+"CN29",
+"RB11"
+]
+},
+{
+"num": 36,
+"names": [
+"Vss"
+]
+},
+{
+"num": 37,
+"names": [
+"Vdd"
+]
+},
+{
+"num": 38,
+"names": [
+"TCK",
+"CN34",
+"RA1"
+]
+},
+{
+"num": 39,
+"names": [
+"RP31",
+"CN76",
+"RF13"
+]
+},
+{
+"num": 40,
+"names": [
+"RPI32",
+"CN75",
+"RF12"
+]
+},
+{
+"num": 41,
+"names": [
+"AN12",
+"PMA11",
+"CTED2",
+"CN30",
+"RB12"
+]
+},
+{
+"num": 42,
+"names": [
+"AN13",
+"PMA10",
+"CTED1",
+"CN31",
+"RB13"
+]
+},
+{
+"num": 43,
+"names": [
+"AN14",
+"CTPLS",
+"RP14",
+"PMA1",
+"CN32",
+"RB14"
+]
+},
+{
+"num": 44,
+"names": [
+"AN15",
+"REFO",
+"RP29",
+"PMA0",
+"CN12",
+"RB15"
+]
+},
+{
+"num": 45,
+"names": [
+"Vss"
+]
+},
+{
+"num": 46,
+"names": [
+"Vdd"
+]
+},
+{
+"num": 47,
+"names": [
+"RPI43",
+"CN20",
+"RD14"
+]
+},
+{
+"num": 48,
+"names": [
+"RP5",
+"CN21",
+"RD15"
+]
+},
+{
+"num": 49,
+"names": [
+"RP10",
+"PMA9",
+"CN17",
+"RF4"
+]
+},
+{
+"num": 50,
+"names": [
+"RP17",
+"PMA8",
+"CN18",
+"RF5"
+]
+},
+{
+"num": 51,
+"names": [
+"RP16",
+"USBID",
+"CN71",
+"RF3"
+]
+},
+{
+"num": 52,
+"names": [
+"RP30",
+"CN70",
+"RF2"
+]
+},
+{
+"num": 53,
+"names": [
+"RP15",
+"CN74",
+"RF8"
+]
+},
+{
+"num": 54,
+"names": [
+"Vbus"
+]
+},
+{
+"num": 55,
+"names": [
+"Vusb"
+]
+},
+{
+"num": 56,
+"names": [
+"D-",
+"RG3"
+]
+},
+{
+"num": 57,
+"names": [
+"D+",
+"RG2"
+]
+},
+{
+"num": 58,
+"names": [
+"SCL2",
+"CN35",
+"RA2"
+]
+},
+{
+"num": 59,
+"names": [
+"SDA2",
+"CN36",
+"RA3"
+]
+},
+{
+"num": 60,
+"names": [
+"TDI",
+"CN37",
+"RA4"
+]
+},
+{
+"num": 61,
+"names": [
+"TDO",
+"CN38",
+"RA5"
+]
+},
+{
+"num": 62,
+"names": [
+"Vdd"
+]
+},
+{
+"num": 63,
+"names": [
+"OSCI",
+"CLKI",
+"CN23",
+"RC12"
+]
+},
+{
+"num": 64,
+"names": [
+"OSCO",
+"CLKO",
+"CN22",
+"RC15"
+]
+},
+{
+"num": 65,
+"names": [
+"Vss"
+]
+},
+{
+"num": 66,
+"names": [
+"SCL1",
+"RPI36",
+"CN43",
+"RA14"
+]
+},
+{
+"num": 67,
+"names": [
+"SDA1",
+"RPI35",
+"CN44",
+"RA15"
+]
+},
+{
+"num": 68,
+"names": [
+"DMLN",
+"RTCC",
+"RP2",
+"CN53",
+"RD8"
+]
+},
+{
+"num": 69,
+"names": [
+"DPLN",
+"RP4",
+"CN54",
+"RD9"
+]
+},
+{
+"num": 70,
+"names": [
+"RP3",
+"PMCS2",
+"CN55",
+"RD10"
+]
+},
+{
+"num": 71,
+"names": [
+"RP12",
+"PMCS1",
+"CN56",
+"RD11"
+]
+},
+{
+"num": 72,
+"names": [
+"DMH",
+"RP11",
+"INT0",
+"CN49",
+"RD0"
+]
+},
+{
+"num": 73,
+"names": [
+"SOSCI",
+"C3IND",
+"CN1",
+"RC13"
+]
+},
+{
+"num": 74,
+"names": [
+"SOSCO",
+"T1CK",
+"C3INC",
+"RPI37",
+"CN0",
+"RC14"
+]
+},
+{
+"num": 75,
+"names": [
+"Vss"
+]
+},
+{
+"num": 76,
+"names": [
+"Vcpcon",
+"RP24",
+"CN50",
+"RD1"
+]
+},
+{
+"num": 77,
+"names": [
+"DPH",
+"RP23",
+"CN51",
+"RD2"
+]
+},
+{
+"num": 78,
+"names": [
+"RP22",
+"PMBE",
+"CN52",
+"RD3"
+]
+},
+{
+"num": 79,
+"names": [
+"RPI42",
+"CN57",
+"RD12"
+]
+},
+{
+"num": 80,
+"names": [
+"CN19",
+"RD13"
+]
+},
+{
+"num": 81,
+"names": [
+"RP25",
+"PMWR",
+"CN13",
+"RD4"
+]
+},
+{
+"num": 82,
+"names": [
+"RP20",
+"PMRD",
+"CN14",
+"RD5"
+]
+},
+{
+"num": 83,
+"names": [
+"C3INB",
+"CN15",
+"RD6"
+]
+},
+{
+"num": 84,
+"names": [
+"C3INA",
+"CN16",
+"RD7"
+]
+},
+{
+"num": 85,
+"names": [
+"Vcap",
+"Vddcore"
+]
+},
+{
+"num": 86,
+"names": [
+"ENVREG"
+]
+},
+{
+"num": 87,
+"names": [
+"Vbusst",
+"Vcmpst1",
+"CN68",
+"RF0"
+]
+},
+{
+"num": 88,
+"names": [
+"Vcmpst2",
+"CN69",
+"RF1"
+]
+},
+{
+"num": 89,
+"names": [
+"CN78",
+"RG1"
+]
+},
+{
+"num": 90,
+"names": [
+"CN77",
+"RG0"
+]
+},
+{
+"num": 91,
+"names": [
+"CN39",
+"RA6"
+]
+},
+{
+"num": 92,
+"names": [
+"CN40",
+"RA7"
+]
+},
+{
+"num": 93,
+"names": [
+"PMD0",
+"CN58",
+"RE0"
+]
+},
+{
+"num": 94,
+"names": [
+"PMD1",
+"CN59",
+"RE1"
+]
+},
+{
+"num": 95,
+"names": [
+"CN81",
+"RG14"
+]
+},
+{
+"num": 96,
+"names": [
+"CN79",
+"RG12"
+]
+},
+{
+"num": 97,
+"names": [
+"CN80",
+"RG13"
+]
+},
+{
+"num": 98,
+"names": [
+"PMD2",
+"CN60",
+"RE2"
+]
+},
+{
+"num": 99,
+"names": [
+"PMD3",
+"CN61",
+"RE3"
+]
+},
+{
+"num": 100,
+"names": [
+"PMD4",
+"CN62",
+"RE4"
+]
+}
+]
+}

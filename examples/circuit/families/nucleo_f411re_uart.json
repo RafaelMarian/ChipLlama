@@ -1,0 +1,83 @@
+{
+ "schema": 2,
+ "name": "nucleo_f411re_uart",
+ "title": "Nucleo-F411RE: UART echo / hello",
+ "device": "NUCLEO-F411RE",
+ "family": "stm32",
+ "power": "board",
+ "parts": [
+  {
+   "id": "U1",
+   "type": "mcu",
+   "x": 0,
+   "y": 0,
+   "rot": 0,
+   "params": {}
+  },
+  {
+   "id": "PWR1",
+   "type": "gnd",
+   "x": 170,
+   "y": 610,
+   "rot": 0,
+   "params": {}
+  },
+  {
+   "id": "USB1",
+   "type": "uart_usb",
+   "x": 650,
+   "y": 200,
+   "rot": 0,
+   "params": {
+    "baud": 115200,
+    "io_v": 3.3
+   },
+   "my": true
+  },
+  {
+   "id": "PWR2",
+   "type": "gnd",
+   "x": 550,
+   "y": 270,
+   "rot": 0,
+   "params": {}
+  }
+ ],
+ "wires": [
+  {
+   "a": "U1.43",
+   "b": "PWR1.1",
+   "pts": []
+  },
+  {
+   "a": "U1.9",
+   "b": "USB1.2",
+   "pts": []
+  },
+  {
+   "a": "U1.3",
+   "b": "USB1.3",
+   "pts": [
+    {
+     "x": 560,
+     "y": 100
+    },
+    {
+     "x": 560,
+     "y": 200
+    }
+   ]
+  },
+  {
+   "a": "USB1.1",
+   "b": "PWR2.1",
+   "pts": [
+    {
+     "x": 550,
+     "y": 240
+    }
+   ]
+  }
+ ],
+ "assign": {}
+}

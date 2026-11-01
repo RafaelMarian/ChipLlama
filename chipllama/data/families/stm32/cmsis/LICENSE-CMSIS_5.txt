@@ -1,0 +1,1 @@
+CMSIS_5 Core headers - Apache-2.0 (https://github.com/ARM-software/CMSIS_5/blob/develop/LICENSE.txt)

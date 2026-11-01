@@ -1,0 +1,93 @@
+{
+ "schema": 2,
+ "name": "arduino_mega2560_blink",
+ "title": "Arduino Mega 2560 R3: Blink LED",
+ "device": "ARDUINO-MEGA2560",
+ "family": "avr",
+ "power": "board",
+ "parts": [
+  {
+   "id": "U1",
+   "type": "mcu",
+   "x": 0,
+   "y": 0,
+   "rot": 0,
+   "params": {}
+  },
+  {
+   "id": "PWR1",
+   "type": "gnd",
+   "x": 170,
+   "y": 890,
+   "rot": 0,
+   "params": {}
+  },
+  {
+   "id": "R1",
+   "type": "resistor",
+   "x": 590,
+   "y": 320,
+   "rot": 270,
+   "params": {
+    "ohms": 470
+   }
+  },
+  {
+   "id": "LED1",
+   "type": "led",
+   "x": 750,
+   "y": 300,
+   "rot": 270,
+   "params": {
+    "color": "red",
+    "vf": 2.0,
+    "if_ma": 5
+   }
+  },
+  {
+   "id": "PWR2",
+   "type": "gnd",
+   "x": 810,
+   "y": 330,
+   "rot": 0,
+   "params": {}
+  }
+ ],
+ "wires": [
+  {
+   "a": "U1.74",
+   "b": "PWR1.1",
+   "pts": []
+  },
+  {
+   "a": "U1.14",
+   "b": "R1.1",
+   "pts": []
+  },
+  {
+   "a": "R1.2",
+   "b": "LED1.2",
+   "pts": [
+    {
+     "x": 700,
+     "y": 320
+    },
+    {
+     "x": 700,
+     "y": 300
+    }
+   ]
+  },
+  {
+   "a": "LED1.1",
+   "b": "PWR2.1",
+   "pts": [
+    {
+     "x": 810,
+     "y": 300
+    }
+   ]
+  }
+ ],
+ "assign": {}
+}

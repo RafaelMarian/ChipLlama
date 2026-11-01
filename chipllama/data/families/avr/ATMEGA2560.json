@@ -1,0 +1,1895 @@
+{
+"device": "ATMEGA2560",
+"family": "avr",
+"license": "Apache-2.0",
+"pads": {
+"PA0": [
+"PORTA:P0"
+],
+"PA1": [
+"PORTA:P1"
+],
+"PA2": [
+"PORTA:P2"
+],
+"PA3": [
+"PORTA:P3"
+],
+"PA4": [
+"PORTA:P4"
+],
+"PA5": [
+"PORTA:P5"
+],
+"PA6": [
+"PORTA:P6"
+],
+"PA7": [
+"PORTA:P7"
+],
+"PB0": [
+"SPI:SS",
+"PORTB:P0",
+"EXINT:PCINT0"
+],
+"PB1": [
+"SPI:SCK",
+"PORTB:P1",
+"EXINT:PCINT1"
+],
+"PB2": [
+"SPI:MOSI",
+"PORTB:P2",
+"EXINT:PCINT2"
+],
+"PB3": [
+"SPI:MISO",
+"PORTB:P3",
+"EXINT:PCINT3"
+],
+"PB4": [
+"PORTB:P4",
+"TC2:OCA",
+"EXINT:PCINT4"
+],
+"PB5": [
+"PORTB:P5",
+"TC1:OCA",
+"EXINT:PCINT5"
+],
+"PB6": [
+"PORTB:P6",
+"TC1:OCB",
+"EXINT:PCINT6"
+],
+"PB7": [
+"PORTB:P7",
+"TC0:OCA",
+"TC1:OCC",
+"EXINT:PCINT7"
+],
+"PBH7": [
+"TC4:T"
+],
+"PC0": [
+"PORTC:P0"
+],
+"PC1": [
+"PORTC:P1"
+],
+"PC2": [
+"PORTC:P2"
+],
+"PC3": [
+"PORTC:P3"
+],
+"PC4": [
+"PORTC:P4"
+],
+"PC5": [
+"PORTC:P5"
+],
+"PC6": [
+"PORTC:P6"
+],
+"PC7": [
+"PORTC:P7"
+],
+"PD0": [
+"TWI:SCL",
+"PORTD:P0",
+"EXINT:INT0"
+],
+"PD1": [
+"TWI:SDA",
+"PORTD:P1",
+"EXINT:INT1"
+],
+"PD2": [
+"USART1:RXD",
+"PORTD:P2",
+"EXINT:INT2"
+],
+"PD3": [
+"USART1:TXD",
+"PORTD:P3",
+"EXINT:INT3"
+],
+"PD4": [
+"PORTD:P4",
+"TC1:ICP"
+],
+"PD5": [
+"USART1:XCK",
+"PORTD:P5"
+],
+"PD6": [
+"PORTD:P6",
+"TC1:T"
+],
+"PD7": [
+"PORTD:P7",
+"TC0:T"
+],
+"PE0": [
+"USART0:RXD",
+"PORTE:P0",
+"EXINT:PCINT8"
+],
+"PE1": [
+"USART0:TXD",
+"PORTE:P1"
+],
+"PE2": [
+"AC:AIN0",
+"USART0:XCK",
+"PORTE:P2"
+],
+"PE3": [
+"AC:AIN1",
+"PORTE:P3",
+"TC3:OCA"
+],
+"PE4": [
+"PORTE:P4",
+"TC3:OCB",
+"EXINT:INT4"
+],
+"PE5": [
+"PORTE:P5",
+"TC3:OCC",
+"EXINT:INT5"
+],
+"PE6": [
+"PORTE:P6",
+"TC3:T",
+"EXINT:INT6"
+],
+"PE7": [
+"PORTE:P7",
+"TC3:ICP",
+"EXINT:INT7",
+"CPU:CLKO0"
+],
+"PF0": [
+"PORTF:P0",
+"ADC:ADC0"
+],
+"PF1": [
+"PORTF:P1",
+"ADC:ADC1"
+],
+"PF2": [
+"PORTF:P2",
+"ADC:ADC2"
+],
+"PF3": [
+"PORTF:P3",
+"ADC:ADC3"
+],
+"PF4": [
+"PORTF:P4",
+"JTAG:TCK",
+"ADC:ADC4"
+],
+"PF5": [
+"PORTF:P5",
+"JTAG:TMS",
+"ADC:ADC5"
+],
+"PF6": [
+"PORTF:P6",
+"JTAG:TDO",
+"ADC:ADC6"
+],
+"PF7": [
+"PORTF:P7",
+"JTAG:TDI",
+"ADC:ADC7"
+],
+"PG0": [
+"PORTG:P0"
+],
+"PG1": [
+"PORTG:P1"
+],
+"PG2": [
+"PORTG:P2"
+],
+"PG3": [
+"PORTG:P3",
+"TC2:TOSC2"
+],
+"PG4": [
+"PORTG:P4",
+"TC2:TOSC1"
+],
+"PG5": [
+"PORTG:P5",
+"TC0:OCB"
+],
+"PH0": [
+"USART2:RXD",
+"PORTH:P0"
+],
+"PH1": [
+"USART2:TXD",
+"PORTH:P1"
+],
+"PH2": [
+"USART2:XCK",
+"PORTH:P2"
+],
+"PH3": [
+"PORTH:P3",
+"TC4:OCA"
+],
+"PH4": [
+"PORTH:P4",
+"TC4:OCB"
+],
+"PH5": [
+"PORTH:P5",
+"TC4:OCC"
+],
+"PH6": [
+"PORTH:P6",
+"TC2:OCB"
+],
+"PH7": [
+"PORTH:P7"
+],
+"PJ0": [
+"USART3:RXD",
+"PORTJ:P0",
+"EXINT:PCINT9"
+],
+"PJ1": [
+"USART3:TXD",
+"PORTJ:P1",
+"EXINT:PCINT10"
+],
+"PJ2": [
+"USART3:XCK",
+"PORTJ:P2",
+"EXINT:PCINT11"
+],
+"PJ3": [
+"PORTJ:P3",
+"EXINT:PCINT12"
+],
+"PJ4": [
+"PORTJ:P4",
+"EXINT:PCINT13"
+],
+"PJ5": [
+"PORTJ:P5",
+"EXINT:PCINT14"
+],
+"PJ6": [
+"PORTJ:P6",
+"EXINT:PCINT15"
+],
+"PJ7": [
+"PORTJ:P7"
+],
+"PK0": [
+"PORTK:P0",
+"EXINT:PCINT16",
+"ADC:ADC8"
+],
+"PK1": [
+"PORTK:P1",
+"EXINT:PCINT17",
+"ADC:ADC9"
+],
+"PK2": [
+"PORTK:P2",
+"EXINT:PCINT18",
+"ADC:ADC10"
+],
+"PK3": [
+"PORTK:P3",
+"EXINT:PCINT19",
+"ADC:ADC11"
+],
+"PK4": [
+"PORTK:P4",
+"EXINT:PCINT20",
+"ADC:ADC12"
+],
+"PK5": [
+"PORTK:P5",
+"EXINT:PCINT21",
+"ADC:ADC13"
+],
+"PK6": [
+"PORTK:P6",
+"EXINT:PCINT22",
+"ADC:ADC14"
+],
+"PK7": [
+"PORTK:P7",
+"EXINT:PCINT23",
+"ADC:ADC15"
+],
+"PL0": [
+"PORTL:P0",
+"TC4:ICP"
+],
+"PL1": [
+"PORTL:P1",
+"TC5:ICP"
+],
+"PL2": [
+"PORTL:P2",
+"TC5:T"
+],
+"PL3": [
+"PORTL:P3",
+"TC5:OCA"
+],
+"PL4": [
+"PORTL:P4",
+"TC5:OCB"
+],
+"PL5": [
+"PORTL:P5",
+"TC5:OCC"
+],
+"PL6": [
+"PORTL:P6"
+],
+"PL7": [
+"PORTL:P7"
+]
+},
+"registers": {
+"ACSR": {
+"addr": 80,
+"bits": {
+"ACBG": 64,
+"ACD": 128,
+"ACI": 16,
+"ACIC": 4,
+"ACIE": 8,
+"ACIS": 3,
+"ACO": 32
+},
+"caption": "Analog Comparator Control And Status Register",
+"mod": "AC",
+"size": 1
+},
+"ADC": {
+"addr": 120,
+"bits": {},
+"caption": "ADC Data Register  Bytes",
+"mod": "ADC",
+"size": 2
+},
+"ADCSRA": {
+"addr": 122,
+"bits": {
+"ADATE": 32,
+"ADEN": 128,
+"ADIE": 8,
+"ADIF": 16,
+"ADPS": 7,
+"ADSC": 64
+},
+"caption": "The ADC Control and Status register A",
+"mod": "ADC",
+"size": 1
+},
+"ADCSRB": {
+"addr": 123,
+"bits": {
+"ACME": 64,
+"ADTS": 7,
+"MUX5": 8
+},
+"caption": "The ADC Control and Status register B",
+"mod": "ADC",
+"size": 1
+},
+"ADMUX": {
+"addr": 124,
+"bits": {
+"ADLAR": 32,
+"MUX": 31,
+"REFS": 192
+},
+"caption": "The ADC multiplexer Selection Register",
+"mod": "ADC",
+"size": 1
+},
+"ASSR": {
+"addr": 182,
+"bits": {
+"AS2": 32,
+"EXCLK": 64,
+"OCR2AUB": 8,
+"OCR2BUB": 4,
+"TCN2UB": 16,
+"TCR2AUB": 2,
+"TCR2BUB": 1
+},
+"caption": "Asynchronous Status Register",
+"mod": "TC8_ASYNC",
+"size": 1
+},
+"CLKPR": {
+"addr": 97,
+"bits": {
+"CLKPCE": 128,
+"CLKPS": 15
+},
+"caption": "",
+"mod": "CPU",
+"size": 1
+},
+"DDRA": {
+"addr": 33,
+"bits": {},
+"caption": "Port A Data Direction Register",
+"mod": "PORT",
+"size": 1
+},
+"DDRB": {
+"addr": 36,
+"bits": {},
+"caption": "Port B Data Direction Register",
+"mod": "PORT",
+"size": 1
+},
+"DDRC": {
+"addr": 39,
+"bits": {},
+"caption": "Port C Data Direction Register",
+"mod": "PORT",
+"size": 1
+},
+"DDRD": {
+"addr": 42,
+"bits": {},
+"caption": "Port D Data Direction Register",
+"mod": "PORT",
+"size": 1
+},
+"DDRE": {
+"addr": 45,
+"bits": {},
+"caption": "Data Direction Register, Port E",
+"mod": "PORT",
+"size": 1
+},
+"DDRF": {
+"addr": 48,
+"bits": {},
+"caption": "Data Direction Register, Port F",
+"mod": "PORT",
+"size": 1
+},
+"DDRG": {
+"addr": 51,
+"bits": {},
+"caption": "Data Direction Register, Port G",
+"mod": "PORT",
+"size": 1
+},
+"DDRH": {
+"addr": 257,
+"bits": {},
+"caption": "PORT H Data Direction Register",
+"mod": "PORT",
+"size": 1
+},
+"DDRJ": {
+"addr": 260,
+"bits": {},
+"caption": "PORT J Data Direction Register",
+"mod": "PORT",
+"size": 1
+},
+"DDRK": {
+"addr": 263,
+"bits": {},
+"caption": "PORT K Data Direction Register",
+"mod": "PORT",
+"size": 1
+},
+"DDRL": {
+"addr": 266,
+"bits": {},
+"caption": "PORT L Data Direction Register",
+"mod": "PORT",
+"size": 1
+},
+"DIDR0": {
+"addr": 126,
+"bits": {
+"ADC0D": 1,
+"ADC1D": 2,
+"ADC2D": 4,
+"ADC3D": 8,
+"ADC4D": 16,
+"ADC5D": 32,
+"ADC6D": 64,
+"ADC7D": 128
+},
+"caption": "Digital Input Disable Register",
+"mod": "ADC",
+"size": 1
+},
+"DIDR1": {
+"addr": 127,
+"bits": {
+"AIN0D": 1,
+"AIN1D": 2
+},
+"caption": "Digital Input Disable Register 1",
+"mod": "AC",
+"size": 1
+},
+"DIDR2": {
+"addr": 125,
+"bits": {
+"ADC10D": 4,
+"ADC11D": 8,
+"ADC12D": 16,
+"ADC13D": 32,
+"ADC14D": 64,
+"ADC15D": 128,
+"ADC8D": 1,
+"ADC9D": 2
+},
+"caption": "Digital Input Disable Register",
+"mod": "ADC",
+"size": 1
+},
+"EEAR": {
+"addr": 65,
+"bits": {},
+"caption": "EEPROM Address Register Low Bytes",
+"mod": "EEPROM",
+"size": 2
+},
+"EECR": {
+"addr": 63,
+"bits": {
+"EEMPE": 4,
+"EEPE": 2,
+"EEPM": 48,
+"EERE": 1,
+"EERIE": 8
+},
+"caption": "EEPROM Control Register",
+"mod": "EEPROM",
+"size": 1
+},
+"EEDR": {
+"addr": 64,
+"bits": {},
+"caption": "EEPROM Data Register",
+"mod": "EEPROM",
+"size": 1
+},
+"EICRA": {
+"addr": 105,
+"bits": {
+"ISC0": 3,
+"ISC1": 12,
+"ISC2": 48,
+"ISC3": 192
+},
+"caption": "External Interrupt Control Register A",
+"mod": "EXINT",
+"size": 1
+},
+"EICRB": {
+"addr": 106,
+"bits": {
+"ISC4": 3,
+"ISC5": 12,
+"ISC6": 48,
+"ISC7": 192
+},
+"caption": "External Interrupt Control Register B",
+"mod": "EXINT",
+"size": 1
+},
+"EIFR": {
+"addr": 60,
+"bits": {
+"INTF": 255
+},
+"caption": "External Interrupt Flag Register",
+"mod": "EXINT",
+"size": 1
+},
+"EIMSK": {
+"addr": 61,
+"bits": {
+"INT": 255
+},
+"caption": "External Interrupt Mask Register",
+"mod": "EXINT",
+"size": 1
+},
+"EIND": {
+"addr": 92,
+"bits": {},
+"caption": "Extended Indirect Register",
+"mod": "CPU",
+"size": 1
+},
+"GPIOR0": {
+"addr": 62,
+"bits": {
+"GPIOR00": 1,
+"GPIOR01": 2,
+"GPIOR02": 4,
+"GPIOR03": 8,
+"GPIOR04": 16,
+"GPIOR05": 32,
+"GPIOR06": 64,
+"GPIOR07": 128
+},
+"caption": "General Purpose IO Register 0",
+"mod": "CPU",
+"size": 1
+},
+"GPIOR1": {
+"addr": 74,
+"bits": {
+"GPIOR": 255
+},
+"caption": "General Purpose IO Register 1",
+"mod": "CPU",
+"size": 1
+},
+"GPIOR2": {
+"addr": 75,
+"bits": {
+"GPIOR": 255
+},
+"caption": "General Purpose IO Register 2",
+"mod": "CPU",
+"size": 1
+},
+"GTCCR": {
+"addr": 67,
+"bits": {
+"PSRASY": 2,
+"TSM": 128
+},
+"caption": "General Timer Counter Control register",
+"mod": "TC8_ASYNC",
+"size": 1
+},
+"ICR1": {
+"addr": 134,
+"bits": {},
+"caption": "Timer/Counter1 Input Capture Register  Bytes",
+"mod": "TC16",
+"size": 2
+},
+"ICR3": {
+"addr": 150,
+"bits": {},
+"caption": "Timer/Counter3 Input Capture Register  Bytes",
+"mod": "TC16",
+"size": 2
+},
+"ICR4": {
+"addr": 166,
+"bits": {},
+"caption": "Timer/Counter4 Input Capture Register  Bytes",
+"mod": "TC16",
+"size": 2
+},
+"ICR5": {
+"addr": 294,
+"bits": {},
+"caption": "Timer/Counter5 Input Capture Register  Bytes",
+"mod": "TC16",
+"size": 2
+},
+"MCUCR": {
+"addr": 85,
+"bits": {
+"IVCE": 1,
+"IVSEL": 2,
+"JTD": 128,
+"PUD": 16
+},
+"caption": "MCU Control Register",
+"mod": "CPU",
+"size": 1
+},
+"MCUSR": {
+"addr": 84,
+"bits": {
+"BORF": 4,
+"EXTRF": 2,
+"JTRF": 16,
+"PORF": 1,
+"WDRF": 8
+},
+"caption": "MCU Status Register",
+"mod": "CPU",
+"size": 1
+},
+"OCDR": {
+"addr": 81,
+"bits": {},
+"caption": "On-Chip Debug Related Register in I/O Memory",
+"mod": "JTAG",
+"size": 1
+},
+"OCR0A": {
+"addr": 71,
+"bits": {},
+"caption": "Timer/Counter0 Output Compare Register",
+"mod": "TC8",
+"size": 1
+},
+"OCR0B": {
+"addr": 72,
+"bits": {},
+"caption": "Timer/Counter0 Output Compare Register",
+"mod": "TC8",
+"size": 1
+},
+"OCR1A": {
+"addr": 136,
+"bits": {},
+"caption": "Timer/Counter1 Output Compare Register A  Bytes",
+"mod": "TC16",
+"size": 2
+},
+"OCR1B": {
+"addr": 138,
+"bits": {},
+"caption": "Timer/Counter1 Output Compare Register B  Bytes",
+"mod": "TC16",
+"size": 2
+},
+"OCR1C": {
+"addr": 140,
+"bits": {},
+"caption": "Timer/Counter1 Output Compare Register C  Bytes",
+"mod": "TC16",
+"size": 2
+},
+"OCR2A": {
+"addr": 179,
+"bits": {},
+"caption": "Timer/Counter2 Output Compare Register A",
+"mod": "TC8_ASYNC",
+"size": 1
+},
+"OCR2B": {
+"addr": 180,
+"bits": {},
+"caption": "Timer/Counter2 Output Compare Register B",
+"mod": "TC8_ASYNC",
+"size": 1
+},
+"OCR3A": {
+"addr": 152,
+"bits": {},
+"caption": "Timer/Counter3 Output Compare Register A  Bytes",
+"mod": "TC16",
+"size": 2
+},
+"OCR3B": {
+"addr": 154,
+"bits": {},
+"caption": "Timer/Counter3 Output Compare Register B  Bytes",
+"mod": "TC16",
+"size": 2
+},
+"OCR3C": {
+"addr": 156,
+"bits": {},
+"caption": "Timer/Counter3 Output Compare Register B  Bytes",
+"mod": "TC16",
+"size": 2
+},
+"OCR4A": {
+"addr": 168,
+"bits": {},
+"caption": "Timer/Counter4 Output Compare Register A  Bytes",
+"mod": "TC16",
+"size": 2
+},
+"OCR4B": {
+"addr": 170,
+"bits": {},
+"caption": "Timer/Counter4 Output Compare Register B  Bytes",
+"mod": "TC16",
+"size": 2
+},
+"OCR4C": {
+"addr": 172,
+"bits": {},
+"caption": "Timer/Counter4 Output Compare Register B  Bytes",
+"mod": "TC16",
+"size": 2
+},
+"OCR5A": {
+"addr": 296,
+"bits": {},
+"caption": "Timer/Counter5 Output Compare Register A  Bytes",
+"mod": "TC16",
+"size": 2
+},
+"OCR5B": {
+"addr": 298,
+"bits": {},
+"caption": "Timer/Counter5 Output Compare Register B  Bytes",
+"mod": "TC16",
+"size": 2
+},
+"OCR5C": {
+"addr": 300,
+"bits": {},
+"caption": "Timer/Counter5 Output Compare Register B  Bytes",
+"mod": "TC16",
+"size": 2
+},
+"OSCCAL": {
+"addr": 102,
+"bits": {
+"OSCCAL": 255
+},
+"caption": "Oscillator Calibration Value",
+"mod": "CPU",
+"size": 1
+},
+"PCICR": {
+"addr": 104,
+"bits": {
+"PCIE": 7
+},
+"caption": "Pin Change Interrupt Control Register",
+"mod": "EXINT",
+"size": 1
+},
+"PCIFR": {
+"addr": 59,
+"bits": {
+"PCIF": 7
+},
+"caption": "Pin Change Interrupt Flag Register",
+"mod": "EXINT",
+"size": 1
+},
+"PCMSK0": {
+"addr": 107,
+"bits": {
+"PCINT": 255
+},
+"caption": "Pin Change Mask Register 0",
+"mod": "EXINT",
+"size": 1
+},
+"PCMSK1": {
+"addr": 108,
+"bits": {
+"PCINT": 255
+},
+"caption": "Pin Change Mask Register 1",
+"mod": "EXINT",
+"size": 1
+},
+"PCMSK2": {
+"addr": 109,
+"bits": {
+"PCINT": 255
+},
+"caption": "Pin Change Mask Register 2",
+"mod": "EXINT",
+"size": 1
+},
+"PINA": {
+"addr": 32,
+"bits": {},
+"caption": "Port A Input Pins",
+"mod": "PORT",
+"size": 1
+},
+"PINB": {
+"addr": 35,
+"bits": {},
+"caption": "Port B Input Pins",
+"mod": "PORT",
+"size": 1
+},
+"PINC": {
+"addr": 38,
+"bits": {},
+"caption": "Port C Input Pins",
+"mod": "PORT",
+"size": 1
+},
+"PIND": {
+"addr": 41,
+"bits": {},
+"caption": "Port D Input Pins",
+"mod": "PORT",
+"size": 1
+},
+"PINE": {
+"addr": 44,
+"bits": {},
+"caption": "Input Pins, Port E",
+"mod": "PORT",
+"size": 1
+},
+"PINF": {
+"addr": 47,
+"bits": {},
+"caption": "Input Pins, Port F",
+"mod": "PORT",
+"size": 1
+},
+"PING": {
+"addr": 50,
+"bits": {},
+"caption": "Input Pins, Port G",
+"mod": "PORT",
+"size": 1
+},
+"PINH": {
+"addr": 256,
+"bits": {},
+"caption": "PORT H Input Pins",
+"mod": "PORT",
+"size": 1
+},
+"PINJ": {
+"addr": 259,
+"bits": {},
+"caption": "PORT J Input Pins",
+"mod": "PORT",
+"size": 1
+},
+"PINK": {
+"addr": 262,
+"bits": {},
+"caption": "PORT K Input Pins",
+"mod": "PORT",
+"size": 1
+},
+"PINL": {
+"addr": 265,
+"bits": {},
+"caption": "PORT L Input Pins",
+"mod": "PORT",
+"size": 1
+},
+"PORTA": {
+"addr": 34,
+"bits": {},
+"caption": "Port A Data Register",
+"mod": "PORT",
+"size": 1
+},
+"PORTB": {
+"addr": 37,
+"bits": {},
+"caption": "Port B Data Register",
+"mod": "PORT",
+"size": 1
+},
+"PORTC": {
+"addr": 40,
+"bits": {},
+"caption": "Port C Data Register",
+"mod": "PORT",
+"size": 1
+},
+"PORTD": {
+"addr": 43,
+"bits": {},
+"caption": "Port D Data Register",
+"mod": "PORT",
+"size": 1
+},
+"PORTE": {
+"addr": 46,
+"bits": {},
+"caption": "Data Register, Port E",
+"mod": "PORT",
+"size": 1
+},
+"PORTF": {
+"addr": 49,
+"bits": {},
+"caption": "Data Register, Port F",
+"mod": "PORT",
+"size": 1
+},
+"PORTG": {
+"addr": 52,
+"bits": {},
+"caption": "Data Register, Port G",
+"mod": "PORT",
+"size": 1
+},
+"PORTH": {
+"addr": 258,
+"bits": {},
+"caption": "PORT H Data Register",
+"mod": "PORT",
+"size": 1
+},
+"PORTJ": {
+"addr": 261,
+"bits": {},
+"caption": "PORT J Data Register",
+"mod": "PORT",
+"size": 1
+},
+"PORTK": {
+"addr": 264,
+"bits": {},
+"caption": "PORT K Data Register",
+"mod": "PORT",
+"size": 1
+},
+"PORTL": {
+"addr": 267,
+"bits": {},
+"caption": "PORT L Data Register",
+"mod": "PORT",
+"size": 1
+},
+"PRR0": {
+"addr": 100,
+"bits": {
+"PRADC": 1,
+"PRSPI": 4,
+"PRTIM0": 32,
+"PRTIM1": 8,
+"PRTIM2": 64,
+"PRTWI": 128,
+"PRUSART0": 2
+},
+"caption": "Power Reduction Register0",
+"mod": "CPU",
+"size": 1
+},
+"PRR1": {
+"addr": 101,
+"bits": {
+"PRTIM3": 8,
+"PRTIM4": 16,
+"PRTIM5": 32,
+"PRUSART1": 1,
+"PRUSART2": 2,
+"PRUSART3": 4
+},
+"caption": "Power Reduction Register1",
+"mod": "CPU",
+"size": 1
+},
+"RAMPZ": {
+"addr": 91,
+"bits": {},
+"caption": "RAM Page Z Select Register",
+"mod": "CPU",
+"size": 1
+},
+"SMCR": {
+"addr": 83,
+"bits": {
+"SE": 1,
+"SM": 14
+},
+"caption": "Sleep Mode Control Register",
+"mod": "CPU",
+"size": 1
+},
+"SP": {
+"addr": 93,
+"bits": {},
+"caption": "Stack Pointer ",
+"mod": "CPU",
+"size": 2
+},
+"SPCR": {
+"addr": 76,
+"bits": {
+"CPHA": 4,
+"CPOL": 8,
+"DORD": 32,
+"MSTR": 16,
+"SPE": 64,
+"SPIE": 128,
+"SPR": 3
+},
+"caption": "SPI Control Register",
+"mod": "SPI",
+"size": 1
+},
+"SPDR": {
+"addr": 78,
+"bits": {},
+"caption": "SPI Data Register",
+"mod": "SPI",
+"size": 1
+},
+"SPMCSR": {
+"addr": 87,
+"bits": {
+"BLBSET": 8,
+"PGERS": 2,
+"PGWRT": 4,
+"RWWSB": 64,
+"RWWSRE": 16,
+"SIGRD": 32,
+"SPMEN": 1,
+"SPMIE": 128
+},
+"caption": "Store Program Memory Control Register",
+"mod": "BOOT_LOAD",
+"size": 1
+},
+"SPSR": {
+"addr": 77,
+"bits": {
+"SPI2X": 1,
+"SPIF": 128,
+"WCOL": 64
+},
+"caption": "SPI Status Register",
+"mod": "SPI",
+"size": 1
+},
+"SREG": {
+"addr": 95,
+"bits": {
+"C": 1,
+"H": 32,
+"I": 128,
+"N": 4,
+"S": 16,
+"T": 64,
+"V": 8,
+"Z": 2
+},
+"caption": "Status Register",
+"mod": "CPU",
+"size": 1
+},
+"TCCR0A": {
+"addr": 68,
+"bits": {
+"COM0A": 192,
+"COM0B": 48,
+"WGM0": 3
+},
+"caption": "Timer/Counter  Control Register A",
+"mod": "TC8",
+"size": 1
+},
+"TCCR0B": {
+"addr": 69,
+"bits": {
+"CS0": 7,
+"FOC0A": 128,
+"FOC0B": 64,
+"WGM02": 8
+},
+"caption": "Timer/Counter Control Register B",
+"mod": "TC8",
+"size": 1
+},
+"TCCR1A": {
+"addr": 128,
+"bits": {
+"COM1A": 192,
+"COM1B": 48,
+"COM1C": 12,
+"WGM1": 3
+},
+"caption": "Timer/Counter1 Control Register A",
+"mod": "TC16",
+"size": 1
+},
+"TCCR1B": {
+"addr": 129,
+"bits": {
+"CS1": 7,
+"ICES1": 64,
+"ICNC1": 128,
+"WGM1": 24
+},
+"caption": "Timer/Counter1 Control Register B",
+"mod": "TC16",
+"size": 1
+},
+"TCCR1C": {
+"addr": 130,
+"bits": {
+"FOC1A": 128,
+"FOC1B": 64,
+"FOC1C": 32
+},
+"caption": "Timer/Counter 1 Control Register C",
+"mod": "TC16",
+"size": 1
+},
+"TCCR2A": {
+"addr": 176,
+"bits": {
+"COM2A": 192,
+"COM2B": 48,
+"WGM2": 3
+},
+"caption": "Timer/Counter2 Control Register A",
+"mod": "TC8_ASYNC",
+"size": 1
+},
+"TCCR2B": {
+"addr": 177,
+"bits": {
+"CS2": 7,
+"FOC2A": 128,
+"FOC2B": 64,
+"WGM22": 8
+},
+"caption": "Timer/Counter2 Control Register B",
+"mod": "TC8_ASYNC",
+"size": 1
+},
+"TCCR3A": {
+"addr": 144,
+"bits": {
+"COM3A": 192,
+"COM3B": 48,
+"COM3C": 12,
+"WGM3": 3
+},
+"caption": "Timer/Counter3 Control Register A",
+"mod": "TC16",
+"size": 1
+},
+"TCCR3B": {
+"addr": 145,
+"bits": {
+"CS3": 7,
+"ICES3": 64,
+"ICNC3": 128,
+"WGM3": 24
+},
+"caption": "Timer/Counter3 Control Register B",
+"mod": "TC16",
+"size": 1
+},
+"TCCR3C": {
+"addr": 146,
+"bits": {
+"FOC3A": 128,
+"FOC3B": 64,
+"FOC3C": 32
+},
+"caption": "Timer/Counter 3 Control Register C",
+"mod": "TC16",
+"size": 1
+},
+"TCCR4A": {
+"addr": 160,
+"bits": {
+"COM4A": 192,
+"COM4B": 48,
+"COM4C": 12,
+"WGM4": 3
+},
+"caption": "Timer/Counter4 Control Register A",
+"mod": "TC16",
+"size": 1
+},
+"TCCR4B": {
+"addr": 161,
+"bits": {
+"CS4": 7,
+"ICES4": 64,
+"ICNC4": 128,
+"WGM4": 24
+},
+"caption": "Timer/Counter4 Control Register B",
+"mod": "TC16",
+"size": 1
+},
+"TCCR4C": {
+"addr": 162,
+"bits": {
+"FOC4A": 128,
+"FOC4B": 64,
+"FOC4C": 32
+},
+"caption": "Timer/Counter 4 Control Register C",
+"mod": "TC16",
+"size": 1
+},
+"TCCR5A": {
+"addr": 288,
+"bits": {
+"COM5A": 192,
+"COM5B": 48,
+"COM5C": 12,
+"WGM5": 3
+},
+"caption": "Timer/Counter5 Control Register A",
+"mod": "TC16",
+"size": 1
+},
+"TCCR5B": {
+"addr": 289,
+"bits": {
+"CS5": 7,
+"ICES5": 64,
+"ICNC5": 128,
+"WGM5": 24
+},
+"caption": "Timer/Counter5 Control Register B",
+"mod": "TC16",
+"size": 1
+},
+"TCCR5C": {
+"addr": 290,
+"bits": {
+"FOC5A": 128,
+"FOC5B": 64,
+"FOC5C": 32
+},
+"caption": "Timer/Counter 5 Control Register C",
+"mod": "TC16",
+"size": 1
+},
+"TCNT0": {
+"addr": 70,
+"bits": {},
+"caption": "Timer/Counter0",
+"mod": "TC8",
+"size": 1
+},
+"TCNT1": {
+"addr": 132,
+"bits": {},
+"caption": "Timer/Counter1  Bytes",
+"mod": "TC16",
+"size": 2
+},
+"TCNT2": {
+"addr": 178,
+"bits": {},
+"caption": "Timer/Counter2",
+"mod": "TC8_ASYNC",
+"size": 1
+},
+"TCNT3": {
+"addr": 148,
+"bits": {},
+"caption": "Timer/Counter3  Bytes",
+"mod": "TC16",
+"size": 2
+},
+"TCNT4": {
+"addr": 164,
+"bits": {},
+"caption": "Timer/Counter4  Bytes",
+"mod": "TC16",
+"size": 2
+},
+"TCNT5": {
+"addr": 292,
+"bits": {},
+"caption": "Timer/Counter5  Bytes",
+"mod": "TC16",
+"size": 2
+},
+"TIFR0": {
+"addr": 53,
+"bits": {
+"OCF0A": 2,
+"OCF0B": 4,
+"TOV0": 1
+},
+"caption": "Timer/Counter0 Interrupt Flag register",
+"mod": "TC8",
+"size": 1
+},
+"TIFR1": {
+"addr": 54,
+"bits": {
+"ICF1": 32,
+"OCF1A": 2,
+"OCF1B": 4,
+"OCF1C": 8,
+"TOV1": 1
+},
+"caption": "Timer/Counter1 Interrupt Flag register",
+"mod": "TC16",
+"size": 1
+},
+"TIFR2": {
+"addr": 55,
+"bits": {
+"OCF2A": 2,
+"OCF2B": 4,
+"TOV2": 1
+},
+"caption": "Timer/Counter Interrupt Flag Register",
+"mod": "TC8_ASYNC",
+"size": 1
+},
+"TIFR3": {
+"addr": 56,
+"bits": {
+"ICF3": 32,
+"OCF3A": 2,
+"OCF3B": 4,
+"OCF3C": 8,
+"TOV3": 1
+},
+"caption": "Timer/Counter3 Interrupt Flag register",
+"mod": "TC16",
+"size": 1
+},
+"TIFR4": {
+"addr": 57,
+"bits": {
+"ICF4": 32,
+"OCF4A": 2,
+"OCF4B": 4,
+"OCF4C": 8,
+"TOV4": 1
+},
+"caption": "Timer/Counter4 Interrupt Flag register",
+"mod": "TC16",
+"size": 1
+},
+"TIFR5": {
+"addr": 58,
+"bits": {
+"ICF5": 32,
+"OCF5A": 2,
+"OCF5B": 4,
+"OCF5C": 8,
+"TOV5": 1
+},
+"caption": "Timer/Counter5 Interrupt Flag register",
+"mod": "TC16",
+"size": 1
+},
+"TIMSK0": {
+"addr": 110,
+"bits": {
+"OCIE0A": 2,
+"OCIE0B": 4,
+"TOIE0": 1
+},
+"caption": "Timer/Counter0 Interrupt Mask Register",
+"mod": "TC8",
+"size": 1
+},
+"TIMSK1": {
+"addr": 111,
+"bits": {
+"ICIE1": 32,
+"OCIE1A": 2,
+"OCIE1B": 4,
+"OCIE1C": 8,
+"TOIE1": 1
+},
+"caption": "Timer/Counter1 Interrupt Mask Register",
+"mod": "TC16",
+"size": 1
+},
+"TIMSK2": {
+"addr": 112,
+"bits": {
+"OCIE2A": 2,
+"OCIE2B": 4,
+"TOIE2": 1
+},
+"caption": "Timer/Counter Interrupt Mask register",
+"mod": "TC8_ASYNC",
+"size": 1
+},
+"TIMSK3": {
+"addr": 113,
+"bits": {
+"ICIE3": 32,
+"OCIE3A": 2,
+"OCIE3B": 4,
+"OCIE3C": 8,
+"TOIE3": 1
+},
+"caption": "Timer/Counter3 Interrupt Mask Register",
+"mod": "TC16",
+"size": 1
+},
+"TIMSK4": {
+"addr": 114,
+"bits": {
+"ICIE4": 32,
+"OCIE4A": 2,
+"OCIE4B": 4,
+"OCIE4C": 8,
+"TOIE4": 1
+},
+"caption": "Timer/Counter4 Interrupt Mask Register",
+"mod": "TC16",
+"size": 1
+},
+"TIMSK5": {
+"addr": 115,
+"bits": {
+"ICIE5": 32,
+"OCIE5A": 2,
+"OCIE5B": 4,
+"OCIE5C": 8,
+"TOIE5": 1
+},
+"caption": "Timer/Counter5 Interrupt Mask Register",
+"mod": "TC16",
+"size": 1
+},
+"TWAMR": {
+"addr": 189,
+"bits": {
+"TWAM": 254
+},
+"caption": "TWI (Slave) Address Mask Register",
+"mod": "TWI",
+"size": 1
+},
+"TWAR": {
+"addr": 186,
+"bits": {
+"TWA": 254,
+"TWGCE": 1
+},
+"caption": "TWI (Slave) Address register",
+"mod": "TWI",
+"size": 1
+},
+"TWBR": {
+"addr": 184,
+"bits": {},
+"caption": "TWI Bit Rate register",
+"mod": "TWI",
+"size": 1
+},
+"TWCR": {
+"addr": 188,
+"bits": {
+"TWEA": 64,
+"TWEN": 4,
+"TWIE": 1,
+"TWINT": 128,
+"TWSTA": 32,
+"TWSTO": 16,
+"TWWC": 8
+},
+"caption": "TWI Control Register",
+"mod": "TWI",
+"size": 1
+},
+"TWDR": {
+"addr": 187,
+"bits": {},
+"caption": "TWI Data register",
+"mod": "TWI",
+"size": 1
+},
+"TWSR": {
+"addr": 185,
+"bits": {
+"TWPS": 3,
+"TWS": 248
+},
+"caption": "TWI Status Register",
+"mod": "TWI",
+"size": 1
+},
+"UBRR0": {
+"addr": 196,
+"bits": {},
+"caption": "USART Baud Rate Register  Bytes",
+"mod": "USART",
+"size": 2
+},
+"UBRR1": {
+"addr": 204,
+"bits": {},
+"caption": "USART Baud Rate Register  Bytes",
+"mod": "USART",
+"size": 2
+},
+"UBRR2": {
+"addr": 212,
+"bits": {},
+"caption": "USART Baud Rate Register  Bytes",
+"mod": "USART",
+"size": 2
+},
+"UBRR3": {
+"addr": 308,
+"bits": {},
+"caption": "USART Baud Rate Register Bytes",
+"mod": "USART",
+"size": 2
+},
+"UCSR0A": {
+"addr": 192,
+"bits": {
+"DOR0": 8,
+"FE0": 16,
+"MPCM0": 1,
+"RXC0": 128,
+"TXC0": 64,
+"U2X0": 2,
+"UDRE0": 32,
+"UPE0": 4
+},
+"caption": "USART Control and Status Register A",
+"mod": "USART",
+"size": 1
+},
+"UCSR0B": {
+"addr": 193,
+"bits": {
+"RXB80": 2,
+"RXCIE0": 128,
+"RXEN0": 16,
+"TXB80": 1,
+"TXCIE0": 64,
+"TXEN0": 8,
+"UCSZ02": 4,
+"UDRIE0": 32
+},
+"caption": "USART Control and Status Register B",
+"mod": "USART",
+"size": 1
+},
+"UCSR0C": {
+"addr": 194,
+"bits": {
+"UCPOL0": 1,
+"UCSZ0": 6,
+"UMSEL0": 192,
+"UPM0": 48,
+"USBS0": 8
+},
+"caption": "USART Control and Status Register C",
+"mod": "USART",
+"size": 1
+},
+"UCSR1A": {
+"addr": 200,
+"bits": {
+"DOR1": 8,
+"FE1": 16,
+"MPCM1": 1,
+"RXC1": 128,
+"TXC1": 64,
+"U2X1": 2,
+"UDRE1": 32,
+"UPE1": 4
+},
+"caption": "USART Control and Status Register A",
+"mod": "USART",
+"size": 1
+},
+"UCSR1B": {
+"addr": 201,
+"bits": {
+"RXB81": 2,
+"RXCIE1": 128,
+"RXEN1": 16,
+"TXB81": 1,
+"TXCIE1": 64,
+"TXEN1": 8,
+"UCSZ12": 4,
+"UDRIE1": 32
+},
+"caption": "USART Control and Status Register B",
+"mod": "USART",
+"size": 1
+},
+"UCSR1C": {
+"addr": 202,
+"bits": {
+"UCPOL1": 1,
+"UCSZ1": 6,
+"UMSEL1": 192,
+"UPM1": 48,
+"USBS1": 8
+},
+"caption": "USART Control and Status Register C",
+"mod": "USART",
+"size": 1
+},
+"UCSR2A": {
+"addr": 208,
+"bits": {
+"DOR2": 8,
+"FE2": 16,
+"MPCM2": 1,
+"RXC2": 128,
+"TXC2": 64,
+"U2X2": 2,
+"UDRE2": 32,
+"UPE2": 4
+},
+"caption": "USART Control and Status Register A",
+"mod": "USART",
+"size": 1
+},
+"UCSR2B": {
+"addr": 209,
+"bits": {
+"RXB82": 2,
+"RXCIE2": 128,
+"RXEN2": 16,
+"TXB82": 1,
+"TXCIE2": 64,
+"TXEN2": 8,
+"UCSZ22": 4,
+"UDRIE2": 32
+},
+"caption": "USART Control and Status Register B",
+"mod": "USART",
+"size": 1
+},
+"UCSR2C": {
+"addr": 210,
+"bits": {
+"UCPOL2": 1,
+"UCSZ2": 6,
+"UMSEL2": 192,
+"UPM2": 48,
+"USBS2": 8
+},
+"caption": "USART Control and Status Register C",
+"mod": "USART",
+"size": 1
+},
+"UCSR3A": {
+"addr": 304,
+"bits": {
+"DOR3": 8,
+"FE3": 16,
+"MPCM3": 1,
+"RXC3": 128,
+"TXC3": 64,
+"U2X3": 2,
+"UDRE3": 32,
+"UPE3": 4
+},
+"caption": "USART Control and Status Register A",
+"mod": "USART",
+"size": 1
+},
+"UCSR3B": {
+"addr": 305,
+"bits": {
+"RXB83": 2,
+"RXCIE3": 128,
+"RXEN3": 16,
+"TXB83": 1,
+"TXCIE3": 64,
+"TXEN3": 8,
+"UCSZ32": 4,
+"UDRIE3": 32
+},
+"caption": "USART Control and Status Register B",
+"mod": "USART",
+"size": 1
+},
+"UCSR3C": {
+"addr": 306,
+"bits": {
+"UCPOL3": 1,
+"UCSZ3": 6,
+"UMSEL3": 192,
+"UPM3": 48,
+"USBS3": 8
+},
+"caption": "USART Control and Status Register C",
+"mod": "USART",
+"size": 1
+},
+"UDR0": {
+"addr": 198,
+"bits": {},
+"caption": "USART I/O Data Register",
+"mod": "USART",
+"size": 1
+},
+"UDR1": {
+"addr": 206,
+"bits": {},
+"caption": "USART I/O Data Register",
+"mod": "USART",
+"size": 1
+},
+"UDR2": {
+"addr": 214,
+"bits": {},
+"caption": "USART I/O Data Register",
+"mod": "USART",
+"size": 1
+},
+"UDR3": {
+"addr": 310,
+"bits": {},
+"caption": "USART I/O Data Register",
+"mod": "USART",
+"size": 1
+},
+"WDTCSR": {
+"addr": 96,
+"bits": {
+"WDCE": 16,
+"WDE": 8,
+"WDIE": 64,
+"WDIF": 128,
+"WDP": 39
+},
+"caption": "Watchdog Timer Control Register",
+"mod": "WDT",
+"size": 1
+},
+"XMCRA": {
+"addr": 116,
+"bits": {
+"SRE": 128,
+"SRL": 112,
+"SRW0": 3,
+"SRW1": 12
+},
+"caption": "External Memory Control Register A",
+"mod": "CPU",
+"size": 1
+},
+"XMCRB": {
+"addr": 117,
+"bits": {
+"XMBK": 128,
+"XMM": 7
+},
+"caption": "External Memory Control Register B",
+"mod": "CPU",
+"size": 1
+}
+},
+"source": "Microchip ATmega_DFP 3.6.299 atdf/ATmega2560.atdf"
+}

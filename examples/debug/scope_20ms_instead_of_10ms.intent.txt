@@ -1,0 +1,1 @@
+RA0 square wave with 10 ms period (100 Hz)

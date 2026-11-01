@@ -1,0 +1,87 @@
+{
+ "schema": 2,
+ "name": "arduino_mega2560_servo",
+ "title": "Arduino Mega 2560 R3: Servo sweep (PWM)",
+ "device": "ARDUINO-MEGA2560",
+ "family": "avr",
+ "power": "board",
+ "parts": [
+  {
+   "id": "U1",
+   "type": "mcu",
+   "x": 0,
+   "y": 0,
+   "rot": 0,
+   "params": {}
+  },
+  {
+   "id": "PWR1",
+   "type": "gnd",
+   "x": 170,
+   "y": 890,
+   "rot": 0,
+   "params": {}
+  },
+  {
+   "id": "M1",
+   "type": "servo",
+   "x": 630,
+   "y": 300,
+   "rot": 0,
+   "params": {
+    "min_us": 1000,
+    "max_us": 2000
+   },
+   "my": true
+  },
+  {
+   "id": "PWR2",
+   "type": "gnd",
+   "x": 530,
+   "y": 350,
+   "rot": 0,
+   "params": {}
+  },
+  {
+   "id": "PWR3",
+   "type": "v5",
+   "x": 530,
+   "y": 240,
+   "rot": 0,
+   "params": {}
+  }
+ ],
+ "wires": [
+  {
+   "a": "U1.74",
+   "b": "PWR1.1",
+   "pts": []
+  },
+  {
+   "a": "M1.1",
+   "b": "PWR2.1",
+   "pts": [
+    {
+     "x": 530,
+     "y": 320
+    }
+   ]
+  },
+  {
+   "a": "M1.2",
+   "b": "PWR3.1",
+   "pts": [
+    {
+     "x": 530,
+     "y": 300
+    }
+   ]
+  },
+  {
+   "a": "U1.12",
+   "b": "M1.3",
+   "pts": []
+  }
+ ],
+ "assign": {}
+}
