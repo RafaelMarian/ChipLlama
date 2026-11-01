@@ -5,7 +5,7 @@
 **The PIC firmware copilot that proves its code is right.**
 
 Plain English in → register-exact, compiler-checked, datasheet-cited C out — for PIC24, dsPIC33, PIC18 and PIC32.
-Powered by Meta **Muse Spark** (Meta Model API) or **Muse Spark Open** (Baseten).
+Powered by Meta **Muse Spark** (Meta Model API).
 
 `Python 3.11+` · `Windows / Linux` · `MPLAB XC8 · XC16 · XC-DSC · XC32` · `PICkit 5` · `MIT`
 
@@ -98,11 +98,7 @@ chipllama calc power "watchdog 1 s"
 Put your key in `.env` (git-ignored):
 
 ```ini
-CHIPLLAMA_BACKEND=meta
 MODEL_API_KEY=...                      # Meta Model API key (dev.meta.ai)
-# or Muse Spark Open on Baseten:
-# CHIPLLAMA_BACKEND=baseten
-# BASETEN_API_KEY=...
 ```
 
 ```powershell
@@ -285,10 +281,9 @@ python -m chipllama flash out\proj\main.hex --yes
 
 `generate --flash --yes` links an ELF, converts it with `xc16-bin2hex` and then programs it. **Programming real hardware is your decision**: read the command, check the target supply (`-W`), and expect to power-cycle/verify yourself.
 
-## Models and backends
+## Model (Meta Model API)
 
-* **Meta Model API (default).** `https://api.meta.ai/v1`, Bearer `MODEL_API_KEY`. Default model `muse-spark-1.3`. ChipLlama uses the OpenAI-compatible **Chat Completions** endpoint (the docs also list `/responses` and `/messages`). Images go as `{"type":"image_url","image_url":{"url":"data:image/png;base64,…"}}` parts in *user* messages. `reasoning_effort` (default `high`) is sent as a top-level field; reasoning tokens count toward `max_tokens` (`CHIPLLAMA_MAX_TOKENS`, default 16000).
-* **Baseten – Muse Spark Open.** `https://inference.baseten.co/v1/chat/completions`, `BASETEN_API_KEY`, model slug `BASETEN_MODEL` (default: the documented `meta-models/muse-spark-open`). Switch with `CHIPLLAMA_BACKEND=baseten`, `--backend baseten`, or the dropdown in the UI.
+* **Meta Model API.** `https://api.meta.ai/v1`, Bearer `MODEL_API_KEY`. Default model `muse-spark-1.3`. ChipLlama uses the OpenAI-compatible **Chat Completions** endpoint (the docs also list `/responses` and `/messages`). Images go as `{"type":"image_url","image_url":{"url":"data:image/png;base64,…"}}` parts in *user* messages. `reasoning_effort` (default `high`) is sent as a top-level field; reasoning tokens count toward `max_tokens` (`CHIPLLAMA_MAX_TOKENS`, default 16000).
 * Retries with back-off on 429/5xx; 4xx errors are surfaced verbatim.
 
 ## Project layout
@@ -306,7 +301,7 @@ chipllama/
   debug.py       dump parser, decoder, rule engine, vision transcription
   flash.py       optional ipecmd/PICkit 5 programming (off by default)
   export.py      MPLAB X-ready folder (main.c, build.bat, Makefile, steps)
-  models/        Meta Model API + Baseten (OpenAI-compatible) clients
+  models/        Meta Model API (OpenAI-compatible) client
   blocks.py      Blockly workspace → deterministic C       audit.py   static audit rules + patched copy
   pins.py        pin planner (PPS / fixed pins / JTAG+ICS) explain.py per-line register annotation
   power.py       sleep/idle/doze/WDT + rough current estimate
@@ -347,19 +342,18 @@ Honest remainder:
 - COE/BKBUG/DEBUG are not emitted. FRC accuracy is not crystal-grade (see the datasheet electrical specs), so measured periods drift accordingly.
 - None of this has been tested on real hardware: `ipecmd`/PICkit 5 command construction is mock-tested only, no chip has been programmed.
 
-Verified from primary sources: Meta Model API base URL/models/Chat Completions image format/`reasoning_effort` values (dev.meta.ai docs, plus live calls); Baseten `meta-models/muse-spark-open` slug and endpoint (docs only, never called live); all register addresses/bits/pages (from DS39897C text, extracted with `pdftotext`); `Fcy = Fosc/2`; period formula.
+Verified from primary sources: Meta Model API base URL/models/Chat Completions image format/`reasoning_effort` values (dev.meta.ai docs, plus live calls); all register addresses/bits/pages (from DS39897C text, extracted with `pdftotext`); `Fcy = Fosc/2`; period formula.
 
 **Not verified / please check on your side:**
 
-1. **Live coverage is the Timer1 path.** Other peripherals' generate paths, the vision-debug image calls and the Baseten backend have only mock tests. The XC16 header names they emit (`_T2Interrupt`, `_U1RXInterrupt`, `_T1IE`-style aliases, …) are from general knowledge, not checked against installed headers. The checker's ISR-name rule would give a false negative if your XC16 version differs.
+1. **Live coverage is the Timer1 path.** Other peripherals' generate paths and the vision-debug image calls have only mock tests. The XC16 header names they emit (`_T2Interrupt`, `_U1RXInterrupt`, `_T1IE`-style aliases, …) are from general knowledge, not checked against installed headers. The checker's ISR-name rule would give a false negative if your XC16 version differs.
 2. **ipecmd flags.** `-P<part>`, `-TP<tool>`, `-F`, `-M`, `-OL`, `-W`, `-TS<serial>` and the `PK5` selector for PICkit 5 were taken from a copy of the `ipecmd -?` help text of MPLAB X v6.15 found in a third-party GitHub gist, **not** from a Microchip page I could open. `-Y` (verify) is the least certain flag. Run `ipecmd.exe -?` on your installation to confirm before enabling flash. Part-name convention `-P24FJ256GB110` (no `PIC` prefix) comes from the same source.
-3. **Baseten model id.** The task brief mentioned `meta-models/muse-spark-open-1026`; I could not find that id in any documentation, so the default is the documented `meta-models/muse-spark-open`. Override `BASETEN_MODEL` if your Baseten dashboard shows another id. Baseten has no documented JSON mode/logprobs, none are used; `reasoning_effort` is not sent unless `BASETEN_REASONING_EFFORT` is set.
-4. **Meta API docs/cookbook pages** beyond the pages cited above were not retrievable (404/empty), so e.g. rate limits, `/responses`-only features and exact error bodies are untested.
-5. The default `muse-spark-1.3` and `reasoning_effort=high` reflect the docs at build time (Oct 2026) and may change.
+3. **Meta API docs/cookbook pages** beyond the pages cited above were not retrievable (404/empty), so e.g. rate limits, `/responses`-only features and exact error bodies are untested.
+4. The default `muse-spark-1.3` and `reasoning_effort=high` reflect the docs at build time (Oct 2026) and may change.
 
 ## Built during the hackathon (started Oct 27 2026)
 
-ChipLlama was designed and written from scratch during the Meta Global AI Developer Hackathon; development started on **Oct 27 2026** (submission deadline Nov 4 2026, 9 PM ET). Everything in this repository — the register database, solver, emulator, checker, agent loop, debug engine, model clients, server/UI/CLI and tests — was created during that window (see `git log`). Third-party material used: Microchip's public datasheet DS39897C (register facts only; not redistributed), Meta Model API / Baseten docs, and the open-source Python libraries listed in `requirements.txt`.
+ChipLlama was designed and written from scratch during the Meta Global AI Developer Hackathon; development started on **Oct 27 2026** (submission deadline Nov 4 2026, 9 PM ET). Everything in this repository — the register database, solver, emulator, checker, agent loop, debug engine, model clients, server/UI/CLI and tests — was created during that window (see `git log`). Third-party material used: Microchip's public datasheet DS39897C (register facts only; not redistributed), Meta Model API docs, and the open-source Python libraries listed in `requirements.txt`.
 
 ## 🔒 Security notes
 

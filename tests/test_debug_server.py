@@ -69,7 +69,7 @@ def test_debug_without_model_is_deterministic():
 # ----- FastAPI
 def make_client(settings, replies):
     m = ScriptedModel(replies)
-    return TestClient(create_app(settings, model_factory=lambda b: m, compile_fn=compile_ok)), m
+    return TestClient(create_app(settings, model_factory=lambda: m, compile_fn=compile_ok)), m
 
 
 def test_api_status_and_index(settings):

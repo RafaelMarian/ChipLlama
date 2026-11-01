@@ -29,15 +29,10 @@ def _b(name: str, default: bool = False) -> bool:
 
 @dataclass
 class Settings:
-    backend: str = "meta"
     meta_api_key: str = ""
     meta_base_url: str = "https://api.meta.ai/v1"
     meta_model: str = "muse-spark-1.3"
     meta_reasoning_effort: str = "high"
-    baseten_api_key: str = ""
-    baseten_base_url: str = "https://inference.baseten.co/v1"
-    baseten_model: str = "meta-models/muse-spark-open"
-    baseten_reasoning_effort: str = ""
     max_tokens: int = 16000
     device: str = "PIC24FJ256GB110"
     xc16_gcc: str = ""
@@ -76,15 +71,10 @@ class Settings:
     @classmethod
     def _from_environ(cls, e) -> "Settings":
         return cls(
-            backend=e("CHIPLLAMA_BACKEND", "meta").strip().lower(),
             meta_api_key=e("MODEL_API_KEY", ""),
             meta_base_url=e("META_BASE_URL", cls.meta_base_url),
             meta_model=e("META_MODEL", cls.meta_model),
             meta_reasoning_effort=e("META_REASONING_EFFORT", cls.meta_reasoning_effort),
-            baseten_api_key=e("BASETEN_API_KEY", ""),
-            baseten_base_url=e("BASETEN_BASE_URL", cls.baseten_base_url),
-            baseten_model=e("BASETEN_MODEL", cls.baseten_model),
-            baseten_reasoning_effort=e("BASETEN_REASONING_EFFORT", ""),
             max_tokens=int(e("CHIPLLAMA_MAX_TOKENS", "16000")),
             device=e("CHIPLLAMA_DEVICE", "PIC24FJ256GB110"),
             xc16_gcc=e("XC16_GCC", ""),
@@ -110,10 +100,10 @@ class Settings:
 
 
 # ---------------------------------------------------------------- settings.json (dashboard)
-SECRET_FIELDS = ("meta_api_key", "baseten_api_key")
+SECRET_FIELDS = ("meta_api_key",)
 UI_FIELDS = ("device", "clock_profile", "crystal_hz", "ics", "xc16_gcc", "xc16_bin2hex", "xc8_cc", "xc32_gcc", "xc_dsc_gcc", "dspic_compiler", "mplab_packs_dir", "ipecmd_path",
-             "ipecmd_tool", "ipecmd_serial", "ipecmd_power_target", "enable_flash", "backend", "meta_model",
-             "meta_reasoning_effort", "baseten_model", "baseten_reasoning_effort", "max_iters", "max_tokens",
+             "ipecmd_tool", "ipecmd_serial", "ipecmd_power_target", "enable_flash", "meta_model",
+             "meta_reasoning_effort", "max_iters", "max_tokens",
              "vision_passes", "datasheet_pdf", "family_mode") + SECRET_FIELDS
 
 
@@ -173,8 +163,6 @@ def save_settings(update: dict, path: Path | None = None) -> dict:
             raise ValueError(f"ics must be one of {ICS_PAIRS}")
         if k == "clock_profile" and v not in PROFILE_KEYS:
             raise ValueError(f"clock_profile must be one of {PROFILE_KEYS}")
-        if k == "backend" and v not in ("meta", "baseten"):
-            raise ValueError("backend must be meta or baseten")
         if k == "family_mode" and v not in ("baremetal", "arduino"):
             raise ValueError("family_mode must be baremetal or arduino")
         if k == "max_iters" and not 1 <= v <= 10:

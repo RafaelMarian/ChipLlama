@@ -233,7 +233,7 @@ def test_cli_devices_and_pragmas(packs, capsys, monkeypatch):
 
 def test_api_devices_device_pragmas(packs):
     s = Settings(device="PIC18F45K22", mplab_packs_dir=str(packs))
-    c = TestClient(create_app(s, model_factory=lambda b: None, compile_fn=compile_ok))
+    c = TestClient(create_app(s, model_factory=lambda: None, compile_fn=compile_ok))
     j = c.get("/api/devices?q=K22").json()
     assert j["devices"][0]["name"] == "PIC18F45K22" and "path" not in j["devices"][0]
     d = c.get("/api/device?name=DSPIC33CK256MP506").json()
