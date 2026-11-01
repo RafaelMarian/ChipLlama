@@ -9,9 +9,8 @@ Powered by Meta **Muse Spark** (Meta Model API) or **Muse Spark Open** (Baseten)
 
 `Python 3.11+` · `Windows / Linux` · `MPLAB XC8 · XC16 · XC-DSC · XC32` · `PICkit 5` · `MIT`
 
-<!-- GIF placeholders: record with ScreenToGif and drop the files in docs/ -->
-![ChipLlama generating a verified Timer1 interrupt](docs/demo-generate.gif)
-<!-- ![Reverse-debugging an MPLAB X SFR screenshot](docs/demo-debug.gif) -->
+<!-- Hero: replace with a recorded docs/demo-generate.gif (ScreenToGif) when available -->
+![ChipLlama generating a verified Timer1 interrupt](docs/screenshots/generate.png)
 
 </div>
 
@@ -85,6 +84,14 @@ chipllama calc spi "SPI1 master 2 MHz mode 3"
 chipllama calc i2c "I2C1 400 kHz"
 chipllama calc power "watchdog 1 s"
 ```
+
+### What works on a fresh machine (judges, no installs)
+
+- **No API key:** everything deterministic works — `calc`, `audit`, `pins`, `explain`, Blocks C generation, Circuit checks. Only `generate` and Muse explanations need a key.
+- **No XC16:** the compile step is skipped gracefully; verification falls back to registers-only.
+- **No datasheet PDF:** text-only mode (no page images sent to the model). The register facts stay embedded in `chipdb.py`, so checking still works.
+- **No MPLAB X packs:** bundled EDC snapshots for 7 devices (`chipllama/data/edc/`) cover `#pragma config` and project generation; full pack search (`devices` command, `-mdfp` auto-select) needs local packs.
+- **Full demo:** API key + XC16 + `datasheets/DS39897C.pdf` + MPLAB X packs. `chipllama doctor` tells you exactly what is missing.
 
 ## 🦙 Using Meta Muse
 
@@ -324,23 +331,31 @@ All model, compiler and programmer calls are mocked (scripted model replies, `ht
 * The checker covers the peripherals listed in Features; USB is config-checked only.
 * Default Fosc is assumed to be **32 MHz** if the request doesn't say; ChipLlama cannot see your configuration bits.
 
-## Unverified assumptions (honest list)
+## Verified live (Nov 1 2026) and remaining assumptions
+
+Live run on the author's box (XC16 v2.10, PIC24F-GA-GB DFP 1.11.479, Meta Model API `muse-spark-1.3`):
+`generate "Timer1 interrupt every 10 ms, priority 5"` → **VERIFIED (registers+compile) on attempt 1**
+(5 datasheet page images attached, full `#pragma config` block, compiled with real `xc16-gcc`),
+and a fault-injected run (PR1 halved) → checker caught the −50% period error → **VERIFIED on attempt 2**.
+`examples/timer1_10ms.c` also compiles clean with the real toolchain.
+
+Honest remainder:
 - XC16 `#pragma config` names come from secondary sources (see above), not the datasheet. `PLL_96MHZ` (with
   underscore) is the GB110 spelling; GB0xx/GB210 parts use `PLL96MHZ`. `PLL_96MHZ = OFF` (the `frc` profile) has been seen only as `PLL_96MHz_OFF`.
+  (The emitted block does compile under XC16 v2.10, but Microchip may rename settings between versions.)
 - `OSCIOFNC = ON` means RC15 is a normal I/O pin. That is the opposite of the raw datasheet bit, so check it.
 - COE/BKBUG/DEBUG are not emitted. FRC accuracy is not crystal-grade (see the datasheet electrical specs), so measured periods drift accordingly.
-- None of this has been tested on real hardware.
+- None of this has been tested on real hardware: `ipecmd`/PICkit 5 command construction is mock-tested only, no chip has been programmed.
 
-Verified from primary sources: Meta Model API base URL/models/Chat Completions image format/`reasoning_effort` values (dev.meta.ai docs); Baseten `meta-models/muse-spark-open` slug and endpoint; all register addresses/bits/pages (from DS39897C text, extracted with `pdftotext`); `Fcy = Fosc/2`; period formula.
+Verified from primary sources: Meta Model API base URL/models/Chat Completions image format/`reasoning_effort` values (dev.meta.ai docs, plus live calls); Baseten `meta-models/muse-spark-open` slug and endpoint (docs only, never called live); all register addresses/bits/pages (from DS39897C text, extracted with `pdftotext`); `Fcy = Fosc/2`; period formula.
 
 **Not verified / please check on your side:**
 
-1. **Hardware and XC16 were never exercised.** The author's build box had no XC16 and no PICkit 5, so `xc16-gcc` invocation (`-mcpu=24FJ256GB110 -O1 -Wall -c`, `xc16-bin2hex`) and the `ipecmd` run were tested only with mocks.
-2. **XC16 names from general knowledge, not checked against the installed headers:** `<xc.h>`, `T1CONbits`/`IFS0bits`/`IEC0bits`/`IPC0bits` members, `_T1IE`-style aliases, ISR names `_T1Interrupt`/`_T2Interrupt`/`_T3Interrupt` with `__attribute__((interrupt, auto_psv))`. The checker's ISR-name rule would give a false negative if your XC16 version differs.
-3. **ipecmd flags.** `-P<part>`, `-TP<tool>`, `-F`, `-M`, `-OL`, `-W`, `-TS<serial>` and the `PK5` selector for PICkit 5 were taken from a copy of the `ipecmd -?` help text of MPLAB X v6.15 found in a third-party GitHub gist, **not** from a Microchip page I could open. `-Y` (verify) is the least certain flag. Run `ipecmd.exe -?` on your installation to confirm before enabling flash. Part-name convention `-P24FJ256GB110` (no `PIC` prefix) comes from the same source.
-4. **Baseten model id.** The task brief mentioned `meta-models/muse-spark-open-1026`; I could not find that id in any documentation, so the default is the documented `meta-models/muse-spark-open`. Override `BASETEN_MODEL` if your Baseten dashboard shows another id. Baseten has no documented JSON mode/logprobs, none are used; `reasoning_effort` is not sent unless `BASETEN_REASONING_EFFORT` is set.
-5. **Meta API docs/cookbook pages** beyond the pages cited above were not retrievable (404/empty), so e.g. rate limits, `/responses`-only features and exact error bodies are untested. No call to the live API has been made by the author (no key available).
-6. The default `muse-spark-1.3` and `reasoning_effort=high` reflect the docs at build time (Oct 2026) and may change.
+1. **Live coverage is the Timer1 path.** Other peripherals' generate paths, the vision-debug image calls and the Baseten backend have only mock tests. The XC16 header names they emit (`_T2Interrupt`, `_U1RXInterrupt`, `_T1IE`-style aliases, …) are from general knowledge, not checked against installed headers. The checker's ISR-name rule would give a false negative if your XC16 version differs.
+2. **ipecmd flags.** `-P<part>`, `-TP<tool>`, `-F`, `-M`, `-OL`, `-W`, `-TS<serial>` and the `PK5` selector for PICkit 5 were taken from a copy of the `ipecmd -?` help text of MPLAB X v6.15 found in a third-party GitHub gist, **not** from a Microchip page I could open. `-Y` (verify) is the least certain flag. Run `ipecmd.exe -?` on your installation to confirm before enabling flash. Part-name convention `-P24FJ256GB110` (no `PIC` prefix) comes from the same source.
+3. **Baseten model id.** The task brief mentioned `meta-models/muse-spark-open-1026`; I could not find that id in any documentation, so the default is the documented `meta-models/muse-spark-open`. Override `BASETEN_MODEL` if your Baseten dashboard shows another id. Baseten has no documented JSON mode/logprobs, none are used; `reasoning_effort` is not sent unless `BASETEN_REASONING_EFFORT` is set.
+4. **Meta API docs/cookbook pages** beyond the pages cited above were not retrievable (404/empty), so e.g. rate limits, `/responses`-only features and exact error bodies are untested.
+5. The default `muse-spark-1.3` and `reasoning_effort=high` reflect the docs at build time (Oct 2026) and may change.
 
 ## Built during the hackathon (started Oct 27 2026)
 
