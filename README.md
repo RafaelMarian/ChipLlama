@@ -58,7 +58,7 @@ See [ROADMAP.md](ROADMAP.md) for what comes next.
 
 ```mermaid
 flowchart LR
-    U[Request<br/>"SPI1 2 MHz mode 3"] --> P[Parser + spec<br/>Fcy, pins, rates]
+    U[Request<br/>SPI1 2 MHz mode 3] --> P[Parser + spec<br/>Fcy, pins, rates]
     P --> R[Reference solver<br/>deterministic]
     P --> D[Datasheet pages<br/>PNG + register tables]
     D --> M[Meta Muse Spark<br/>writes C]
