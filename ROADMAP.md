@@ -1,12 +1,15 @@
 # ChipLlama roadmap
 
-## Done (hackathon, Oct 27-29 2026)
-- **M1** Generate → verify (register checker, C emulator, XC16 compile) → self-correct; reverse debug from screenshots/dumps.
+## Done (hackathon, Oct 27 - Nov 1 2026)
+- **M1** Generate → verify (register checker, C emulator, XC16 compile) → self-correct; reverse debug from screenshots/dumps. Verified live Nov 1 (Timer1, first-try pass + fault-injection self-correct, real XC16 v2.10).
 - **M2** Blocks tab: Blockly → deterministic, verified C; "polish with Muse".
 - **M3** Audit: static rules for existing code / MPLAB X projects, datasheet pages, patched copy (`chipllama audit --fix`).
 - **M5** Premium UI: sidebar shell, dark design tokens, vendored fonts, empty states, toasts, Ctrl+Enter, responsive ≥1100 px.
 - **M4** Pin planner (PPS/fixed pins/JTAG/ICS conflicts + `pins_init()`), explain-code mode, rough power estimate.
+- **M6** Circuit tab: netlist, MCU pin-function assignment, ERC with datasheet pages, HAL/board/drivers project generation + MPLAB X export.
+- **M7** Schematic: KiCad-style auto-wire, 50-mil-grid geometry/router, MCU power checklist, KiCad layout export.
 - **M8** MCU family plugins: Arduino AVR (Uno/Nano/Mega), STM32 (Blue Pill, Nucleo-F411RE, F030), ESP32 (DevKitC, C3), across Generate, Circuit, Blocks, Audit, Doctor and Settings. PIC stays primary.
+- **M9** Auto re-wire: remap a circuit onto a new device, rebuild MCU support circuitry, re-place and re-route.
 
 ## Next
 - **FPGA (roadmap only)**: iCE40 / ECP5 via yosys + nextpnr, plus Gowin. Verilog generation checked by a Verilator lint and a simulation testbench, with pin constraints (PCF/LPF) from the Circuit tab. Not started.
