@@ -9,6 +9,7 @@ build/
 out/
 *.egg-info/
 datasheets/*.pdf
+datasheets/*.PDF
 datasheets/pages/
 settings.json
 devices/
