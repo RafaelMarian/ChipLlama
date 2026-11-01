@@ -328,10 +328,13 @@ All model, compiler and programmer calls are mocked (scripted model replies, `ht
 
 ## Verified live (Nov 1 2026) and remaining assumptions
 
-Live run on the author's box (XC16 v2.10, PIC24F-GA-GB DFP 1.11.479, Meta Model API `muse-spark-1.3`):
+Live runs on the author's box (XC16 v2.10, PIC24F-GA-GB DFP 1.11.479, Meta Model API `muse-spark-1.3`):
 `generate "Timer1 interrupt every 10 ms, priority 5"` → **VERIFIED (registers+compile) on attempt 1**
 (5 datasheet page images attached, full `#pragma config` block, compiled with real `xc16-gcc`),
 and a fault-injected run (PR1 halved) → checker caught the −50% period error → **VERIFIED on attempt 2**.
+Also verified live: `UART1 115200 baud` (checker caught a real U1BRG off-by-one on attempt 1 → VERIFIED on attempt 2),
+`SPI1 master 2 MHz mode 3` (first-try pass), and vision reverse-debug of an SFR screenshot
+(2 independent passes agreed, confidence 0.99, prescaler root cause + fix with datasheet pages).
 `examples/timer1_10ms.c` also compiles clean with the real toolchain.
 
 Honest remainder:
@@ -346,7 +349,7 @@ Verified from primary sources: Meta Model API base URL/models/Chat Completions i
 
 **Not verified / please check on your side:**
 
-1. **Live coverage is the Timer1 path.** Other peripherals' generate paths and the vision-debug image calls have only mock tests. The XC16 header names they emit (`_T2Interrupt`, `_U1RXInterrupt`, `_T1IE`-style aliases, …) are from general knowledge, not checked against installed headers. The checker's ISR-name rule would give a false negative if your XC16 version differs.
+1. **Live coverage is Timer1, UART1, SPI1 and SFR screenshot debug.** The remaining peripherals' generate paths and scope/serial-terminal debug have only mock tests. The XC16 header names they emit (`_T2Interrupt`, `_U1RXInterrupt`, `_T1IE`-style aliases, …) are from general knowledge, not checked against installed headers. The checker's ISR-name rule would give a false negative if your XC16 version differs.
 2. **ipecmd flags.** `-P<part>`, `-TP<tool>`, `-F`, `-M`, `-OL`, `-W`, `-TS<serial>` and the `PK5` selector for PICkit 5 were taken from a copy of the `ipecmd -?` help text of MPLAB X v6.15 found in a third-party GitHub gist, **not** from a Microchip page I could open. `-Y` (verify) is the least certain flag. Run `ipecmd.exe -?` on your installation to confirm before enabling flash. Part-name convention `-P24FJ256GB110` (no `PIC` prefix) comes from the same source.
 3. **Meta API docs/cookbook pages** beyond the pages cited above were not retrievable (404/empty), so e.g. rate limits, `/responses`-only features and exact error bodies are untested.
 4. The default `muse-spark-1.3` and `reasoning_effort=high` reflect the docs at build time (Oct 2026) and may change.

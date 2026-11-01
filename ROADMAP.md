@@ -1,7 +1,7 @@
 # ChipLlama roadmap
 
 ## Done (hackathon, Oct 27 - Nov 1 2026)
-- **M1** Generate → verify (register checker, C emulator, XC16 compile) → self-correct; reverse debug from screenshots/dumps. Verified live Nov 1 (Timer1, first-try pass + fault-injection self-correct, real XC16 v2.10).
+- **M1** Generate → verify (register checker, C emulator, XC16 compile) → self-correct; reverse debug from screenshots/dumps. Verified live Nov 1 (Timer1/UART1/SPI1 incl. self-correction, SFR screenshot debug, real XC16 v2.10).
 - **M2** Blocks tab: Blockly → deterministic, verified C; "polish with Muse".
 - **M3** Audit: static rules for existing code / MPLAB X projects, datasheet pages, patched copy (`chipllama audit --fix`).
 - **M5** Premium UI: sidebar shell, dark design tokens, vendored fonts, empty states, toasts, Ctrl+Enter, responsive ≥1100 px.
