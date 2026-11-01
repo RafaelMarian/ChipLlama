@@ -35,7 +35,7 @@ Proven, not promised: **559 tests green**, and Timer1/UART1/SPI1 generation plus
 
 ## 🎬 Demo (3 minutes, no API key needed for steps 2-5)
 
-> 🎬 **Demo video:** link added before the Nov 4 submission.
+[![ChipLlama demo video](https://img.youtube.com/vi/TNuwFj-aAUs/maxresdefault.jpg)](https://youtu.be/TNuwFj-aAUs)
 
 | Generate | Audit | Pin planner |
 |---|---|---|
