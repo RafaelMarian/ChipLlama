@@ -9,7 +9,7 @@ Powered by Meta **Muse Spark** (Meta Model API).
 
 `Python 3.11+` · `Windows / Linux` · `MPLAB XC8 · XC16 · XC-DSC · XC32` · `PICkit 5` · `MIT`
 
-<!-- Hero: replace with a recorded docs/demo-generate.gif (ScreenToGif) when available -->
+
 ![ChipLlama generating a verified Timer1 interrupt](docs/screenshots/generate.png)
 
 </div>
@@ -17,6 +17,8 @@ Powered by Meta **Muse Spark** (Meta Model API).
 > Built for the Meta Global AI Developer Hackathon (Oct 27 – Nov 4 2026). See [Built during the hackathon](#built-during-the-hackathon-started-oct-27-2026).
 
 ChipLlama is **not a datasheet chatbot**. A chatbot says "probably this register value". ChipLlama replays the generated init code in a register emulator, compares the result with a deterministic reference solver, compiles it with the real Microchip compiler, and loops with Muse until everything passes. Only then is the code marked **VERIFIED**.
+
+Proven, not promised: **559 tests green**, and Timer1/UART1/SPI1 generation plus SFR screenshot debug **verified live** against the real XC16 toolchain (see [Verified live](#verified-live-nov-1-2026-and-remaining-assumptions)).
 
 ## ✨ Features
 
@@ -33,9 +35,15 @@ ChipLlama is **not a datasheet chatbot**. A chatbot says "probably this register
 
 ## 🎬 Demo (3 minutes, no API key needed for steps 2-5)
 
+> 🎬 **Demo video:** link added before the Nov 4 submission.
+
 | Generate | Audit | Pin planner |
 |---|---|---|
 | ![Generate](docs/screenshots/generate.png) | ![Audit](docs/screenshots/audit.png) | ![Pins](docs/screenshots/pins.png) |
+
+| Blocks | Explain code |
+|---|---|
+| ![Blocks](docs/screenshots/blocks.png) | ![Explain](docs/screenshots/explain.png) |
 
 1. `chipllama serve` → **Generate**: type *"Timer1 interrupt every 10 ms, priority 5"*, press **Ctrl+Enter**. Muse writes register-level C; every register is checked against DS39897C and compiled with XC16 (needs `MODEL_API_KEY`).
 2. **Blocks**: pick an example, drag blocks; the C on the right is deterministic and already verified.
@@ -163,7 +171,7 @@ Sources for the pragma names: the datasheet gives bit meanings but no XC16 names
 MPLAB X-generated blocks for the PIC24FJ256GB110 in public forum posts (edaboard, Microchip forum) and from a
 p24fj256gb110.h listing. Run `xc16-gcc --help` or check `docs/config_index.html` in your XC16 install to confirm.
 
-## 🧱 MCU families (M8): Arduino AVR, STM32, ESP32
+## 🧱 MCU families: Arduino AVR, STM32, ESP32
 
 The PIC24FJ256GB110 is still the primary target, and nothing in the PIC path changed. On top of it, M8 adds family plugins in `chipllama/families/`:
 
@@ -306,7 +314,7 @@ chipllama/
   pins.py        pin planner (PPS / fixed pins / JTAG+ICS) explain.py per-line register annotation
   power.py       sleep/idle/doze/WDT + rough current estimate
   server.py      FastAPI app   ·   web/ (index.html, app.css, app.js, blocks.js, audit.js, pins.js, fonts/)   ·   cli.py  CLI
-tests/           340+ tests, all model/compiler/flash calls mocked
+tests/           560+ tests, all model/compiler/flash calls mocked
 examples/        timer1_10ms.c, dead_timer_dump.txt
 datasheets/      put DS39897C.pdf here (git-ignored)
 ```
@@ -356,7 +364,7 @@ Verified from primary sources: Meta Model API base URL/models/Chat Completions i
 
 ## Built during the hackathon (started Oct 27 2026)
 
-ChipLlama was designed and written from scratch during the Meta Global AI Developer Hackathon; development started on **Oct 27 2026** (submission deadline Nov 4 2026, 9 PM ET). Everything in this repository — the register database, solver, emulator, checker, agent loop, debug engine, model clients, server/UI/CLI and tests — was created during that window (see `git log`). Third-party material used: Microchip's public datasheet DS39897C (register facts only; not redistributed), Meta Model API docs, and the open-source Python libraries listed in `requirements.txt`.
+ChipLlama was designed and written from scratch during the Meta Global AI Developer Hackathon; development started on **Oct 27 2026** (submission deadline Nov 4 2026, 9 PM ET). Everything in this repository — the register database, solver, emulator, checker, agent loop, debug engine, model clients, server/UI/CLI and tests — was created during that window (see the [commit history](https://github.com/RafaelMarian/ChipLlama/commits/main)). Third-party material used: Microchip's public datasheet DS39897C (register facts only; not redistributed), Meta Model API docs, and the open-source Python libraries listed in `requirements.txt`.
 
 ## 🔒 Security notes
 
